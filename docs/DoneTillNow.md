@@ -9,6 +9,38 @@ or flagged for follow-up. Newest entries at the top.
 
 ---
 
+## Feature: Frontend Foundation (Day 1, Feature 0)
+
+**Status:** Done — 2026-07-29. Standalone shell only, no backend calls wired yet. Full contract
+in `docs/handoffs/F0-foundation-frontend.md`.
+
+**What shipped:** design tokens (UIUX §5/§11, light+dark, CSS vars + AntD `ConfigProvider`
+theme), i18n (`react-i18next`, EN/UR `common` bundle, Zustand-driven language/direction switch),
+IBM Plex Sans/Plex Sans Arabic + lazy Noto Nastaliq Urdu fonts, routing skeleton
+(`react-router-dom`, one placeholder per feature area, no guards yet), provider composition
+(`QueryClientProvider` + `ConfigProvider` + router), a shared axios client typed to the backend's
+`ApiEnvelope`, and four shared component shells (`SkeletonLoader`, `toast`, `Modal`,
+`EmptyState`).
+
+**Real bug found and fixed:** a top-level `src/App.tsx` importing from the `src/app/` folder
+hit `TS2303: Circular definition of import alias` — on case-insensitive filesystems (Windows,
+this dev machine) `./app` and `./App.tsx` resolve to the same path. Fixed by moving the root
+component into `app/AppProviders.tsx` and deleting the top-level `App.tsx`; `main.tsx` now
+imports directly from `./app`.
+
+**Verified:** `pnpm install` (via `npx pnpm@9`, corepack couldn't write to `Program Files` in
+this sandbox — documented as a possible one-off environment quirk, not a repo issue), `tsc
+--noEmit` clean, `vite build` clean, dev server booted and driven headless with Playwright
+(Chromium) — all four placeholder routes render, zero console errors, UIUX color/type tokens
+visibly applied in the screenshot.
+
+**Known limitations:** RTL/Urdu flip is wired (i18n + AntD `direction` + `<html dir>`) but not
+yet manually eyeballed, since no header/nav component with a language switcher exists yet — first
+feature to add one should do that check. `@karobarai/shared` added as a real frontend dependency
+for the first time (just the `Language` type today).
+
+---
+
 ## Feature: Authentication (Implementation Plan Phase 3)
 
 **Status:** Code complete — 2026-07-28. **Verification blocked**: Redis (Memurai) is not yet

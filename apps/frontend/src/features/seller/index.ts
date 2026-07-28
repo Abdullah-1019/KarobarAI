@@ -1,2 +1,2 @@
-// Seller-facing screens (Store Builder, Products, Orders, Analytics, ...). Placeholder for folder structure (TRD §12).
-export {};
+// Seller screens (Store Setup, Products, Orders, Analytics, ...) land here starting F3.
+export { SellerPlaceholder } from './SellerPlaceholder';

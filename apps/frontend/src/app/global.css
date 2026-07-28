@@ -1,0 +1,90 @@
+/* Design tokens — UIUX doc §5 (color), §6.1 (type scale), §11 (radius/shadow/motion). */
+
+:root {
+  /* Color — light mode (UIUX §5.1) */
+  --brand-primary: #1a6b49;
+  --brand-primary-hover: #15583c;
+  --brand-primary-active: #0f4630;
+  --brand-primary-soft: #e7f2ec;
+  --accent-marigold: #f4a024;
+  --accent-marigold-soft: #fcefd6;
+  --bg-canvas: #fbf8f3;
+  --bg-surface: #ffffff;
+  --bg-sunken: #f3eee5;
+  --border: #e7e0d5;
+  --text-primary: #211d17;
+  --text-secondary: #6b6358;
+  --text-disabled: #a89e90;
+
+  /* Semantic (UIUX §5.2) */
+  --success: #1a6b49;
+  --warning: #c77a12;
+  --error: #b23a2a;
+  --info: #2c6a93;
+
+  /* Type scale (UIUX §6.1) */
+  --fs-xs: 12px;
+  --fs-sm: 14px;
+  --fs-base: 16px;
+  --fs-lg: 18px;
+  --fs-xl: 20px;
+  --fs-2xl: 24px;
+  --fs-3xl: 30px;
+  --fs-4xl: 36px;
+
+  /* Radius / shadow / motion (UIUX §11) */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-pill: 999px;
+  --shadow-sm: 0 1px 2px rgba(33, 29, 23, 0.06), 0 1px 3px rgba(33, 29, 23, 0.08);
+  --shadow-md: 0 4px 12px rgba(33, 29, 23, 0.1);
+  --shadow-lg: 0 12px 32px rgba(33, 29, 23, 0.14);
+  --dur-fast: 150ms;
+  --dur-base: 220ms;
+  --dur-slow: 320ms;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --z-toast: 1000;
+  --z-modal: 900;
+  --z-sticky: 100;
+}
+
+[data-theme='dark'] {
+  /* Color — dark mode (UIUX §5.3) */
+  --bg-canvas: #15130f;
+  --bg-surface: #1f1c17;
+  --bg-sunken: #100e0b;
+  --border: #34302a;
+  --text-primary: #f2eee6;
+  --text-secondary: #ada597;
+  --brand-primary: #3fa877;
+  --accent-marigold: #f4a024;
+
+  /* Semantic (UIUX §5.2, dark values) */
+  --success: #3fa877;
+  --warning: #e0a33a;
+  --error: #e0634f;
+  --info: #4e97c4;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg-canvas);
+  color: var(--text-primary);
+  font-family: 'IBM Plex Sans', 'IBM Plex Sans Arabic', system-ui, sans-serif;
+  font-size: var(--fs-base);
+  line-height: 1.5;
+}
+
+/* Nastaliq is reserved for headings/brand only (UIUX §6) — never apply globally, it needs
+   generous line-height (1.9–2.0) or it clips. */
+.font-nastaliq {
+  font-family: 'Noto Nastaliq Urdu', 'IBM Plex Sans Arabic', serif;
+  line-height: 1.95;
+}
+
+#root {
+  min-height: 100vh;
+}

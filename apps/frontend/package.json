@@ -12,6 +12,7 @@
     "test": "echo \"(no component tests yet)\""
   },
   "dependencies": {
+    "@karobarai/shared": "workspace:*",
     "@tanstack/react-query": "5.51.23",
     "antd": "5.19.3",
     "axios": "1.7.4",

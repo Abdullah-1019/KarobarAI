@@ -1,2 +1,1 @@
-// Shared React hooks.
-export {};
+export { useLanguage } from './useLanguage';

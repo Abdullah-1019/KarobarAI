@@ -1,2 +1,2 @@
-// Buyer-facing screens (Marketplace, Cart, Checkout, Orders, Returns, ...). Placeholder for folder structure (TRD §12).
-export {};
+// Buyer marketplace screens (Home, Search, Cart, Checkout, Orders, ...) land here starting F5.
+export { BuyerPlaceholder } from './BuyerPlaceholder';

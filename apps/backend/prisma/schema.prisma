@@ -1,0 +1,866 @@
+// KarobarAI — Prisma schema (Database feature).
+// Source of truth: docs/KarobarAI-05-Schema.md §1-§13, plus binding addenda §14 (v1.0.1) and
+// §15 (v1.0.2), which supersede/extend the base spec wherever they conflict.
+//
+// Constraints NOT expressible in Prisma schema syntax — added by hand-editing the generated
+// migration SQL (see prisma/migrations/*_init/migration.sql) rather than skipped silently:
+//   - products.search_vector: GENERATED ALWAYS AS (...) STORED tsvector expression + GIN index (§7)
+//   - partial unique indexes (WHERE deleted_at IS NULL): users.phone_bidx, users.email_bidx,
+//     payout_wallets(seller_id, type, account_number) (§4.1, §14.1)
+//   - partial index products(status) WHERE status='LIVE' AND deleted_at IS NULL (idx_products_live)
+//   - CHECK constraints: products.price >= 0, products.stock >= 0, cart_items.quantity > 0,
+//     order_items.quantity > 0, reviews.rating BETWEEN 1 AND 5, chk_settlements_net (§14.2)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Enums (§3, + payout_wallet_type from §14.1)
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  BUYER
+  SELLER
+  ADMIN
+  SUPPORT
+
+  @@map("user_role")
+}
+
+enum UserStatus {
+  PENDING_VERIFICATION
+  ACTIVE
+  SUSPENDED
+  BANNED
+  DEACTIVATED
+
+  @@map("user_status")
+}
+
+enum Language {
+  EN
+  UR
+
+  @@map("language")
+}
+
+enum ProductStatus {
+  DRAFT
+  LIVE
+  OUT_OF_STOCK
+  REMOVED
+
+  @@map("product_status")
+}
+
+enum ProductCondition {
+  NEW
+  LIKE_NEW
+  USED
+  REFURBISHED
+
+  @@map("product_condition")
+}
+
+enum OrderStatus {
+  PAYMENT_PENDING
+  PAYMENT_CONFIRMED
+  PROCESSING
+  PICKED_UP
+  IN_TRANSIT
+  OUT_FOR_DELIVERY
+  DELIVERED
+  COMPLETED
+  CANCELLED
+  PENDING_MANUAL_LOGISTICS
+
+  @@map("order_status")
+}
+
+enum PaymentMethod {
+  JAZZCASH
+  EASYPAISA
+  COD
+
+  @@map("payment_method")
+}
+
+enum PaymentStatus {
+  PENDING
+  CONFIRMED
+  FAILED
+  REFUNDED
+  CANCELLED
+
+  @@map("payment_status")
+}
+
+enum SettlementStatus {
+  PENDING
+  SETTLED
+  ON_HOLD
+
+  @@map("settlement_status")
+}
+
+enum CodRemittanceStatus {
+  EXPECTED
+  RECEIVED
+  RECONCILED
+  SHORTFALL
+
+  @@map("cod_remittance_status")
+}
+
+enum CourierCode {
+  TCS
+  LEOPARDS
+  TRAX
+
+  @@map("courier_code")
+}
+
+enum ReturnStatus {
+  INITIATED
+  IMAGES_SUBMITTED
+  UNDER_AI_REVIEW
+  MANUAL_REVIEW
+  APPROVED
+  REJECTED
+  PICKUP_BOOKED
+  REFUND_ISSUED
+  UNDER_DISPUTE
+  CLOSED
+
+  @@map("return_status")
+}
+
+enum ReturnCondition {
+  UNDAMAGED
+  MINOR
+  MAJOR
+  DESTROYED
+
+  @@map("return_condition")
+}
+
+enum ReturnDecision {
+  APPROVED
+  REJECTED
+  MANUAL
+
+  @@map("return_decision")
+}
+
+enum DisputeStatus {
+  OPEN
+  RESOLVED_APPROVED
+  RESOLVED_REJECTED
+
+  @@map("dispute_status")
+}
+
+enum NotificationChannel {
+  SMS
+  WHATSAPP
+  IN_APP
+  EMAIL
+
+  @@map("notification_channel")
+}
+
+enum NotificationStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  FAILED
+  READ
+
+  @@map("notification_status")
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  SUSPEND
+  BAN
+  PAYMENT_RELEASE
+  AI_OVERRIDE
+  CONFIG_CHANGE
+  MODERATION
+  DISPUTE_RESOLVE
+
+  @@map("audit_action")
+}
+
+enum PayoutWalletType {
+  JAZZCASH
+  EASYPAISA
+
+  @@map("payout_wallet_type")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §4.1 users
+// ─────────────────────────────────────────────────────────────────────────────
+
+model User {
+  userId            BigInt     @id @default(autoincrement()) @map("user_id")
+  publicId          String     @unique @default(dbgenerated("gen_random_uuid()")) @map("public_id") @db.Uuid
+  // §4.1 lists phone as NOT NULL, but TRD §7 registration is mobile+OTP OR email+password — a
+  // user registering by email alone has no phone. Made nullable (Auth feature correction,
+  // mirrors email/emailBidx) with a CHECK requiring at least one of phone/email, added via raw
+  // SQL in the migration since Prisma can't express CHECK constraints.
+  phone             String?    @db.Text
+  // phone_bidx / email_bidx: uniqueness is PARTIAL (WHERE deleted_at IS NULL, §4.1) — added via
+  // raw SQL in the migration, not via @unique here (Prisma has no partial-unique syntax).
+  phoneBidx         String?    @map("phone_bidx") @db.Text
+  email             String?    @db.Text
+  emailBidx         String?    @map("email_bidx") @db.Text
+  passwordHash      String?    @map("password_hash") @db.Text
+  role              UserRole   @default(BUYER)
+  status            UserStatus @default(PENDING_VERIFICATION)
+  preferredLanguage Language   @default(UR) @map("preferred_language")
+  lastLoginAt       DateTime?  @map("last_login_at")
+  createdAt         DateTime   @default(now()) @map("created_at")
+  updatedAt         DateTime   @updatedAt @map("updated_at")
+  deletedAt         DateTime?  @map("deleted_at")
+
+  sellerProfile          SellerProfile?
+  buyerProfile           BuyerProfile?
+  notificationPreference NotificationPreference?
+  notifications          Notification[]
+  refreshTokens          RefreshToken[]
+  auditLogsAsActor       AuditLog[]              @relation("AuditActor")
+  disputesResolved       Dispute[]               @relation("DisputeResolvedBy")
+  platformConfigsUpdated PlatformConfig[]        @relation("PlatformConfigUpdatedBy")
+
+  @@index([role], map: "idx_users_role")
+  @@index([status], map: "idx_users_status")
+  @@map("users")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §4.2 seller_profiles — wallet columns removed per §14.1 (see payout_wallets);
+// onboarding_step / onboarding_completed_at added per §15.6.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model SellerProfile {
+  userId                BigInt    @id @map("user_id")
+  user                  User      @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  storeName             String    @map("store_name") @db.VarChar(120)
+  storeDescription      String?   @map("store_description") @db.Text
+  logoUrl               String?   @map("logo_url") @db.VarChar(512)
+  commissionRate        Decimal   @default(0.0500) @map("commission_rate") @db.Decimal(5, 4)
+  fraudRate30d          Decimal   @default(0) @map("fraud_rate_30d") @db.Decimal(5, 4)
+  onboardingStep        Int       @default(0) @map("onboarding_step") @db.SmallInt
+  onboardingCompletedAt DateTime? @map("onboarding_completed_at")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+  deletedAt             DateTime? @map("deleted_at")
+
+  products              Product[]
+  orders                Order[]
+  settlements           Settlement[]
+  payoutWallets         PayoutWallet[]
+  returns               Return[]
+  sellerDailyStats      SellerDailyStat[]
+  sellerRecommendations SellerRecommendation[]
+
+  @@map("seller_profiles")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §4.3 buyer_profiles
+// ─────────────────────────────────────────────────────────────────────────────
+
+model BuyerProfile {
+  userId           BigInt    @id @map("user_id")
+  user             User      @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  defaultAddressId BigInt?   @map("default_address_id")
+  defaultAddress   Address?  @relation("BuyerDefaultAddress", fields: [defaultAddressId], references: [addressId], onDelete: SetNull)
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  deletedAt        DateTime? @map("deleted_at")
+
+  addresses Address[] @relation("BuyerAddresses")
+  cart      Cart?
+  orders    Order[]
+  reviews   Review[]
+
+  @@map("buyer_profiles")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §4.4 addresses
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Address {
+  addressId    BigInt       @id @default(autoincrement()) @map("address_id")
+  buyerId      BigInt       @map("buyer_id")
+  buyer        BuyerProfile @relation("BuyerAddresses", fields: [buyerId], references: [userId], onDelete: Cascade)
+  label        String?      @db.VarChar(40)
+  line1        String       @db.Text
+  line2        String?      @db.Text
+  city         String       @db.VarChar(80)
+  province     String       @db.VarChar(80)
+  postalCode   String?      @map("postal_code") @db.VarChar(20)
+  contactPhone String?      @map("contact_phone") @db.Text
+  isDefault    Boolean      @default(false) @map("is_default")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+  deletedAt    DateTime?    @map("deleted_at")
+
+  defaultForBuyers BuyerProfile[] @relation("BuyerDefaultAddress")
+
+  @@index([buyerId], map: "idx_addresses_buyer")
+  @@map("addresses")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §4.5 categories
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Category {
+  categoryId BigInt    @id @default(autoincrement()) @map("category_id")
+  slug       String    @unique @db.VarChar(80)
+  nameEn     String    @map("name_en") @db.VarChar(80)
+  nameUr     String    @map("name_ur") @db.VarChar(80)
+  parentId   BigInt?   @map("parent_id")
+  parent     Category? @relation("CategoryParent", fields: [parentId], references: [categoryId], onDelete: SetNull)
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  children         Category[]        @relation("CategoryParent")
+  products         Product[]
+  sellerDailyStats SellerDailyStat[]
+
+  @@map("categories")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §4.6 products — search_vector is Unsupported here; the migration hand-edit turns it into a
+// GENERATED ALWAYS AS (...) STORED tsvector column + GIN index (§7).
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Product {
+  productId     BigInt                   @id @default(autoincrement()) @map("product_id")
+  publicId      String                   @unique @default(dbgenerated("gen_random_uuid()")) @map("public_id") @db.Uuid
+  sellerId      BigInt                   @map("seller_id")
+  seller        SellerProfile            @relation(fields: [sellerId], references: [userId], onDelete: Restrict)
+  categoryId    BigInt?                  @map("category_id")
+  category      Category?                @relation(fields: [categoryId], references: [categoryId], onDelete: SetNull)
+  titleEn       String                   @map("title_en") @db.VarChar(160)
+  titleUr       String?                  @map("title_ur") @db.VarChar(160)
+  descriptionEn String?                  @map("description_en") @db.Text
+  descriptionUr String?                  @map("description_ur") @db.Text
+  price         Decimal                  @db.Decimal(12, 2)
+  stock         Int                      @default(0)
+  condition     ProductCondition         @default(NEW)
+  status        ProductStatus            @default(DRAFT)
+  tags          Json                     @default("[]")
+  aiGenerated   Boolean                  @default(false) @map("ai_generated")
+  searchVector  Unsupported("tsvector")? @map("search_vector")
+  createdAt     DateTime                 @default(now()) @map("created_at")
+  updatedAt     DateTime                 @updatedAt @map("updated_at")
+  deletedAt     DateTime?                @map("deleted_at")
+
+  images     ProductImage[]
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+  reviews    Review[]
+
+  @@index([sellerId], map: "idx_products_seller")
+  @@index([categoryId], map: "idx_products_category")
+  @@index([status], map: "idx_products_status")
+  @@index([price], map: "idx_products_price")
+  @@map("products")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §4.7 product_images — UQ(product_id, position) also serves the doc's plain
+// idx_product_images_product (same leading column), so no separate index is added.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model ProductImage {
+  imageId   BigInt   @id @default(autoincrement()) @map("image_id")
+  productId BigInt   @map("product_id")
+  product   Product  @relation(fields: [productId], references: [productId], onDelete: Cascade)
+  cdnUrl    String   @map("cdn_url") @db.VarChar(512)
+  position  Int      @default(0) @db.SmallInt
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([productId, position], map: "uq_product_images_product_position")
+  @@map("product_images")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §4.8 carts (persisted, D4)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Cart {
+  cartId    BigInt       @id @default(autoincrement()) @map("cart_id")
+  buyerId   BigInt       @unique @map("buyer_id")
+  buyer     BuyerProfile @relation(fields: [buyerId], references: [userId], onDelete: Cascade)
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+
+  items CartItem[]
+
+  @@map("carts")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §4.9 cart_items — UQ(cart_id, product_id) also covers the doc's plain
+// idx_cart_items_cart (same leading column).
+// ─────────────────────────────────────────────────────────────────────────────
+
+model CartItem {
+  cartItemId BigInt   @id @default(autoincrement()) @map("cart_item_id")
+  cartId     BigInt   @map("cart_id")
+  cart       Cart     @relation(fields: [cartId], references: [cartId], onDelete: Cascade)
+  productId  BigInt   @map("product_id")
+  product    Product  @relation(fields: [productId], references: [productId], onDelete: Cascade)
+  quantity   Int      @default(1)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@unique([cartId, productId], map: "uq_cart_items_cart_product")
+  @@map("cart_items")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §4.10 orders, append-only (no deleted_at) — ship_* split per §14.4 encryption spec.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Order {
+  orderId                BigInt        @id @default(autoincrement()) @map("order_id")
+  publicId               String        @unique @default(dbgenerated("gen_random_uuid()")) @map("public_id") @db.Uuid
+  trackingToken          String        @unique @default(dbgenerated("gen_random_uuid()")) @map("tracking_token") @db.Uuid
+  buyerId                BigInt        @map("buyer_id")
+  buyer                  BuyerProfile  @relation(fields: [buyerId], references: [userId], onDelete: Restrict)
+  sellerId               BigInt        @map("seller_id")
+  seller                 SellerProfile @relation(fields: [sellerId], references: [userId], onDelete: Restrict)
+  status                 OrderStatus   @default(PAYMENT_PENDING)
+  paymentMethod          PaymentMethod @map("payment_method")
+  subtotal               Decimal       @db.Decimal(12, 2)
+  shippingFee            Decimal       @default(0) @map("shipping_fee") @db.Decimal(12, 2)
+  totalAmount            Decimal       @map("total_amount") @db.Decimal(12, 2)
+  commissionRateSnapshot Decimal       @map("commission_rate_snapshot") @db.Decimal(5, 4)
+  courier                CourierCode?
+  courierOverridden      Boolean       @default(false) @map("courier_overridden")
+  trackingNo             String?       @map("tracking_no") @db.VarChar(80)
+  // §14.4: encryption split — city/province/postal stay plain for courier-coverage queries.
+  shipName               String        @map("ship_name") @db.VarChar(120)
+  shipLine1              String        @map("ship_line1") @db.Text
+  shipLine2              String?       @map("ship_line2") @db.Text
+  shipCity               String        @map("ship_city") @db.VarChar(80)
+  shipProvince           String        @map("ship_province") @db.VarChar(80)
+  shipPostal             String?       @map("ship_postal") @db.VarChar(20)
+  shipPhone              String        @map("ship_phone") @db.Text
+  placedAt               DateTime      @default(now()) @map("placed_at")
+  deliveredAt            DateTime?     @map("delivered_at")
+  createdAt              DateTime      @default(now()) @map("created_at")
+  updatedAt              DateTime      @updatedAt @map("updated_at")
+
+  items          OrderItem[]
+  payment        Payment?
+  settlement     Settlement?
+  codRemittance  CodRemittance?
+  return         Return?
+  trackingEvents TrackingEvent[]
+  courierQuotes  CourierQuote[]
+  notifications  Notification[]
+  reviews        Review[]
+
+  @@index([buyerId], map: "idx_orders_buyer")
+  @@index([sellerId], map: "idx_orders_seller")
+  @@index([status], map: "idx_orders_status")
+  @@index([placedAt], map: "idx_orders_placed_at")
+  @@index([sellerId, status], map: "idx_orders_seller_status")
+  @@index([shipCity], map: "idx_orders_ship_city")
+  @@map("orders")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §4.11 order_items (snapshot pattern)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model OrderItem {
+  orderItemId   BigInt   @id @default(autoincrement()) @map("order_item_id")
+  orderId       BigInt   @map("order_id")
+  order         Order    @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
+  productId     BigInt   @map("product_id")
+  product       Product  @relation(fields: [productId], references: [productId], onDelete: Restrict)
+  titleSnapshot String   @map("title_snapshot") @db.VarChar(160)
+  unitPrice     Decimal  @map("unit_price") @db.Decimal(12, 2)
+  quantity      Int
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([orderId], map: "idx_order_items_order")
+  @@index([productId], map: "idx_order_items_product")
+  @@map("order_items")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §4.12 payments, append-only
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Payment {
+  paymentId      BigInt        @id @default(autoincrement()) @map("payment_id")
+  orderId        BigInt        @unique @map("order_id")
+  order          Order         @relation(fields: [orderId], references: [orderId], onDelete: Restrict)
+  method         PaymentMethod
+  gateway        String?       @db.VarChar(40)
+  transactionRef String?       @unique @map("transaction_ref") @db.VarChar(120)
+  idempotencyKey String        @unique @map("idempotency_key") @db.VarChar(80)
+  amount         Decimal       @db.Decimal(12, 2)
+  status         PaymentStatus @default(PENDING)
+  retryCount     Int           @default(0) @map("retry_count") @db.SmallInt
+  confirmedAt    DateTime?     @map("confirmed_at")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  @@index([status], map: "idx_payments_status")
+  @@map("payments")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §4.13 settlements, append-only — gross = orders.subtotal per §14.2 (never shipping_fee);
+// payout_wallet_id added per §14.1; chk_settlements_net CHECK added via migration hand-edit.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Settlement {
+  settlementId   BigInt           @id @default(autoincrement()) @map("settlement_id")
+  orderId        BigInt           @unique @map("order_id")
+  order          Order            @relation(fields: [orderId], references: [orderId], onDelete: Restrict)
+  sellerId       BigInt           @map("seller_id")
+  seller         SellerProfile    @relation(fields: [sellerId], references: [userId], onDelete: Restrict)
+  payoutWalletId BigInt?          @map("payout_wallet_id")
+  payoutWallet   PayoutWallet?    @relation(fields: [payoutWalletId], references: [walletId], onDelete: SetNull)
+  gross          Decimal          @db.Decimal(12, 2)
+  commission     Decimal          @db.Decimal(12, 2)
+  net            Decimal          @db.Decimal(12, 2)
+  status         SettlementStatus @default(PENDING)
+  settledAt      DateTime?        @map("settled_at")
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+
+  @@index([sellerId], map: "idx_settlements_seller")
+  @@index([status], map: "idx_settlements_status")
+  @@map("settlements")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §4.14 cod_remittances, append-only
+// ─────────────────────────────────────────────────────────────────────────────
+
+model CodRemittance {
+  remittanceId   BigInt              @id @default(autoincrement()) @map("remittance_id")
+  orderId        BigInt              @unique @map("order_id")
+  order          Order               @relation(fields: [orderId], references: [orderId], onDelete: Restrict)
+  courier        CourierCode
+  expectedAmount Decimal             @map("expected_amount") @db.Decimal(12, 2)
+  receivedAmount Decimal?            @map("received_amount") @db.Decimal(12, 2)
+  status         CodRemittanceStatus @default(EXPECTED)
+  remittedAt     DateTime?           @map("remitted_at")
+  createdAt      DateTime            @default(now()) @map("created_at")
+  updatedAt      DateTime            @updatedAt @map("updated_at")
+
+  @@index([status], map: "idx_cod_remit_status")
+  @@map("cod_remittances")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §4.15 returns — deleted_at REMOVED per §14.5; seller_id denormalized per §15.5.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Return {
+  returnId       BigInt           @id @default(autoincrement()) @map("return_id")
+  orderId        BigInt           @unique @map("order_id")
+  order          Order            @relation(fields: [orderId], references: [orderId], onDelete: Restrict)
+  sellerId       BigInt           @map("seller_id")
+  seller         SellerProfile    @relation(fields: [sellerId], references: [userId], onDelete: Restrict)
+  reason         String           @db.VarChar(200)
+  aiCondition    ReturnCondition? @map("ai_condition")
+  aiAuthenticity Decimal?         @map("ai_authenticity") @db.Decimal(5, 4)
+  aiConfidence   Decimal?         @map("ai_confidence") @db.Decimal(5, 4)
+  decision       ReturnDecision?
+  status         ReturnStatus     @default(INITIATED)
+  decidedAt      DateTime?        @map("decided_at")
+  refundedAt     DateTime?        @map("refunded_at")
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+
+  images  ReturnImage[]
+  dispute Dispute?
+
+  @@index([status], map: "idx_returns_status")
+  @@index([sellerId, createdAt], map: "idx_returns_seller_created")
+  @@map("returns")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §4.16 return_images
+// ─────────────────────────────────────────────────────────────────────────────
+
+model ReturnImage {
+  returnImageId BigInt   @id @default(autoincrement()) @map("return_image_id")
+  returnId      BigInt   @map("return_id")
+  return        Return   @relation(fields: [returnId], references: [returnId], onDelete: Cascade)
+  cdnUrl        String   @map("cdn_url") @db.VarChar(512)
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([returnId], map: "idx_return_images_return")
+  @@map("return_images")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §4.17 disputes
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Dispute {
+  disputeId      BigInt        @id @default(autoincrement()) @map("dispute_id")
+  returnId       BigInt        @unique @map("return_id")
+  return         Return        @relation(fields: [returnId], references: [returnId], onDelete: Restrict)
+  status         DisputeStatus @default(OPEN)
+  adminReason    String?       @map("admin_reason") @db.Text
+  resolvedBy     BigInt?       @map("resolved_by")
+  resolvedByUser User?         @relation("DisputeResolvedBy", fields: [resolvedBy], references: [userId], onDelete: SetNull)
+  resolvedAt     DateTime?     @map("resolved_at")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  @@map("disputes")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §4.18 reviews (verified purchase, R1.1)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Review {
+  reviewId  BigInt       @id @default(autoincrement()) @map("review_id")
+  buyerId   BigInt       @map("buyer_id")
+  buyer     BuyerProfile @relation(fields: [buyerId], references: [userId], onDelete: Restrict)
+  productId BigInt       @map("product_id")
+  product   Product      @relation(fields: [productId], references: [productId], onDelete: Restrict)
+  orderId   BigInt       @map("order_id")
+  order     Order        @relation(fields: [orderId], references: [orderId], onDelete: Restrict)
+  rating    Int          @db.SmallInt
+  comment   String?      @db.Text
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+  deletedAt DateTime?    @map("deleted_at")
+
+  @@unique([buyerId, productId], map: "uq_reviews_buyer_product")
+  @@index([productId], map: "idx_reviews_product")
+  @@map("reviews")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §4.19 notifications
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Notification {
+  notificationId BigInt              @id @default(autoincrement()) @map("notification_id")
+  userId         BigInt              @map("user_id")
+  user           User                @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  orderId        BigInt?             @map("order_id")
+  order          Order?              @relation(fields: [orderId], references: [orderId], onDelete: SetNull)
+  channel        NotificationChannel
+  eventType      String              @map("event_type") @db.VarChar(60)
+  message        String              @db.Text
+  language       Language
+  status         NotificationStatus  @default(QUEUED)
+  sentAt         DateTime?           @map("sent_at")
+  readAt         DateTime?           @map("read_at")
+  createdAt      DateTime            @default(now()) @map("created_at")
+
+  @@index([userId, createdAt], map: "idx_notifications_user_created")
+  @@index([status], map: "idx_notifications_status")
+  @@map("notifications")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §4.20 notification_preferences
+// ─────────────────────────────────────────────────────────────────────────────
+
+model NotificationPreference {
+  userId          BigInt   @id @map("user_id")
+  user            User     @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  smsEnabled      Boolean  @default(true) @map("sms_enabled")
+  whatsappEnabled Boolean  @default(true) @map("whatsapp_enabled")
+  emailEnabled    Boolean  @default(true) @map("email_enabled")
+  inappEnabled    Boolean  @default(true) @map("inapp_enabled")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("notification_preferences")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §4.21 tracking_events — UNIQUE(order_id, status, event_time) per §14.6 hardening;
+// system of record for every orders.status transition per §15.3 (process rule, not schema).
+// ─────────────────────────────────────────────────────────────────────────────
+
+model TrackingEvent {
+  trackingEventId BigInt      @id @default(autoincrement()) @map("tracking_event_id")
+  orderId         BigInt      @map("order_id")
+  order           Order       @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
+  status          OrderStatus
+  description     String?     @db.VarChar(200)
+  locationLat     Decimal?    @map("location_lat") @db.Decimal(9, 6)
+  locationLng     Decimal?    @map("location_lng") @db.Decimal(9, 6)
+  eventTime       DateTime    @map("event_time")
+  createdAt       DateTime    @default(now()) @map("created_at")
+
+  @@unique([orderId, status, eventTime], map: "uq_tracking_events_order_status_time")
+  @@index([orderId, eventTime], map: "idx_tracking_order_time")
+  @@map("tracking_events")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §4.22 courier_quotes (scoring log) — courier_payables ledger explicitly deferred per §14.3.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model CourierQuote {
+  quoteId   BigInt      @id @default(autoincrement()) @map("quote_id")
+  orderId   BigInt      @map("order_id")
+  order     Order       @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
+  courier   CourierCode
+  cost      Decimal?    @db.Decimal(12, 2)
+  etaHours  Int?        @map("eta_hours")
+  score     Decimal?    @db.Decimal(6, 3)
+  selected  Boolean     @default(false)
+  createdAt DateTime    @default(now()) @map("created_at")
+
+  @@index([orderId], map: "idx_courier_quotes_order")
+  @@map("courier_quotes")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §4.23 refresh_tokens
+// ─────────────────────────────────────────────────────────────────────────────
+
+model RefreshToken {
+  refreshTokenId BigInt    @id @default(autoincrement()) @map("refresh_token_id")
+  userId         BigInt    @map("user_id")
+  user           User      @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  jti            String    @unique @db.Uuid
+  tokenHash      String    @map("token_hash") @db.Text
+  userAgent      String?   @map("user_agent") @db.VarChar(255)
+  ipHash         String?   @map("ip_hash") @db.Text
+  expiresAt      DateTime  @map("expires_at")
+  revokedAt      DateTime? @map("revoked_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  @@index([userId], map: "idx_refresh_user")
+  @@index([expiresAt], map: "idx_refresh_expires")
+  @@map("refresh_tokens")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §4.24 audit_logs, append-only immutable
+// ─────────────────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  auditId   BigInt      @id @default(autoincrement()) @map("audit_id")
+  actorId   BigInt?     @map("actor_id")
+  actor     User?       @relation("AuditActor", fields: [actorId], references: [userId], onDelete: SetNull)
+  action    AuditAction
+  entity    String      @db.VarChar(60)
+  entityId  BigInt?     @map("entity_id")
+  reason    String?     @db.Text
+  before    Json?
+  after     Json?
+  createdAt DateTime    @default(now()) @map("created_at")
+
+  @@index([entity, entityId], map: "idx_audit_entity")
+  @@index([actorId], map: "idx_audit_actor")
+  @@index([createdAt], map: "idx_audit_created")
+  @@map("audit_logs")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §4.25 platform_config — seed keys documented in prisma/seed.ts
+// ─────────────────────────────────────────────────────────────────────────────
+
+model PlatformConfig {
+  configKey     String   @id @map("config_key") @db.VarChar(60)
+  value         Json
+  description   String?  @db.VarChar(200)
+  updatedBy     BigInt?  @map("updated_by")
+  updatedByUser User?    @relation("PlatformConfigUpdatedBy", fields: [updatedBy], references: [userId], onDelete: SetNull)
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@map("platform_config")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §14.1 payout_wallets — replaces the fixed jazzcash_wallet/easypaisa_wallet columns that
+// were on seller_profiles in the base spec.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model PayoutWallet {
+  walletId      BigInt           @id @default(autoincrement()) @map("wallet_id")
+  sellerId      BigInt           @map("seller_id")
+  seller        SellerProfile    @relation(fields: [sellerId], references: [userId], onDelete: Cascade)
+  type          PayoutWalletType
+  accountNumber String           @map("account_number") @db.Text
+  isDefault     Boolean          @default(false) @map("is_default")
+  createdAt     DateTime         @default(now()) @map("created_at")
+  updatedAt     DateTime         @updatedAt @map("updated_at")
+  deletedAt     DateTime?        @map("deleted_at")
+
+  settlements Settlement[]
+
+  @@index([sellerId], map: "idx_payout_wallets_seller")
+  @@map("payout_wallets")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §15.1 seller_daily_stats — analytics rollup, populated by an async job, never computed
+// synchronously in the request path.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model SellerDailyStat {
+  statId        BigInt        @id @default(autoincrement()) @map("stat_id")
+  sellerId      BigInt        @map("seller_id")
+  seller        SellerProfile @relation(fields: [sellerId], references: [userId], onDelete: Cascade)
+  statDate      DateTime      @map("stat_date") @db.Date
+  revenue       Decimal       @default(0) @db.Decimal(14, 2)
+  ordersCount   Int           @default(0) @map("orders_count")
+  returnsCount  Int           @default(0) @map("returns_count")
+  topCategoryId BigInt?       @map("top_category_id")
+  topCategory   Category?     @relation(fields: [topCategoryId], references: [categoryId], onDelete: SetNull)
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  @@unique([sellerId, statDate], map: "uq_seller_daily_stats_seller_date")
+  @@index([sellerId, statDate], map: "idx_seller_daily_stats_seller_range")
+  @@map("seller_daily_stats")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §15.2 seller_recommendations — AI recommendation cards, R1.1 async generation.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model SellerRecommendation {
+  recommendationId BigInt        @id @default(autoincrement()) @map("recommendation_id")
+  sellerId         BigInt        @map("seller_id")
+  seller           SellerProfile @relation(fields: [sellerId], references: [userId], onDelete: Cascade)
+  message          String        @db.Text
+  basis            Json?
+  generatedAt      DateTime      @default(now()) @map("generated_at")
+  dismissedUntil   DateTime?     @map("dismissed_until")
+  createdAt        DateTime      @default(now()) @map("created_at")
+
+  @@index([sellerId, generatedAt], map: "idx_seller_recommendations_seller_active")
+  @@map("seller_recommendations")
+}

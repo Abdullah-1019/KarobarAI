@@ -1,0 +1,118 @@
+name: karobarai
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: karobarai
+      POSTGRES_PASSWORD: karobarai
+      POSTGRES_DB: karobarai
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U karobarai -d karobarai"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [karobarai_net]
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [karobarai_net]
+
+  # Dev-only S3-compatible object storage (TRD §1: "Cloudinary or local MinIO in dev").
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-karobarai}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-karobarai123}
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [karobarai_net]
+
+  api:
+    build:
+      context: ..
+      dockerfile: apps/backend/Dockerfile
+    env_file:
+      - ../.env
+    environment:
+      DATABASE_URL: postgresql://karobarai:karobarai@postgres:5432/karobarai?schema=public
+      REDIS_URL: redis://redis:6379
+    volumes:
+      - ../apps/backend:/workspace/apps/backend
+      - ../packages/shared:/workspace/packages/shared
+      - api_node_modules:/workspace/apps/backend/node_modules
+    ports:
+      - "4000:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks: [karobarai_net]
+
+  ai-service:
+    build:
+      context: ..
+      dockerfile: apps/ai-service/Dockerfile
+    env_file:
+      - ../.env
+    volumes:
+      - ../apps/ai-service:/app
+    # No `ports:` mapping — never reachable from the host or Nginx (TRD §8).
+    # Reachable only from `api` via the internal network at http://ai-service:8000.
+    networks: [karobarai_net]
+
+  web:
+    build:
+      context: ..
+      dockerfile: apps/frontend/Dockerfile
+    env_file:
+      - ../.env
+    volumes:
+      - ../apps/frontend:/workspace/apps/frontend
+      - ../packages/shared:/workspace/packages/shared
+      - web_node_modules:/workspace/apps/frontend/node_modules
+    ports:
+      - "5173:5173"
+    networks: [karobarai_net]
+
+  nginx:
+    image: nginx:1.27-alpine
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+      - web
+    networks: [karobarai_net]
+
+networks:
+  karobarai_net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  minio_data:
+  api_node_modules:
+  web_node_modules:

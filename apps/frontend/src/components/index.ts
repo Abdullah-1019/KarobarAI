@@ -4,3 +4,4 @@ export { SkeletonLoader } from './SkeletonLoader';
 export { toast } from './Toast';
 export { Modal } from './Modal';
 export { EmptyState } from './EmptyState';
+export { PasswordStrengthMeter } from './PasswordStrengthMeter';

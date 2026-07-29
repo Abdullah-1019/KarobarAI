@@ -17,6 +17,10 @@ app.use(helmet());
 app.use(
   cors({
     origin: config.corsAllowedOrigins.length > 0 ? config.corsAllowedOrigins : false,
+    // Required for the refresh-token HttpOnly cookie (HO-F1-Auth.md) to work cross-origin —
+    // without this, the browser silently drops Set-Cookie on the register/login/refresh
+    // responses and axios's withCredentials requests are blocked by CORS entirely.
+    credentials: true,
   }),
 );
 app.use(express.json({ limit: '1mb' }));

@@ -1,2 +1,4 @@
-// Auth screens (Login, Register, OTP, Forgot/Reset Password) land here starting Feature 1.
-export { AuthPlaceholder } from './AuthPlaceholder';
+// Auth screens (Login, Register, OTP). Forgot/Reset Password land here next (Day 3).
+export { RegisterPage } from './RegisterPage';
+export { OtpVerifyPage } from './OtpVerifyPage';
+export { LoginPage } from './LoginPage';

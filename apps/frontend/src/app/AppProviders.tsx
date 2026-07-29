@@ -7,6 +7,7 @@ import { queryClient } from '../lib/queryClient';
 import { useLanguage } from '../hooks';
 import './i18n';
 import './global.css';
+import { HealthIndicator } from './HealthIndicator';
 import { router } from './router';
 import { darkTheme, lightTheme } from './theme';
 
@@ -28,6 +29,7 @@ export function AppProviders() {
     <QueryClientProvider client={queryClient}>
       <ConfigProvider theme={prefersDark ? darkTheme : lightTheme} direction={dir}>
         <RouterProvider router={router} />
+        {import.meta.env.DEV && <HealthIndicator />}
       </ConfigProvider>
     </QueryClientProvider>
   );

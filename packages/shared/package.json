@@ -8,6 +8,9 @@
     "typecheck": "tsc --noEmit",
     "lint": "echo \"(no lint rules configured yet for packages/shared)\""
   },
+  "dependencies": {
+    "zod": "3.23.8"
+  },
   "devDependencies": {
     "typescript": "5.5.4"
   }

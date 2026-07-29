@@ -1,8 +1,8 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 
-import { common as commonEn } from '../locales/en';
-import { common as commonUr } from '../locales/ur';
+import { auth as authEn, common as commonEn } from '../locales/en';
+import { auth as authUr, common as commonUr } from '../locales/ur';
 
 export const RTL_LANGUAGES = ['UR'] as const;
 
@@ -10,12 +10,12 @@ export const RTL_LANGUAGES = ['UR'] as const;
 // uppercase ('EN' | 'UR') to match the backend's user.language column.
 i18n.use(initReactI18next).init({
   resources: {
-    en: { common: commonEn },
-    ur: { common: commonUr },
+    en: { common: commonEn, auth: authEn },
+    ur: { common: commonUr, auth: authUr },
   },
   lng: 'en',
   fallbackLng: 'en',
-  ns: ['common'],
+  ns: ['common', 'auth'],
   defaultNS: 'common',
   interpolation: { escapeValue: false },
 });

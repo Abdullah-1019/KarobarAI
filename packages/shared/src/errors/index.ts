@@ -18,3 +18,14 @@ export const AUTH_ERROR_CODES = {
 } as const;
 
 export type AuthErrorCode = (typeof AUTH_ERROR_CODES)[keyof typeof AUTH_ERROR_CODES];
+
+// Error codes introduced by the User Profiles feature.
+export const PROFILE_ERROR_CODES = {
+  ADDRESS_NOT_FOUND: 'ADDRESS_NOT_FOUND',
+  ADDRESS_NOT_OWNED: 'ADDRESS_NOT_OWNED',
+  INVALID_CURRENT_PASSWORD: 'INVALID_CURRENT_PASSWORD',
+  AVATAR_INVALID_FILE: 'AVATAR_INVALID_FILE',
+  AVATAR_TOO_LARGE: 'AVATAR_TOO_LARGE',
+} as const;
+
+export type ProfileErrorCode = (typeof PROFILE_ERROR_CODES)[keyof typeof PROFILE_ERROR_CODES];

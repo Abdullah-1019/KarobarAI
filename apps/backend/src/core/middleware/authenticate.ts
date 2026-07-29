@@ -52,7 +52,13 @@ export async function authenticate(req: Request, _res: Response, next: NextFunct
     return;
   }
 
-  if (userDeniedSince && claims.iat * 1000 <= Number(userDeniedSince)) {
+  // Uses the custom `iatMs` claim (core/jwt), not the standard `iat` — `iat` only has
+  // whole-SECOND granularity, which is too coarse here in both directions: truncated to
+  // seconds, a genuinely-older token issued in the same wall-clock second as a mass revocation
+  // would wrongly survive it, while a token reissued milliseconds after revocation in the same
+  // request (profile.service.changePassword: revoke-then-reissue) would wrongly be rejected by
+  // it. Comparing real millisecond timestamps on both sides resolves both directions correctly.
+  if (userDeniedSince && claims.iatMs < Number(userDeniedSince)) {
     next(new AuthError('Session revoked'));
     return;
   }

@@ -41,4 +41,19 @@ export const config = {
     issuer: process.env.JWT_ISSUER ?? 'karobarai-api',
     audience: process.env.JWT_AUDIENCE ?? 'karobarai-web',
   },
+  // Object storage (TRD §28): MinIO in dev, real S3/Cloudinary-S3 in prod — one S3-compatible
+  // adapter serves both, differentiated only by these values. Falls back to MinIO's dev
+  // credentials whenever S3_* is blank (i.e. always, until prod creds are actually configured).
+  storage: {
+    endpoint: process.env.S3_BUCKET ? undefined : process.env.MINIO_ENDPOINT ?? 'http://localhost:9000',
+    region: process.env.S3_REGION ?? 'us-east-1',
+    accessKeyId: process.env.S3_ACCESS_KEY_ID || process.env.MINIO_ROOT_USER || 'karobarai',
+    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY || process.env.MINIO_ROOT_PASSWORD || 'karobarai123',
+    bucket: process.env.S3_BUCKET || process.env.MINIO_BUCKET || 'karobarai-dev',
+    forcePathStyle: !process.env.S3_BUCKET, // MinIO needs path-style; real S3 uses virtual-hosted style
+    // No attempt to synthesize a real-S3 public URL pattern here — a prod deployment behind
+    // real S3/Cloudinary should set this explicitly (e.g. a CDN domain in front of the bucket).
+    publicBaseUrl:
+      process.env.S3_PUBLIC_BASE_URL ?? process.env.MINIO_ENDPOINT ?? 'http://localhost:9000',
+  },
 };

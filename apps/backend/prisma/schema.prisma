@@ -225,6 +225,11 @@ model User {
   email             String?    @db.Text
   emailBidx         String?    @map("email_bidx") @db.Text
   passwordHash      String?    @map("password_hash") @db.Text
+  // Feature 2 (User Profiles) addition: no avatar_url/profile_picture column existed in the base
+  // Schema Doc §4.1 — only seller_profiles.logo_url (store brand, not a personal photo). Added
+  // here (base identity table, shared by Buyer/Seller/Admin) rather than duplicating it onto
+  // both role-profile tables.
+  avatarUrl         String?    @map("avatar_url") @db.VarChar(512)
   role              UserRole   @default(BUYER)
   status            UserStatus @default(PENDING_VERIFICATION)
   preferredLanguage Language   @default(UR) @map("preferred_language")

@@ -4,8 +4,9 @@ import { prisma } from '../../src/core/prisma';
 import { app } from '../../src/server';
 import { resetDb, resetRedis } from '../helpers/reset';
 
-function cookieHeaderOnly(setCookie: string): string {
-  return setCookie.split(';')[0];
+function cookieHeaderOnly(setCookie: string | undefined): string {
+  if (!setCookie) throw new Error('Expected a Set-Cookie header but got none');
+  return setCookie.split(';')[0]!;
 }
 
 async function registerEmailUser(email: string) {
@@ -15,7 +16,7 @@ async function registerEmailUser(email: string) {
     email,
     password: 'Correct1$Pass',
   });
-  return { cookie: cookieHeaderOnly(res.headers['set-cookie'][0]) };
+  return { cookie: cookieHeaderOnly(res.headers['set-cookie']?.[0]) };
 }
 
 beforeEach(async () => {
@@ -44,7 +45,7 @@ describe('POST /api/v1/auth/refresh', () => {
     const { cookie } = await registerEmailUser('refresh2@example.com');
 
     const firstRefresh = await request(app).post('/api/v1/auth/refresh').set('Cookie', cookie);
-    const newCookie = cookieHeaderOnly(firstRefresh.headers['set-cookie'][0]);
+    const newCookie = cookieHeaderOnly(firstRefresh.headers['set-cookie']?.[0]);
 
     // Replay the OLD (already-rotated) cookie — a theft signal.
     const replay = await request(app).post('/api/v1/auth/refresh').set('Cookie', cookie);

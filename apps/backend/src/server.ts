@@ -4,12 +4,15 @@ import express from 'express';
 import helmet from 'helmet';
 import { randomUUID } from 'node:crypto';
 import pinoHttp from 'pino-http';
+import swaggerUi from 'swagger-ui-express';
 
 import { config } from './core/config';
 import { errorHandler } from './core/middleware/errorHandler';
 import { logger } from './core/logger';
+import { swaggerSpec } from './core/swagger';
 import { authRouter } from './modules/auth';
 import { healthRouter } from './modules/health/health.routes';
+import { profileRouter } from './modules/profile';
 
 export const app = express();
 
@@ -34,6 +37,11 @@ app.use(
 
 app.use(healthRouter);
 app.use('/api/v1/auth', authRouter);
+app.use('/api/v1/profile', profileRouter);
+
+// Swagger UI (TRD §9) serves an inline <script> bundle — the global helmet() CSP above would
+// block it, so this path gets its own relaxed CSP rather than weakening it everywhere.
+app.use('/api-docs', helmet({ contentSecurityPolicy: false }), swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.use(errorHandler);
 

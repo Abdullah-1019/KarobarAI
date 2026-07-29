@@ -14,10 +14,13 @@ export interface AccessTokenClaims {
   jti: string;
   iat: number;
   exp: number;
+  // Custom claim, millisecond precision — see authenticate.ts for why standard `iat` (seconds
+  // only) isn't precise enough to compare against a mass-revocation timestamp.
+  iatMs: number;
 }
 
 export function signAccessToken(sub: string, role: UserRole, jti: string): string {
-  return jwt.sign({ role, jti }, config.jwt.privateKey, {
+  return jwt.sign({ role, jti, iatMs: Date.now() }, config.jwt.privateKey, {
     algorithm: 'RS256',
     subject: sub,
     expiresIn: config.jwt.accessTtlSeconds,
@@ -39,7 +42,8 @@ export function verifyAccessToken(token: string): AccessTokenClaims {
     typeof decoded.jti !== 'string' ||
     typeof decoded.role !== 'string' ||
     typeof decoded.iat !== 'number' ||
-    typeof decoded.exp !== 'number'
+    typeof decoded.exp !== 'number' ||
+    typeof decoded.iatMs !== 'number'
   ) {
     throw new Error('Malformed access token payload');
   }
@@ -50,5 +54,6 @@ export function verifyAccessToken(token: string): AccessTokenClaims {
     jti: decoded.jti,
     iat: decoded.iat,
     exp: decoded.exp,
+    iatMs: decoded.iatMs,
   };
 }

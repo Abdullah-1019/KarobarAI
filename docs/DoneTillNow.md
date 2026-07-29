@@ -9,6 +9,76 @@ or flagged for follow-up. Newest entries at the top.
 
 ---
 
+## Feature: User Profiles (Implementation Plan Phase 5 / Feature 2)
+
+**Status:** Done — 2026-07-29. Full backend test suite green: **76/76 tests, 16/16 suites**,
+coverage 87.1% statements / 65.3% branches / 78.6% functions / 88.8% lines overall (profile
+module itself: 91.6% stmts / 95.8% lines). Full contract in
+`docs/handoffs/F2-profiles-backend.md`.
+
+**What shipped:**
+- **New storage adapter** (`adapters/storage/`) — approved by the user before building, since it
+  wasn't in the original module doc. Same D2 shape as `sms`/`email` (interface + mock + live) but
+  deliberately **not** gated by `ADAPTER_MODE` — always live, since there's no meaningful mock
+  beyond an in-memory test stub. `LiveStorageAdapter` wraps `@aws-sdk/client-s3`, works against
+  MinIO (dev) or real S3 (prod) purely via env config, with an idempotent `ensureBucket()`
+  (create + public-read policy) run on first use.
+- `users.avatar_url` column added (Feature-2 addition, not in the base Schema Doc) via a clean
+  hand-created migration (the recurring `search_vector` spurious-diff issue struck again and was
+  stripped, as documented in the Auth entry below).
+- Full profile module (`modules/profile/`): `GET /me` (role-branched `ProfileDTO` — Buyer/Seller/
+  Admin each get a distinct shape, Admin intentionally minimal per confirmed App Flow check),
+  `PATCH /me` (Seller store/brand fields), `PATCH /me/default-address` (Buyer, transactional
+  swap), `POST`/`DELETE /me/avatar` (multer + magic-byte validation, never trusts client
+  mimetype), `POST /me/password` (re-auth, reuses Auth's exact bcrypt/revocation utilities —
+  nothing reimplemented), `GET`/`PATCH /me/settings` (notification channels + language,
+  server-enforced non-disableable critical channels per REQ-F-Notif004).
+- Password-complexity validation on change-password imported directly from Auth's
+  `passwordSchema` — confirmed assumption, never redefined.
+- Swagger/OpenAPI wired up for the first time (`core/swagger/`, `swagger-jsdoc` +
+  `swagger-ui-express`, mounted at `/api-docs`) — every profile endpoint documented via JSDoc
+  `@swagger` blocks directly on `profile.routes.ts`, reusable pattern for all future modules.
+- Dedicated adversarial test sweep (Task 7): every protected route checked for 401 with no/garbage
+  token, plus explicit 403 checks for role violations (Buyer hitting Seller-only routes and vice
+  versa) and address-ownership violations.
+
+**Real bugs found and fixed during implementation (via the Task 7 adversarial tests, not found by
+the user):**
+- **Session-revocation timing race** — the most significant bug this feature surfaced. Comparing
+  the standard JWT `iat` claim (whole-second precision) against a millisecond-precision Redis
+  mass-revocation timestamp was wrong in *both* directions: truncated to seconds, a genuinely-
+  revoked "other device" session issued in the same wall-clock second could wrongly survive, while
+  change-password's revoke-then-immediately-reissue-a-fresh-token-for-this-device flow could
+  wrongly reject its own brand-new token. Fixed by adding a custom millisecond-precision `iatMs`
+  claim to the access token (`core/jwt/index.ts`) and comparing real millisecond timestamps on
+  both sides (`core/middleware/authenticate.ts`). Verified non-flaky via 3 consecutive clean full
+  test-suite runs.
+- **Garbage refresh cookie caused a 500, not a 401** — a malformed `jti` (not UUID-shaped) reached
+  a Prisma query against a `@db.Uuid` column and Postgres rejected it as invalid input syntax,
+  surfacing as an unhandled 500. Fixed with a `UUID_PATTERN` check in `auth.tokens.ts`'s
+  `parseCookieValue` before any DB query runs.
+- **`MulterError` (oversized avatar upload) was unhandled**, would have been a 500 — added
+  explicit handling in `core/middleware/errorHandler.ts` mapping `LIMIT_FILE_SIZE` → 400
+  `AVATAR_TOO_LARGE`, other Multer errors → 400 `VALIDATION_ERROR`.
+- A `core → modules` import-direction violation was introduced (and caught before it shipped)
+  while extracting cookie-session helpers — fixed by creating `core/http/session.ts` as the true
+  owner of `REFRESH_COOKIE_NAME`/`RefreshMeta`, with `auth.tokens.ts` re-exporting from it instead
+  of the reverse.
+
+**Known limitations / assumptions (see `docs/handoffs/F2-profiles-backend.md` for the
+frontend-facing detail):**
+- No editable phone/email/display-name anywhere in this feature — neither App Flow screen
+  (SCR-S10, SCR-B12) lists one.
+- Admin/Support `GET /me` returns identity fields only — confirmed against App Flow AD01-AD08
+  (none is a self-profile screen); flagged as something to revisit if that changes later.
+- Full address CRUD (add/edit/delete) is out of scope — only default-address selection exists,
+  against the already-seeded `addresses` table.
+- Avatar URLs are public-read, non-expiring links (not presigned) — a deliberate call, confirmed
+  with the user, since there's no privacy requirement for avatar images and presigned URLs going
+  stale would just produce broken images later.
+
+---
+
 ## Feature: Frontend Foundation (Day 1, Feature 0)
 
 **Status:** Done — 2026-07-29. Standalone shell only, no backend calls wired yet. Full contract
@@ -43,11 +113,9 @@ for the first time (just the `Language` type today).
 
 ## Feature: Authentication (Implementation Plan Phase 3)
 
-**Status:** Code complete — 2026-07-28. **Verification blocked**: Redis (Memurai) is not yet
-installed on the dev machine, so the OTP/lockout/session-revocation test suite has not been run
-end-to-end yet. `fieldCipher.test.ts` (no Redis/DB dependency) passes (8/8). Everything else is
-written and typechecks but is unverified until Memurai is installed — update this entry once the
-full suite runs.
+**Status:** Done — 2026-07-28. Memurai installed, full suite verified end-to-end; every endpoint
+also manually smoke-tested via Thunder Client. Code pushed to GitHub once all endpoints confirmed
+working.
 
 **What shipped:**
 - `core/crypto/fieldCipher.ts` — AES-256-GCM field encryption + HMAC-SHA256 blind indexing, keys
@@ -224,6 +292,5 @@ full suite runs.
 
 ---
 
-*Next: finish verifying Phase 3 (Authentication) once Memurai is installed and the full Jest
-suite runs clean, then move to Phase 3's remaining Architecture leftovers or straight into the
-next feature per the Implementation Plan.*
+*Next: Feature 2 (User Profiles) is done — pick the next feature per the Implementation Plan
+(Catalog/Product Management is next in sequence).*

@@ -1,8 +1,9 @@
 import { prisma } from '../../src/core/prisma';
 import { redis } from '../../src/core/redis';
 
-// Auth-relevant tables only — this suite doesn't touch products/orders/etc. Order matters for
-// FK constraints (children before parents).
+// Auth + Profile relevant tables only — this suite doesn't touch products/orders/etc. Order
+// matters for FK constraints (children before parents). Addresses aren't listed explicitly:
+// Address.buyer has onDelete: Cascade, so deleting buyerProfile removes them automatically.
 export async function resetDb(): Promise<void> {
   await prisma.refreshToken.deleteMany();
   await prisma.notificationPreference.deleteMany();

@@ -4,8 +4,9 @@ import { prisma } from '../../src/core/prisma';
 import { app } from '../../src/server';
 import { resetDb, resetRedis } from '../helpers/reset';
 
-function cookieHeaderOnly(setCookie: string): string {
-  return setCookie.split(';')[0];
+function cookieHeaderOnly(setCookie: string | undefined): string {
+  if (!setCookie) throw new Error('Expected a Set-Cookie header but got none');
+  return setCookie.split(';')[0]!;
 }
 
 beforeEach(async () => {
@@ -26,7 +27,7 @@ describe('POST /api/v1/auth/logout', () => {
       password: 'Correct1$Pass',
     });
     const accessToken = registerRes.body.data.accessToken;
-    const cookie = cookieHeaderOnly(registerRes.headers['set-cookie'][0]);
+    const cookie = cookieHeaderOnly(registerRes.headers['set-cookie']?.[0]);
 
     const meBefore = await request(app)
       .get('/api/v1/auth/me')

@@ -1,10 +1,7 @@
-import type { Request, Response } from 'express';
-import { createHash } from 'node:crypto';
-
-import { config } from '../../core/config';
 import { AuthError, RateLimitError, ValidationError } from '../../core/errors/AppError';
 import { asyncHandler } from '../../core/http/asyncHandler';
 import { ok } from '../../core/http/envelope';
+import { clearRefreshCookie, requestMeta, setRefreshCookie } from '../../core/http/session';
 import type {
   ForgotPasswordInput,
   LoginInput,
@@ -14,31 +11,7 @@ import type {
   ResetPasswordInput,
 } from './auth.dto';
 import * as authService from './auth.service';
-import { REFRESH_COOKIE_NAME, type RefreshMeta } from './auth.tokens';
-
-function requestMeta(req: Request): RefreshMeta {
-  return {
-    userAgent: req.headers['user-agent'],
-    ipHash: createHash('sha256').update(req.ip ?? '').digest('hex'),
-  };
-}
-
-function setRefreshCookie(
-  res: Response,
-  cookie: { name: string; value: string; maxAgeSeconds: number },
-): void {
-  res.cookie(cookie.name, cookie.value, {
-    httpOnly: true,
-    secure: config.nodeEnv === 'production',
-    sameSite: 'lax',
-    path: '/api/v1/auth',
-    maxAge: cookie.maxAgeSeconds * 1000,
-  });
-}
-
-function clearRefreshCookie(res: Response): void {
-  res.clearCookie(REFRESH_COOKIE_NAME, { path: '/api/v1/auth' });
-}
+import { REFRESH_COOKIE_NAME } from './auth.tokens';
 
 export const registerHandler = asyncHandler(async (req, res) => {
   const input = req.body as RegisterInput;

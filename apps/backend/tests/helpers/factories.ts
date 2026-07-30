@@ -21,7 +21,7 @@ export interface TestUser {
   cookieValue: string;
 }
 
-async function createUserRow(role: UserRole, email: string, password: string) {
+async function createUserRow(role: UserRole, email: string, password: string, onboarded: boolean) {
   const passwordHash = await bcrypt.hash(password, config.bcryptCost);
   const normalized = normalizeEmail(email);
 
@@ -38,8 +38,17 @@ async function createUserRow(role: UserRole, email: string, password: string) {
   if (role === 'BUYER') {
     await prisma.buyerProfile.create({ data: { userId: user.userId } });
   } else if (role === 'SELLER') {
+    // Mirrors auth.service.ts's activateUser: a placeholder row always exists from account
+    // activation. `onboarded` simulates a seller who has already completed Feature 3's
+    // POST /profile/me/store — most business-info/branding tests need this, since Feature 3's
+    // requireOnboardedSeller guard rejects those mutations otherwise (STORE_NOT_ONBOARDED, 422).
     await prisma.sellerProfile.create({
-      data: { userId: user.userId, storeName: `Store-${user.userId}`, onboardingStep: 0 },
+      data: {
+        userId: user.userId,
+        storeName: `Store-${user.userId}`,
+        onboardingStep: onboarded ? 3 : 0,
+        onboardingCompletedAt: onboarded ? new Date() : null,
+      },
     });
   }
 
@@ -57,12 +66,12 @@ export async function issueSession(
 
 export async function createTestUser(
   role: UserRole,
-  overrides: { email?: string; password?: string } = {},
+  overrides: { email?: string; password?: string; onboarded?: boolean } = {},
 ): Promise<TestUser> {
   const email = overrides.email ?? `${role.toLowerCase()}-${randomUUID()}@example.com`;
   const password = overrides.password ?? 'Correct1$Pass';
 
-  const user = await createUserRow(role, email, password);
+  const user = await createUserRow(role, email, password, overrides.onboarded ?? false);
   const session = await issueSession(user, role);
 
   return { userId: user.userId, publicId: user.publicId, ...session };

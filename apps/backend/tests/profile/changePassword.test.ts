@@ -2,6 +2,7 @@ import bcrypt from 'bcrypt';
 import request from 'supertest';
 
 import { prisma } from '../../src/core/prisma';
+import { redis } from '../../src/core/redis';
 import { app } from '../../src/server';
 import { createTestUser, issueSession } from '../helpers/factories';
 import { resetDb, resetRedis } from '../helpers/reset';
@@ -13,6 +14,7 @@ beforeEach(async () => {
 
 afterAll(async () => {
   await prisma.$disconnect();
+  await redis.quit();
 });
 
 describe('POST /api/v1/profile/me/password', () => {

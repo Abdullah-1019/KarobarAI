@@ -6,16 +6,23 @@ import { authorize } from '../../core/middleware/authorize';
 import { validateBody } from '../../core/middleware/validate';
 import {
   changePasswordHandler,
+  createStoreHandler,
   getMeHandler,
   getSettingsHandler,
+  getStoreStatusHandler,
   removeAvatarHandler,
+  removeStoreBannerHandler,
+  removeStoreLogoHandler,
   setDefaultAddressHandler,
   updateSellerProfileHandler,
   updateSettingsHandler,
   uploadAvatarHandler,
+  uploadStoreBannerHandler,
+  uploadStoreLogoHandler,
 } from './profile.controller';
 import {
   changePasswordSchema,
+  createStoreSchema,
   setDefaultAddressSchema,
   updateSellerProfileSchema,
   updateSettingsSchema,
@@ -55,7 +62,8 @@ profileRouter.get('/me', getMeHandler);
  * @swagger
  * /api/v1/profile/me:
  *   patch:
- *     summary: Update the seller's store/brand fields (Seller only)
+ *     summary: Update the seller's business-info fields (Seller only, requires completed onboarding)
+ *     description: logoUrl/bannerUrl are NOT settable here — use POST /profile/me/store/logo and /banner instead (validated uploads, not arbitrary URLs).
  *     tags: [Profile]
  *     security: [{ bearerAuth: [] }]
  *     requestBody:
@@ -66,12 +74,13 @@ profileRouter.get('/me', getMeHandler);
  *             properties:
  *               storeName: { type: string }
  *               storeDescription: { type: string, nullable: true }
- *               logoUrl: { type: string, nullable: true }
  *     responses:
  *       200:
  *         description: Updated SellerProfileDTO
  *       403:
  *         description: Caller is not a Seller
+ *       422:
+ *         description: Store onboarding not yet completed (STORE_NOT_ONBOARDED)
  */
 profileRouter.patch(
   '/me',
@@ -108,6 +117,133 @@ profileRouter.patch(
   validateBody(setDefaultAddressSchema),
   setDefaultAddressHandler,
 );
+
+// Feature 3 (Store Management) — store sub-routes. Tighter role gate than the rest of this
+// router (Seller-only, not shared with Buyer/Admin): this feature extends the profile module
+// rather than building a parallel store module (see profile.service.ts's Task 1.2 boundary note).
+
+/**
+ * @swagger
+ * /api/v1/profile/me/store:
+ *   post:
+ *     summary: Complete store onboarding (the SCR-S00 wizard's "Finish" action) — Seller only
+ *     description: >
+ *       A seller_profiles row already exists as a placeholder from account activation; this
+ *       completes it exactly once (guarded update, not an insert) and captures at least one
+ *       payout wallet (encrypted at rest).
+ *     tags: [Profile, Store]
+ *     security: [{ bearerAuth: [] }]
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               storeName: { type: string }
+ *               storeDescription: { type: string, nullable: true }
+ *               jazzcashAccountNumber: { type: string, description: At least one of jazzcash/easypaisa is required }
+ *               easypaisaAccountNumber: { type: string }
+ *     responses:
+ *       201:
+ *         description: SellerProfileDTO with hasStore now true
+ *       409:
+ *         description: Onboarding was already completed (ONBOARDING_ALREADY_COMPLETE)
+ */
+profileRouter.post('/me/store', authorize('SELLER'), validateBody(createStoreSchema), createStoreHandler);
+
+/**
+ * @swagger
+ * /api/v1/profile/me/store/logo:
+ *   post:
+ *     summary: Upload/replace the store logo — Seller only, requires completed onboarding
+ *     tags: [Profile, Store]
+ *     security: [{ bearerAuth: [] }]
+ *     requestBody:
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               logo: { type: string, format: binary }
+ *     responses:
+ *       200:
+ *         description: Updated SellerProfileDTO with the new logoUrl
+ *       422:
+ *         description: Store onboarding not yet completed (STORE_NOT_ONBOARDED)
+ */
+profileRouter.post(
+  '/me/store/logo',
+  authorize('SELLER'),
+  upload.single('logo'),
+  uploadStoreLogoHandler,
+);
+
+/**
+ * @swagger
+ * /api/v1/profile/me/store/logo:
+ *   delete:
+ *     summary: Remove the store logo — Seller only, requires completed onboarding
+ *     tags: [Profile, Store]
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200:
+ *         description: Updated SellerProfileDTO with logoUrl null
+ */
+profileRouter.delete('/me/store/logo', authorize('SELLER'), removeStoreLogoHandler);
+
+/**
+ * @swagger
+ * /api/v1/profile/me/store/banner:
+ *   post:
+ *     summary: Upload/replace the store banner — Seller only, requires completed onboarding
+ *     tags: [Profile, Store]
+ *     security: [{ bearerAuth: [] }]
+ *     requestBody:
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               banner: { type: string, format: binary }
+ *     responses:
+ *       200:
+ *         description: Updated SellerProfileDTO with the new bannerUrl
+ *       422:
+ *         description: Store onboarding not yet completed (STORE_NOT_ONBOARDED)
+ */
+profileRouter.post(
+  '/me/store/banner',
+  authorize('SELLER'),
+  upload.single('banner'),
+  uploadStoreBannerHandler,
+);
+
+/**
+ * @swagger
+ * /api/v1/profile/me/store/banner:
+ *   delete:
+ *     summary: Remove the store banner — Seller only, requires completed onboarding
+ *     tags: [Profile, Store]
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200:
+ *         description: Updated SellerProfileDTO with bannerUrl null
+ */
+profileRouter.delete('/me/store/banner', authorize('SELLER'), removeStoreBannerHandler);
+
+/**
+ * @swagger
+ * /api/v1/profile/me/store/status:
+ *   get:
+ *     summary: Read-only store status, derived from users.status — Seller only
+ *     description: There is no mutation endpoint for store status anywhere in this feature — status changes are Admin-only (a separate feature) and only ever read here.
+ *     tags: [Profile, Store]
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200:
+ *         description: "StoreStatusDTO: { status, since }"
+ */
+profileRouter.get('/me/store/status', authorize('SELLER'), getStoreStatusHandler);
 
 /**
  * @swagger

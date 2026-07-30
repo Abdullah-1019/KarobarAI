@@ -3,12 +3,14 @@
 // module's imports read the same way every other module's do.
 export {
   updateSellerProfileSchema,
+  createStoreSchema,
   setDefaultAddressSchema,
   changePasswordSchema,
   updateSettingsSchema,
 } from '@karobarai/shared';
 export type {
   UpdateSellerProfileInput,
+  CreateStoreInput,
   SetDefaultAddressInput,
   ChangePasswordInput,
   UpdateSettingsInput,

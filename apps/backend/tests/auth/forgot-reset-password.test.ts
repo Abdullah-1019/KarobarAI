@@ -9,6 +9,7 @@ import { getSmsAdapter } from '../../src/adapters/sms';
 import { config } from '../../src/core/config';
 import { blindIndex, encryptField, normalizeEmail } from '../../src/core/crypto/fieldCipher';
 import { prisma } from '../../src/core/prisma';
+import { redis } from '../../src/core/redis';
 import { app } from '../../src/server';
 import { resetDb, resetRedis } from '../helpers/reset';
 
@@ -26,6 +27,7 @@ beforeEach(async () => {
 
 afterAll(async () => {
   await prisma.$disconnect();
+  await redis.quit();
 });
 
 async function createActiveUser(email: string, password: string) {

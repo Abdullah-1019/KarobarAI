@@ -12,3 +12,5 @@ export type UserStatus =
   | 'DEACTIVATED';
 
 export type Language = 'EN' | 'UR';
+
+export type PayoutWalletType = 'JAZZCASH' | 'EASYPAISA';

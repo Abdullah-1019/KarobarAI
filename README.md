@@ -6,9 +6,16 @@ Blueprint docs: see [`docs/`](docs/) (PRD, TRD, App Flow, UI/UX, Schema, Impleme
 
 ## Status
 
-**Feature 0 (Project Foundation)** + **Database feature** done. No auth/catalog/order business
-logic yet — this stage proves the stack boots, the full schema is migrated, and every later
-feature has a folder (and a table) to land in.
+**Backend:** Feature 0 (Project Foundation), Database, Feature 1 (Authentication), Feature 2
+(User Profiles), and Feature 3 (Store Management) done — see `docs/DoneTillNow.md` for the full
+per-feature log (what shipped, how it was verified, known limitations). Feature 4 (Product
+Management) is next per `docs/DailyPlan.md`.
+
+**Frontend:** standalone shell only (Feature 0) — no backend integration wired yet.
+
+⚠️ The Docker Compose path below is written and syntactically valid but has not been run
+end-to-end in practice (no Docker in the primary dev environment so far) — verify it boots
+cleanly before relying on it for a new machine/developer.
 
 ## Stack
 

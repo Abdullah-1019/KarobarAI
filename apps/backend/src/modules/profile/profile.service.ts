@@ -2,15 +2,25 @@ import { CRITICAL_NOTIFICATION_CHANNELS } from '@karobarai/shared';
 import type {
   AccountSettingsDTO,
   BuyerProfileDTO,
+  PayoutWalletType,
   ProfileDTO,
   SellerProfileDTO,
+  StoreStatusDTO,
 } from '@karobarai/shared';
 import bcrypt from 'bcrypt';
 import { randomUUID } from 'node:crypto';
 
 import { getStorageAdapter } from '../../adapters/storage';
 import { config } from '../../core/config';
-import { AuthError, ForbiddenError, NotFoundError, ValidationError } from '../../core/errors/AppError';
+import { encryptField } from '../../core/crypto/fieldCipher';
+import {
+  AuthError,
+  BusinessRuleError,
+  ConflictError,
+  ForbiddenError,
+  NotFoundError,
+  ValidationError,
+} from '../../core/errors/AppError';
 import { signAccessToken } from '../../core/jwt';
 import { logger } from '../../core/logger';
 import { prisma } from '../../core/prisma';
@@ -23,6 +33,7 @@ import {
 } from '../auth/auth.tokens';
 import type {
   ChangePasswordInput,
+  CreateStoreInput,
   SetDefaultAddressInput,
   UpdateSellerProfileInput,
   UpdateSettingsInput,
@@ -69,6 +80,11 @@ export async function getMyProfile(publicId: string): Promise<ProfileDTO> {
       storeName: user.sellerProfile?.storeName ?? '',
       storeDescription: user.sellerProfile?.storeDescription ?? null,
       logoUrl: user.sellerProfile?.logoUrl ?? null,
+      bannerUrl: user.sellerProfile?.bannerUrl ?? null,
+      // Feature 3 Task 1.4: a seller_profiles row always exists from account activation (a
+      // placeholder — see auth.service.ts's activateUser), so "hasStore" can't mean "row
+      // exists". It means onboarding has actually been completed (POST /profile/me/store).
+      hasStore: user.sellerProfile?.onboardingCompletedAt != null,
     };
   }
 
@@ -77,28 +93,117 @@ export async function getMyProfile(publicId: string): Promise<ProfileDTO> {
   return { ...base, role: user.role as 'ADMIN' | 'SUPPORT' };
 }
 
+// Feature 3 Task 3.2 — a seller who hasn't completed onboarding (createStore, below) has nothing
+// to edit yet. Guards business-info edits and logo/banner uploads alike; a clear 422 instead of
+// a confusing update-into-the-void or a Prisma crash.
+async function requireOnboardedSeller(userId: bigint): Promise<void> {
+  const seller = await prisma.sellerProfile.findUnique({
+    where: { userId },
+    select: { onboardingCompletedAt: true },
+  });
+  if (!seller?.onboardingCompletedAt) {
+    throw new BusinessRuleError(
+      'Complete store onboarding before editing store details',
+      undefined,
+      'STORE_NOT_ONBOARDED',
+    );
+  }
+}
+
 // Feature 2 Task 3 (Profile Update) — the module doc's Task 3 heading/content was missing (only
 // referenced by later tasks as a dependency). Scope derived from App Flow SCR-S10's "Store/Brand"
-// tab (store_name, store_description, logo_url) — Seller-only; there is no editable identity tab
-// for Buyer/Admin in App Flow, so nothing is invented for them here. Role enforcement itself
-// lives in profile.routes.ts's authorize('SELLER'), not duplicated here.
+// tab (store_name, store_description) — Seller-only; there is no editable identity tab for Buyer/
+// Admin in App Flow, so nothing is invented for them here. Role enforcement itself lives in
+// profile.routes.ts's authorize('SELLER'), not duplicated here. logoUrl/bannerUrl are NOT
+// editable here (Feature 3 Task 4's validated upload endpoints own those exclusively — see the
+// shared schema's comment for why the old direct-URL path was removed).
 export async function updateSellerProfile(
   publicId: string,
   input: UpdateSellerProfileInput,
 ): Promise<SellerProfileDTO> {
   const user = await prisma.user.findUnique({ where: { publicId } });
   if (!user) throw new AuthError();
+  await requireOnboardedSeller(user.userId);
 
   await prisma.sellerProfile.update({
     where: { userId: user.userId },
     data: {
       ...(input.storeName !== undefined && { storeName: input.storeName }),
       ...(input.storeDescription !== undefined && { storeDescription: input.storeDescription }),
-      ...(input.logoUrl !== undefined && { logoUrl: input.logoUrl }),
     },
   });
 
   return getMyProfile(publicId) as Promise<SellerProfileDTO>;
+}
+
+// Feature 3 Task 2 — the SCR-S00 wizard's "Finish" action. A seller_profiles row already exists
+// (a placeholder, created at account activation — auth.service.ts's activateUser), so this is
+// NOT an insert; it's a guarded UPDATE completing onboarding exactly once. Race-safety comes from
+// a conditional UPDATE ("WHERE onboarding_completed_at IS NULL") and checking the affected row
+// count, mirroring the spirit of the module doc's "DB-constraint-first, never check-then-insert"
+// rule but adapted to a row that's already there — the module doc's literal Task 2.1 design
+// (insert + catch unique-violation) assumed no row existed yet, which isn't true in this system.
+export async function createStore(publicId: string, input: CreateStoreInput): Promise<SellerProfileDTO> {
+  const user = await prisma.user.findUnique({ where: { publicId } });
+  if (!user) throw new AuthError();
+
+  const wallets: Array<{ type: PayoutWalletType; accountNumber: string }> = [];
+  if (input.jazzcashAccountNumber) {
+    wallets.push({ type: 'JAZZCASH', accountNumber: input.jazzcashAccountNumber });
+  }
+  if (input.easypaisaAccountNumber) {
+    wallets.push({ type: 'EASYPAISA', accountNumber: input.easypaisaAccountNumber });
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const { count } = await tx.sellerProfile.updateMany({
+      where: { userId: user.userId, onboardingCompletedAt: null },
+      data: {
+        storeName: input.storeName,
+        storeDescription: input.storeDescription ?? null,
+        // 3-step wizard per auth.service.ts's SellerProfile.onboardingStep contract comment —
+        // this single "Finish" submission is the whole wizard server-side (Task 2.4's
+        // assumption: per-step wizard progress is frontend-only, never persisted mid-flow).
+        onboardingStep: 3,
+        onboardingCompletedAt: new Date(),
+      },
+    });
+
+    if (count === 0) {
+      throw new ConflictError(
+        'Store onboarding has already been completed',
+        undefined,
+        'ONBOARDING_ALREADY_COMPLETE',
+      );
+    }
+
+    // account_number is encrypted at rest (Schema §14.1) — reuses Feature 1's generic field
+    // cipher, built specifically to be reusable by later features like this one.
+    await tx.payoutWallet.createMany({
+      data: wallets.map((wallet, index) => ({
+        sellerId: user.userId,
+        type: wallet.type,
+        accountNumber: encryptField(wallet.accountNumber),
+        isDefault: index === 0,
+      })),
+    });
+  });
+
+  return getMyProfile(publicId) as Promise<SellerProfileDTO>;
+}
+
+// Feature 3 Task 6 — read-only, derived from users.status; no store-status column exists
+// anywhere in the schema (see the module doc's Documentation Gaps table). `since` is
+// approximated from users.updated_at (no dedicated status-change-timestamp column exists) — the
+// precise history lives in audit_logs, out of scope for this seller-facing read.
+export async function getStoreStatus(publicId: string): Promise<StoreStatusDTO> {
+  const user = await prisma.user.findUnique({
+    where: { publicId },
+    select: { status: true, updatedAt: true },
+  });
+  if (!user) throw new AuthError();
+
+  return { status: user.status, since: user.updatedAt.toISOString() };
 }
 
 // The buyer-side half of Task 3 — SCR-B12's "default address used at checkout" relationship.
@@ -138,8 +243,9 @@ export async function setDefaultAddress(
   return getMyProfile(publicId) as Promise<BuyerProfileDTO>;
 }
 
-const AVATAR_MAX_BYTES = 10 * 1024 * 1024; // Assumption (Task 4.2): reuse REQ-F-Store001's 10MB
-// accept-then-compress ceiling — no avatar-specific limit is defined anywhere in the docs.
+const IMAGE_MAX_BYTES = 10 * 1024 * 1024; // Assumption (Task 4.2): reuse REQ-F-Store001's 10MB
+// accept-then-compress ceiling — no avatar/logo/banner-specific limit is defined anywhere in the
+// docs. Shared by avatar (Feature 2) and store logo/banner (Feature 3 Task 4.3's assumption).
 
 const MAGIC_BYTE_CHECKS: Array<{ mime: string; check: (buf: Buffer) => boolean }> = [
   { mime: 'image/jpeg', check: (b) => b.length > 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff },
@@ -159,6 +265,24 @@ function detectImageType(buffer: Buffer): string | null {
   return MAGIC_BYTE_CHECKS.find((entry) => entry.check(buffer))?.mime ?? null;
 }
 
+// Shared by uploadAvatar/uploadStoreLogo/uploadStoreBanner (Feature 3 Task 4.1's generalization
+// decision, applied backend-side too — one validation path, not three copies) — only the error
+// codes differ per target, so the avatar's already-shipped/documented codes stay stable.
+function validateImageFile(
+  file: { buffer: Buffer; size: number },
+  tooLargeCode: string,
+  invalidFileCode: string,
+): string {
+  if (file.size > IMAGE_MAX_BYTES) {
+    throw new ValidationError('Image file is too large (max 10MB)', undefined, tooLargeCode);
+  }
+  const mimeType = detectImageType(file.buffer);
+  if (!mimeType) {
+    throw new ValidationError('File is not a valid JPEG, PNG, or WEBP image', undefined, invalidFileCode);
+  }
+  return mimeType;
+}
+
 function extractStorageKey(url: string): string | null {
   const prefix = `${config.storage.publicBaseUrl}/${config.storage.bucket}/`;
   return url.startsWith(prefix) ? url.slice(prefix.length) : null;
@@ -168,18 +292,7 @@ export async function uploadAvatar(
   publicId: string,
   file: { buffer: Buffer; size: number },
 ): Promise<ProfileDTO> {
-  if (file.size > AVATAR_MAX_BYTES) {
-    throw new ValidationError('Avatar file is too large (max 10MB)', undefined, 'AVATAR_TOO_LARGE');
-  }
-
-  const mimeType = detectImageType(file.buffer);
-  if (!mimeType) {
-    throw new ValidationError(
-      'File is not a valid JPEG, PNG, or WEBP image',
-      undefined,
-      'AVATAR_INVALID_FILE',
-    );
-  }
+  const mimeType = validateImageFile(file, 'AVATAR_TOO_LARGE', 'AVATAR_INVALID_FILE');
 
   const user = await prisma.user.findUnique({ where: { publicId } });
   if (!user) throw new AuthError();
@@ -224,6 +337,77 @@ export async function removeAvatar(publicId: string): Promise<ProfileDTO> {
 
   return getMyProfile(publicId);
 }
+
+// Feature 3 Task 4.2/4.3 — identical mechanism to avatar upload/remove, targeting
+// seller_profiles.logoUrl/bannerUrl instead of users.avatarUrl. Both guarded by
+// requireOnboardedSeller: a seller mid-wizard has nothing to attach a logo/banner to yet.
+async function uploadStoreImage(
+  publicId: string,
+  file: { buffer: Buffer; size: number },
+  field: 'logoUrl' | 'bannerUrl',
+  keyPrefix: 'store-logos' | 'store-banners',
+): Promise<SellerProfileDTO> {
+  const mimeType = validateImageFile(file, 'STORE_IMAGE_TOO_LARGE', 'STORE_IMAGE_INVALID_FILE');
+
+  const user = await prisma.user.findUnique({ where: { publicId } });
+  if (!user) throw new AuthError();
+  await requireOnboardedSeller(user.userId);
+
+  const existing = await prisma.sellerProfile.findUniqueOrThrow({ where: { userId: user.userId } });
+  const previousUrl = existing[field];
+
+  const extension = mimeType.split('/')[1];
+  const key = `${keyPrefix}/${user.userId}/${randomUUID()}.${extension}`;
+  const storage = getStorageAdapter();
+  const { url } = await storage.upload({ buffer: file.buffer, key, contentType: mimeType });
+
+  await prisma.sellerProfile.update({ where: { userId: user.userId }, data: { [field]: url } });
+
+  if (previousUrl) {
+    const previousKey = extractStorageKey(previousUrl);
+    if (previousKey) {
+      storage.delete(previousKey).catch((err) => {
+        logger.warn({ err }, `Failed to delete replaced ${field} (non-fatal)`);
+      });
+    }
+  }
+
+  return getMyProfile(publicId) as Promise<SellerProfileDTO>;
+}
+
+async function removeStoreImage(
+  publicId: string,
+  field: 'logoUrl' | 'bannerUrl',
+): Promise<SellerProfileDTO> {
+  const user = await prisma.user.findUnique({ where: { publicId } });
+  if (!user) throw new AuthError();
+  await requireOnboardedSeller(user.userId);
+
+  const existing = await prisma.sellerProfile.findUniqueOrThrow({ where: { userId: user.userId } });
+  const previousUrl = existing[field];
+
+  await prisma.sellerProfile.update({ where: { userId: user.userId }, data: { [field]: null } });
+
+  if (previousUrl) {
+    const key = extractStorageKey(previousUrl);
+    if (key) {
+      getStorageAdapter()
+        .delete(key)
+        .catch((err) => {
+          logger.warn({ err }, `Failed to delete ${field} on remove (non-fatal)`);
+        });
+    }
+  }
+
+  return getMyProfile(publicId) as Promise<SellerProfileDTO>;
+}
+
+export const uploadStoreLogo = (publicId: string, file: { buffer: Buffer; size: number }) =>
+  uploadStoreImage(publicId, file, 'logoUrl', 'store-logos');
+export const removeStoreLogo = (publicId: string) => removeStoreImage(publicId, 'logoUrl');
+export const uploadStoreBanner = (publicId: string, file: { buffer: Buffer; size: number }) =>
+  uploadStoreImage(publicId, file, 'bannerUrl', 'store-banners');
+export const removeStoreBanner = (publicId: string) => removeStoreImage(publicId, 'bannerUrl');
 
 // Reuses Auth's exact bcrypt/revocation utilities (Feature 1) — does not reimplement any of
 // them. Revokes every session (current included), then issues a fresh pair for the current

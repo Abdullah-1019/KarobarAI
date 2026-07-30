@@ -1,6 +1,7 @@
 import request from 'supertest';
 
 import { prisma } from '../../src/core/prisma';
+import { redis } from '../../src/core/redis';
 import { app } from '../../src/server';
 import { createAddress, createTestUser } from '../helpers/factories';
 import { resetDb, resetRedis } from '../helpers/reset';
@@ -12,11 +13,12 @@ beforeEach(async () => {
 
 afterAll(async () => {
   await prisma.$disconnect();
+  await redis.quit();
 });
 
 describe('PATCH /api/v1/profile/me (Seller store update)', () => {
-  it('updates storeName/storeDescription/logoUrl for a seller', async () => {
-    const seller = await createTestUser('SELLER');
+  it('updates storeName/storeDescription for an onboarded seller', async () => {
+    const seller = await createTestUser('SELLER', { onboarded: true });
 
     const res = await request(app)
       .patch('/api/v1/profile/me')
@@ -24,7 +26,6 @@ describe('PATCH /api/v1/profile/me (Seller store update)', () => {
       .send({
         storeName: 'New Store Name',
         storeDescription: 'A great store',
-        logoUrl: 'https://cdn.example.com/logo.png',
       });
 
     expect(res.status).toBe(200);
@@ -33,6 +34,32 @@ describe('PATCH /api/v1/profile/me (Seller store update)', () => {
     const row = await prisma.sellerProfile.findUniqueOrThrow({ where: { userId: seller.userId } });
     expect(row.storeName).toBe('New Store Name');
     expect(row.storeDescription).toBe('A great store');
+  });
+
+  // Feature 3 Task 3.2's guard — a seller_profiles row always exists (placeholder, from account
+  // activation), but editing business info before onboarding (POST /profile/me/store) has
+  // actually completed must be rejected, not silently no-op or crash.
+  it('rejects a non-onboarded seller with 422 STORE_NOT_ONBOARDED', async () => {
+    const seller = await createTestUser('SELLER'); // onboarded defaults to false
+
+    const res = await request(app)
+      .patch('/api/v1/profile/me')
+      .set('Authorization', `Bearer ${seller.accessToken}`)
+      .send({ storeName: 'New Store Name' });
+
+    expect(res.status).toBe(422);
+    expect(res.body.error.code).toBe('STORE_NOT_ONBOARDED');
+  });
+
+  it('rejects logoUrl/bannerUrl as direct fields (must go through the upload endpoints) with 400', async () => {
+    const seller = await createTestUser('SELLER', { onboarded: true });
+
+    const res = await request(app)
+      .patch('/api/v1/profile/me')
+      .set('Authorization', `Bearer ${seller.accessToken}`)
+      .send({ storeName: 'X', logoUrl: 'https://cdn.example.com/logo.png' });
+
+    expect(res.status).toBe(400);
   });
 
   it('rejects a Buyer attempting the seller-only endpoint with 403', async () => {
@@ -47,7 +74,7 @@ describe('PATCH /api/v1/profile/me (Seller store update)', () => {
   });
 
   it('rejects an unknown field (zod .strict()) with 400', async () => {
-    const seller = await createTestUser('SELLER');
+    const seller = await createTestUser('SELLER', { onboarded: true });
 
     const res = await request(app)
       .patch('/api/v1/profile/me')

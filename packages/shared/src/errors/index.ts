@@ -29,3 +29,13 @@ export const PROFILE_ERROR_CODES = {
 } as const;
 
 export type ProfileErrorCode = (typeof PROFILE_ERROR_CODES)[keyof typeof PROFILE_ERROR_CODES];
+
+// Error codes introduced by the Store Management feature (extends the profile module).
+export const STORE_ERROR_CODES = {
+  ONBOARDING_ALREADY_COMPLETE: 'ONBOARDING_ALREADY_COMPLETE',
+  STORE_NOT_ONBOARDED: 'STORE_NOT_ONBOARDED',
+  STORE_IMAGE_INVALID_FILE: 'STORE_IMAGE_INVALID_FILE',
+  STORE_IMAGE_TOO_LARGE: 'STORE_IMAGE_TOO_LARGE',
+} as const;
+
+export type StoreErrorCode = (typeof STORE_ERROR_CODES)[keyof typeof STORE_ERROR_CODES];

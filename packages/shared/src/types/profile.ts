@@ -24,6 +24,20 @@ export interface SellerProfileDTO extends BaseProfileDTO {
   storeName: string;
   storeDescription: string | null;
   logoUrl: string | null;
+  bannerUrl: string | null;
+  // Feature 3 (Store Management): true once onboarding (POST /profile/me/store) has completed.
+  // A seller_profiles row always exists from account activation (a placeholder, Feature 1's
+  // activateUser) — hasStore is NOT "does a row exist", it's "has onboarding actually finished".
+  hasStore: boolean;
+}
+
+// Feature 3 Task 6 — read-only, derived from users.status; no separate store-status column
+// exists anywhere in the schema. `since` is approximated from users.updated_at (no dedicated
+// status-change-timestamp column exists) — the precise history lives in audit_logs, out of
+// scope for this seller-facing read.
+export interface StoreStatusDTO {
+  status: UserStatus;
+  since: string; // ISO 8601
 }
 
 export interface AdminProfileDTO extends BaseProfileDTO {

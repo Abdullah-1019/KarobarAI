@@ -11,6 +11,7 @@ beforeEach(async () => {
 
 afterAll(async () => {
   await prisma.$disconnect();
+  await redis.quit();
 });
 
 describe('auth.otp', () => {

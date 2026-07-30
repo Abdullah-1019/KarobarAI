@@ -4,6 +4,7 @@ import { ok } from '../../core/http/envelope';
 import { requestMeta, setRefreshCookie } from '../../core/http/session';
 import type {
   ChangePasswordInput,
+  CreateStoreInput,
   SetDefaultAddressInput,
   UpdateSellerProfileInput,
   UpdateSettingsInput,
@@ -55,6 +56,49 @@ export const changePasswordHandler = asyncHandler(async (req, res) => {
 
   setRefreshCookie(res, auth.refreshCookie);
   res.status(200).json(ok({ accessToken: auth.accessToken, expiresIn: auth.expiresIn }));
+});
+
+export const createStoreHandler = asyncHandler(async (req, res) => {
+  const input = req.body as CreateStoreInput;
+  const profile = await profileService.createStore(req.user!.sub, input);
+  res.status(201).json(ok(profile));
+});
+
+export const uploadStoreLogoHandler = asyncHandler(async (req, res) => {
+  if (!req.file) {
+    throw new ValidationError('No file uploaded (expected multipart field "logo")', undefined, 'STORE_IMAGE_INVALID_FILE');
+  }
+  const profile = await profileService.uploadStoreLogo(req.user!.sub, {
+    buffer: req.file.buffer,
+    size: req.file.size,
+  });
+  res.status(200).json(ok(profile));
+});
+
+export const removeStoreLogoHandler = asyncHandler(async (req, res) => {
+  const profile = await profileService.removeStoreLogo(req.user!.sub);
+  res.status(200).json(ok(profile));
+});
+
+export const uploadStoreBannerHandler = asyncHandler(async (req, res) => {
+  if (!req.file) {
+    throw new ValidationError('No file uploaded (expected multipart field "banner")', undefined, 'STORE_IMAGE_INVALID_FILE');
+  }
+  const profile = await profileService.uploadStoreBanner(req.user!.sub, {
+    buffer: req.file.buffer,
+    size: req.file.size,
+  });
+  res.status(200).json(ok(profile));
+});
+
+export const removeStoreBannerHandler = asyncHandler(async (req, res) => {
+  const profile = await profileService.removeStoreBanner(req.user!.sub);
+  res.status(200).json(ok(profile));
+});
+
+export const getStoreStatusHandler = asyncHandler(async (req, res) => {
+  const status = await profileService.getStoreStatus(req.user!.sub);
+  res.status(200).json(ok(status));
 });
 
 export const getSettingsHandler = asyncHandler(async (req, res) => {

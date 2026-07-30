@@ -9,6 +9,86 @@ or flagged for follow-up. Newest entries at the top.
 
 ---
 
+## Feature: Store Management (Implementation Plan Phase 6 / Feature 3)
+
+**Status:** Done — 2026-07-30. Extends Feature 2's profile module (no parallel store module
+built — per the module doc's explicit boundary decision). Full backend suite green: **117/117
+tests, 17/17 suites** (confirmed non-flaky across 3 consecutive clean runs, including the
+concurrent-onboarding race test), coverage 87.45% statements / 65.83% branches / 80.74% functions
+/ 89.29% lines overall (profile module: 90.68% stmts / 94.59% lines). Full contract in
+`docs/handoffs/F3-store-management-backend.md`.
+
+**Real design conflict found and reconciled before writing any code:** the module doc's Task 2
+("Create Store") assumed `seller_profiles` doesn't exist until this feature creates it — insert,
+catch a unique-constraint violation for race-safety. That's not true in this system: Feature 1's
+`auth.service.ts` already creates a **placeholder** `seller_profiles` row the moment a Seller
+account activates (`onboardingStep: 0`), exactly per the handoff contract F1 documented for this
+feature. So "Create Store" is actually "**complete onboarding**" — a guarded `UPDATE ... WHERE
+onboarding_completed_at IS NULL`, not an `INSERT`, with race-safety coming from the affected-row
+count instead of a unique-violation catch. `hasStore` was redefined accordingly: **not** "does a
+row exist" (always true post-activation) but "has onboarding actually completed"
+(`onboardingCompletedAt !== null`).
+
+**What shipped:**
+- `banner_url` added to `seller_profiles` (Feature-3 schema addition, mirrors Feature 2's
+  `avatar_url` precedent) via a clean hand-created migration (the recurring `search_vector`
+  spurious-diff trap struck again on this migration too, stripped as always).
+- **Payout wallets, previously entirely unimplemented** despite the `payout_wallets` table
+  existing since the Database feature: `POST /profile/me/store` now captures ≥1 wallet
+  (JazzCash/Easypaisa account number, REQ-F-Auth005), encrypted at rest via Feature 1's generic
+  `encryptField` (built specifically to be reusable by exactly this kind of later feature).
+- **Onboarding-step tracking, previously initialized but never advanced**: completing `POST
+  /store` now sets `onboardingStep: 3` and `onboardingCompletedAt`, closing the gap between what
+  Feature 1 initialized and what nothing ever completed.
+- `POST`/`DELETE /profile/me/store/logo` and `/banner` — same validated-upload mechanism as
+  Feature 2's avatar (magic-byte checked, 10MB ceiling), targeting `seller_profiles.logoUrl`/
+  `bannerUrl` instead of `users.avatarUrl`. Both guarded by a new `requireOnboardedSeller` check.
+- `GET /profile/me/store/status` — read-only, derived from `users.status`; no mutation path
+  exists anywhere (tested adversarially, permanently, per the module doc's Task 6.2/7.4).
+- **Correction to Feature 2's already-shipped `PATCH /profile/me`:** removed `logoUrl` as a
+  directly-settable field. It previously accepted an arbitrary client-supplied URL with no
+  validation; now that a real validated upload endpoint exists for logos, leaving that bypass
+  open would have undercut the validation entirely. `logoUrl`/`bannerUrl` are now exclusively
+  settable via the upload endpoints — a deliberate tightening, not a silent regression (Feature
+  2's own test for this was updated to assert the old field is now rejected).
+- `SellerProfileDTO` extended with `bannerUrl`/`hasStore`; new `StoreStatusDTO`.
+
+**Real bugs found and fixed during this feature (not all new — some pre-existing, surfaced by
+this feature's heavier test load):**
+- **Pre-existing test-suite hang, present since Feature 1, only now surfaced**: no test file
+  anywhere in the suite ever called `redis.quit()` — only `prisma.$disconnect()` in `afterAll`.
+  Since Jest gives every test file its own isolated module registry, each file that touches Redis
+  creates a brand-new `ioredis` client that's never torn down. With enough test files/connections
+  accumulated, the process stopped exiting cleanly after all tests finished, hanging indefinitely
+  (piped output never flushed, looked identical to a real deadlock until confirmed otherwise via
+  `pg_stat_activity`, an isolated ioredis connectivity check, and process CPU-time sampling
+  showing zero progress). Fixed by adding `await redis.quit()` to all 14 test files that touch
+  Redis (13 already had a `prisma.$disconnect()` afterAll to extend; `rbac.test.ts` had no afterAll
+  at all and needed one added).
+- **Own test bug, not a service bug**: `store.test.ts`'s logo-removal test used an arbitrary
+  `mock://storage/...` URL that didn't match `extractStorageKey()`'s real expected prefix
+  (`config.storage.publicBaseUrl`/`bucket`), so the delete-on-remove assertion failed even though
+  the actual service code was correct — same gotcha `avatar.test.ts` had already correctly worked
+  around. Fixed by constructing the mock URL with the real config prefix, matching that precedent.
+- **Suspicious file corruption caught before it shipped**: mid-session, `profile.controller.ts`
+  was found with a nonsensical line of text appended after its last valid statement (not
+  something introduced by any edit made here) — flagged to the user as a possible injection
+  rather than silently "fixed and forgotten," then removed once confirmed to be corrupted,
+  non-functional content. Full suite re-verified clean afterward.
+
+**Known limitations / assumptions (see the handoff doc for full detail):**
+- Wallet editing after onboarding (add/remove/change default) is out of scope — a separate
+  Wallet & Payout feature (SCR-S09). Wallets are captured once, at `POST /store`, only.
+- Task 6.4's "block writes when `status !== ACTIVE`" cross-check was deliberately not built as a
+  separate gate — the module doc itself calls it largely defensive, since a suspended/banned
+  account's sessions are already immediately revoked by Auth's existing mechanism
+  (REQ-F-Auth006); a suspended Seller's token stops working at `authenticate` before it ever
+  reaches a store endpoint.
+- Wizard step-by-step progress is frontend-only state — the server only ever sees the final
+  `POST /store` submission (no draft/partial persistence anywhere, matching the schema).
+
+---
+
 ## Feature: User Profiles (Implementation Plan Phase 5 / Feature 2)
 
 **Status:** Done — 2026-07-29. Full backend test suite green: **76/76 tests, 16/16 suites**,
@@ -292,5 +372,5 @@ working.
 
 ---
 
-*Next: Feature 2 (User Profiles) is done — pick the next feature per the Implementation Plan
-(Catalog/Product Management is next in sequence).*
+*Next: Feature 3 (Store Management) is done — Feature 4 (Product Management) is next per the
+day-by-day plan (`docs/DailyPlan.md` Days 6-9, PB-F4).*

@@ -1,6 +1,7 @@
 import request from 'supertest';
 
 import { prisma } from '../../src/core/prisma';
+import { redis } from '../../src/core/redis';
 import { app } from '../../src/server';
 import { createTestUser } from '../helpers/factories';
 import { resetDb, resetRedis } from '../helpers/reset';
@@ -12,6 +13,7 @@ beforeEach(async () => {
 
 afterAll(async () => {
   await prisma.$disconnect();
+  await redis.quit();
 });
 
 describe('GET /api/v1/profile/me', () => {
@@ -41,6 +43,33 @@ describe('GET /api/v1/profile/me', () => {
     expect(res.body.data).not.toHaveProperty('easypaisaWallet');
     expect(res.body.data).not.toHaveProperty('commissionRate');
     expect(res.body.data).not.toHaveProperty('fraudRate30d');
+  });
+
+  // Feature 3 Task 1.4's regression test — a freshly-activated Seller (placeholder
+  // seller_profiles row, onboarding not yet completed) must get hasStore: false and a clean
+  // 200, not a 500. This is exactly the case Feature 2 never had to handle, since onboarding
+  // was assumed complete by the time Feature 2 shipped.
+  it('returns hasStore: false for a freshly-activated, not-yet-onboarded seller (no 500)', async () => {
+    const seller = await createTestUser('SELLER'); // onboarded defaults to false
+
+    const res = await request(app)
+      .get('/api/v1/profile/me')
+      .set('Authorization', `Bearer ${seller.accessToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.hasStore).toBe(false);
+    expect(res.body.data.bannerUrl).toBeNull();
+  });
+
+  it('returns hasStore: true for a seller who has completed onboarding', async () => {
+    const seller = await createTestUser('SELLER', { onboarded: true });
+
+    const res = await request(app)
+      .get('/api/v1/profile/me')
+      .set('Authorization', `Bearer ${seller.accessToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.hasStore).toBe(true);
   });
 
   it('returns a minimal Admin profile shape (identity fields only, confirmed Task 0 assumption)', async () => {

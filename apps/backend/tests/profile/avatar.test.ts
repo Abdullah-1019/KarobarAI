@@ -5,6 +5,7 @@ import request from 'supertest';
 import { getStorageAdapter } from '../../src/adapters/storage';
 import { config } from '../../src/core/config';
 import { prisma } from '../../src/core/prisma';
+import { redis } from '../../src/core/redis';
 import { app } from '../../src/server';
 import { createTestUser } from '../helpers/factories';
 import { resetDb, resetRedis } from '../helpers/reset';
@@ -26,6 +27,7 @@ beforeEach(async () => {
 
 afterAll(async () => {
   await prisma.$disconnect();
+  await redis.quit();
 });
 
 // Minimal valid PNG magic-byte header, padded so it clears multer's field-size expectations.

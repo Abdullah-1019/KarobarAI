@@ -5,6 +5,7 @@ import request from 'supertest';
 import { signAccessToken } from '../../src/core/jwt';
 import { authenticate } from '../../src/core/middleware/authenticate';
 import { authorize } from '../../src/core/middleware/authorize';
+import { redis } from '../../src/core/redis';
 import { app } from '../../src/server';
 import { resetRedis } from '../helpers/reset';
 
@@ -16,6 +17,10 @@ app.get('/__test/admin-only', authenticate, authorize('ADMIN'), (_req: Request, 
 
 beforeEach(async () => {
   await resetRedis();
+});
+
+afterAll(async () => {
+  await redis.quit();
 });
 
 describe('authenticate + authorize', () => {

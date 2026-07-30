@@ -263,6 +263,9 @@ model SellerProfile {
   storeName             String    @map("store_name") @db.VarChar(120)
   storeDescription      String?   @map("store_description") @db.Text
   logoUrl               String?   @map("logo_url") @db.VarChar(512)
+  // Feature 3 (Store Management) addition — no banner column in the base Schema Doc §4.2;
+  // App Flow's Store-Setup Wizard needs one, mirrors avatarUrl's precedent (Feature 2) exactly.
+  bannerUrl             String?   @map("banner_url") @db.VarChar(512)
   commissionRate        Decimal   @default(0.0500) @map("commission_rate") @db.Decimal(5, 4)
   fraudRate30d          Decimal   @default(0) @map("fraud_rate_30d") @db.Decimal(5, 4)
   onboardingStep        Int       @default(0) @map("onboarding_step") @db.SmallInt

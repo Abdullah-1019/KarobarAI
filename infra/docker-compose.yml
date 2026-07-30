@@ -57,6 +57,8 @@ services:
     environment:
       DATABASE_URL: postgresql://karobarai:karobarai@postgres:5432/karobarai?schema=public
       REDIS_URL: redis://redis:6379
+      AI_SERVICE_URL: http://ai-service:8000
+      MINIO_ENDPOINT: http://minio:9000
     volumes:
       - ../apps/backend:/workspace/apps/backend
       - ../packages/shared:/workspace/packages/shared

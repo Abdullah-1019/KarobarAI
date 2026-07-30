@@ -9,6 +9,81 @@ or flagged for follow-up. Newest entries at the top.
 
 ---
 
+## Feature: Product Management (Implementation Plan Phase 7 / Feature 4)
+
+**Status:** Done — 2026-07-30. Backend only (`apps/backend`'s catalog module +
+`apps/ai-service`'s mock `/generate-listing`) — frontend screens (AddProduct/ProductEdit/
+Products-list/SearchResults) are out of scope, same split as Features 1–3. Full backend suite
+green: **225/225 tests, 24/24 suites** (108 belong to this feature), confirmed non-flaky across 2
+consecutive full-suite runs. Catalog module coverage: 96.0% statements / 96.8% lines. Full
+contract in `docs/handoffs/F4-catalog-backend.md`.
+
+**Explicit scope decision (confirmed with the user before starting):** the AI Store Builder (Task
+3) needs a real GPT-4 Vision → GPT-3.5 fallback LLM integration, which requires actual OpenAI API
+keys — a different kind of work than anything built so far. Per the user's choice, this pass
+implements a **mock stub**: `apps/ai-service`'s `/generate-listing` always returns a fixed,
+schema-conformant listing rather than calling a real provider. The orchestration contract on the
+backend side (validate → call → persist-on-success, never touch the row on failure) is exactly
+what the real integration will run under later, unchanged.
+
+**What shipped:**
+- Catalog module (`modules/catalog/`): categories (read-only, tree-shaped, Redis-cached),
+  product Draft creation, AI-listing orchestration, publish gating (title + image + category),
+  public product detail with owner-Draft-preview, multi-image upload/remove/reorder (position
+  re-sequencing, two-phase reorder to avoid unique-constraint collisions), atomic stock
+  decrement/restore with system-derived `LIVE ↔ OUT_OF_STOCK` transitions, seller product list/
+  edit/unpublish/soft-delete, and full bilingual tsvector search + autocomplete.
+- `apps/ai-service`: new `/generate-listing` route + Pydantic schema (`app/routers/listing.py`,
+  `app/schemas/listing.py`, `app/llm/client.py`) — mock-only per the scope decision above; `black`/
+  `flake8`/`mypy` clean, 4/4 pytest passing.
+- New reusable core pieces: `core/middleware/requireActiveSeller.ts` (composes Feature 3's
+  hasStore + account-ACTIVE guarantees into one chain, applied once at the seller router-group
+  level), `core/middleware/optionalAuthenticate.ts` (never 401s — lets the public product-detail
+  route recognize an owning Seller previewing their own Draft without requiring a token from
+  everyone else), `core/upload/imageValidation.ts` (magic-byte validation extracted out of
+  `profile.service.ts` so avatar/logo/banner/product-image uploads all share one validation path
+  instead of near-duplicate copies), `validateQuery` middleware (query-string counterpart to the
+  existing `validateBody`, needed for the feature's first GET-with-filters endpoints).
+- `decrementStock`/`restoreStock` — a documented **cross-feature contract** for the not-yet-built
+  Cart & Checkout feature: fully implemented and tested (including concurrency) but has no HTTP
+  route or caller yet, matching the module doc's explicit instruction to build this now since it
+  operates on `products`, owned by this module.
+
+**Real bugs found and fixed during implementation (via this feature's own adversarial tests, not
+found by the user):**
+- **`GET /products/:publicId` initially hid `OUT_OF_STOCK` products from everyone but the owning
+  Seller** — wrong: REQ-F-Inv-003's "hidden from default results" only ever applied to search/
+  listing pages, never the direct detail page. Fixed to gate only `DRAFT`/`REMOVED`.
+- **Soft-delete never actually set `status: REMOVED`**, leaving that enum value permanently dead
+  and undermining the fix above (the `DRAFT`/`REMOVED` distinction is meaningless if delete never
+  sets `REMOVED`). Fixed to set `deletedAt` and `status: REMOVED` together.
+- **`resetDb()`'s shared test helper would have started failing the moment any test created a
+  product**: `products.seller_id → seller_profiles` is `onDelete: Restrict`, not `Cascade` — the
+  existing teardown order (delete `sellerProfile` before touching `product`) would throw a
+  foreign-key violation. Fixed by deleting `product` rows first, closing a latent gap that every
+  prior feature's tests happened never to expose (none of them ever created a product row).
+
+**Real documentation gaps found and closed:**
+- **Schema §7 specifies `unaccent` for query-time diacritic-insensitive search, but the Database
+  feature's original migration never created the Postgres extension.** Closed with a small
+  additive migration this session.
+- **`titleEn` AND `price` are both NOT NULL with no DB default** on `products` — the module doc's
+  "upload a photo first" framing doesn't hold literally; Draft creation requires a minimal
+  title + price upfront (Assumption, documented in the handoff doc), with AI generation later
+  overwriting every AI-owned field except price.
+- `product_images (product_id, position)`'s unique constraint (Task 1.2 in the module doc) was
+  already present from the Database feature — no migration needed for that specific item, despite
+  being listed as an expected deliverable.
+
+**Known limitations / assumptions (see the handoff doc for full detail):**
+- No `catalog.repository.ts` layer — kept consistent with `auth`/`profile`'s established
+  convention of one `*.service.ts` per module, including raw search queries.
+- Autocomplete uses substring/`ILIKE`-equivalent matching, not tsquery-prefix — an Engineering
+  Decision the module doc explicitly permits either way.
+- AI-guessed category is matched by exact slug only, no fuzzy matching.
+
+---
+
 ## Feature: Store Management (Implementation Plan Phase 6 / Feature 3)
 
 **Status:** Done — 2026-07-30. Extends Feature 2's profile module (no parallel store module
@@ -372,5 +447,5 @@ working.
 
 ---
 
-*Next: Feature 3 (Store Management) is done — Feature 4 (Product Management) is next per the
-day-by-day plan (`docs/DailyPlan.md` Days 6-9, PB-F4).*
+*Next: Feature 4 (Product Management) is done — Feature 5 (Buyer Marketplace) is next per the
+day-by-day plan (`docs/DailyPlan.md` Day 9, PB-F5).*

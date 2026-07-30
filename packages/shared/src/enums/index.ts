@@ -14,3 +14,7 @@ export type UserStatus =
 export type Language = 'EN' | 'UR';
 
 export type PayoutWalletType = 'JAZZCASH' | 'EASYPAISA';
+
+export type ProductStatus = 'DRAFT' | 'LIVE' | 'OUT_OF_STOCK' | 'REMOVED';
+
+export type ProductCondition = 'NEW' | 'LIKE_NEW' | 'USED' | 'REFURBISHED';

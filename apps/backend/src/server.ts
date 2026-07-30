@@ -11,6 +11,7 @@ import { errorHandler } from './core/middleware/errorHandler';
 import { logger } from './core/logger';
 import { swaggerSpec } from './core/swagger';
 import { authRouter } from './modules/auth';
+import { publicCatalogRouter, sellerProductRouter } from './modules/catalog';
 import { healthRouter } from './modules/health/health.routes';
 import { profileRouter } from './modules/profile';
 
@@ -38,6 +39,8 @@ app.use(
 app.use(healthRouter);
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/profile', profileRouter);
+app.use('/api/v1', publicCatalogRouter);
+app.use('/api/v1/seller/products', sellerProductRouter);
 
 // Swagger UI (TRD §9) serves an inline <script> bundle — the global helmet() CSP above would
 // block it, so this path gets its own relaxed CSP rather than weakening it everywhere.

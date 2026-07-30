@@ -91,3 +91,27 @@ export async function createAddress(
     },
   });
 }
+
+// Feature 4 (Product Management) — bypasses the API to set up a product row directly, for tests
+// that need a pre-existing product rather than exercising the creation flow itself.
+export async function createTestProduct(
+  sellerId: bigint,
+  overrides: {
+    titleEn?: string;
+    price?: number;
+    stock?: number;
+    status?: 'DRAFT' | 'LIVE' | 'OUT_OF_STOCK' | 'REMOVED';
+    categoryId?: bigint | null;
+  } = {},
+) {
+  return prisma.product.create({
+    data: {
+      sellerId,
+      titleEn: overrides.titleEn ?? 'Test Product',
+      price: overrides.price ?? 100,
+      stock: overrides.stock ?? 10,
+      status: overrides.status ?? 'DRAFT',
+      categoryId: overrides.categoryId ?? null,
+    },
+  });
+}

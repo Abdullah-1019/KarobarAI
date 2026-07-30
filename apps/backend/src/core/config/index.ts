@@ -46,7 +46,7 @@ export const config = {
   // credentials whenever S3_* is blank (i.e. always, until prod creds are actually configured).
   storage: {
     endpoint: process.env.S3_BUCKET ? undefined : process.env.MINIO_ENDPOINT ?? 'http://localhost:9000',
-    region: process.env.S3_REGION ?? 'us-east-1',
+    region: process.env.S3_REGION || 'us-east-1',
     accessKeyId: process.env.S3_ACCESS_KEY_ID || process.env.MINIO_ROOT_USER || 'karobarai',
     secretAccessKey: process.env.S3_SECRET_ACCESS_KEY || process.env.MINIO_ROOT_PASSWORD || 'karobarai123',
     bucket: process.env.S3_BUCKET || process.env.MINIO_BUCKET || 'karobarai-dev',

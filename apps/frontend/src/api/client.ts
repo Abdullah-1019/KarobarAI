@@ -34,6 +34,27 @@ apiClient.interceptors.request.use((requestConfig) => {
   return requestConfig;
 });
 
+// Login/register/refresh/etc. return 401 as an expected *result* (wrong password, expired
+// session token), not a signal that our own session died — only clear the store for 401s from
+// endpoints that assumed an existing session.
+const AUTH_ENDPOINTS_EXEMPT_FROM_SESSION_CLEAR = ['/auth/login', '/auth/register', '/auth/refresh', '/auth/otp'];
+
+// App Flow's global UI state: "401 → redirect to Login." Clearing the store here is enough —
+// ProtectedRoute reads it reactively and redirects on its own, so no imperative navigation is
+// needed from an interceptor that sits outside the router tree.
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status = axios.isAxiosError(error) ? error.response?.status : undefined;
+    const url = axios.isAxiosError(error) ? (error.config?.url ?? '') : '';
+    const exempt = AUTH_ENDPOINTS_EXEMPT_FROM_SESSION_CLEAR.some((path) => url.includes(path));
+    if (status === 401 && !exempt) {
+      useAuthStore.getState().clearSession();
+    }
+    return Promise.reject(error);
+  },
+);
+
 // Carries `code`/`details` (not just a message) so callers can switch on `error.code` per
 // HO-F1-Auth.md ("switch on error.code, not HTTP status or message text").
 export class ApiError extends Error {

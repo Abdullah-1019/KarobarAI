@@ -2,3 +2,11 @@ packages:
   - "apps/frontend"
   - "apps/backend"
   - "packages/shared"
+allowBuilds:
+  '@prisma/client': true
+  '@prisma/engines': true
+  '@scarf/scarf': true
+  bcrypt: true
+  esbuild: true
+  msgpackr-extract: true
+  prisma: true

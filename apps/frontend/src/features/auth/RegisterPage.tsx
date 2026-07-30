@@ -7,10 +7,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { registerSchema, type UserRole } from '@karobarai/shared';
 import { PasswordStrengthMeter } from '../../components';
 import { useLanguage } from '../../hooks';
-import { useAuthStore } from '../../lib/authStore';
 import { register as registerAccount } from './authApi';
 import { formatAuthError } from './authErrors';
-import { roleHomePath } from './roleHome';
 
 type Method = 'mobile' | 'email';
 
@@ -27,7 +25,6 @@ interface FormValues {
 export function RegisterPage() {
   const { t } = useTranslation(['auth', 'common']);
   const navigate = useNavigate();
-  const setSession = useAuthStore((state) => state.setSession);
   const { language, setLanguage } = useLanguage();
 
   const [role, setRole] = useState<UserRole>('BUYER');
@@ -71,8 +68,10 @@ export function RegisterPage() {
         navigate('/verify-otp', { state: { phone: values.phone } });
         return;
       }
-      setSession(result.session.accessToken, result.session.user);
-      navigate(roleHomePath(result.session.user.role));
+      // Email registration issues tokens immediately, but we don't auto-login with them — send
+      // the user to Login to sign in explicitly rather than dropping them straight into their
+      // role home (buyer storefront / seller onboarding).
+      navigate('/login');
     } catch (err) {
       setSubmitError(formatAuthError(t, err));
     } finally {

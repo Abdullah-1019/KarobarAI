@@ -1,4 +1,11 @@
-import type { LoginInput, OtpResendInput, OtpVerifyInput, RegisterInput } from '@karobarai/shared';
+import type {
+  ForgotPasswordInput,
+  LoginInput,
+  OtpResendInput,
+  OtpVerifyInput,
+  RegisterInput,
+  ResetPasswordInput,
+} from '@karobarai/shared';
 
 import type { ApiEnvelope } from '../../api';
 import { apiClient, unwrap } from '../../api';
@@ -35,4 +42,28 @@ export function otpResend(input: OtpResendInput): Promise<{ resent: boolean; exp
 
 export function login(input: LoginInput): Promise<AuthSession> {
   return unwrap(apiClient.post<ApiEnvelope<AuthSession>>('/auth/login', input));
+}
+
+// Always resolves { sent: true } regardless of whether the identifier matched an account — no
+// enumeration, per HO-F1-Auth.md. There is no error state to handle here.
+export function forgotPassword(input: ForgotPasswordInput): Promise<{ sent: boolean }> {
+  return unwrap(apiClient.post<ApiEnvelope<{ sent: boolean }>>('/auth/forgot-password', input));
+}
+
+export function resetPassword(input: ResetPasswordInput): Promise<{ reset: boolean }> {
+  return unwrap(apiClient.post<ApiEnvelope<{ reset: boolean }>>('/auth/reset-password', input));
+}
+
+// No body — the karobarai_rt HttpOnly cookie is sent automatically (apiClient has
+// withCredentials: true). Returns only a new access token, not the user (HO-F1-Auth.md); callers
+// that need `user` must follow up with me().
+export function refresh(): Promise<{ accessToken: string; expiresIn: number }> {
+  return unwrap(apiClient.post<ApiEnvelope<{ accessToken: string; expiresIn: number }>>('/auth/refresh'));
+}
+
+// Takes an explicit token during session bootstrap (before the store holds one, so the request
+// interceptor has nothing to attach yet) — falls back to whatever's in the store otherwise.
+export function me(token?: string): Promise<AuthUser> {
+  const config = token ? { headers: { Authorization: `Bearer ${token}` } } : undefined;
+  return unwrap(apiClient.get<ApiEnvelope<AuthUser>>('/auth/me', config));
 }

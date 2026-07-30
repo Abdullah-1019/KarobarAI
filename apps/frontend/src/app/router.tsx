@@ -2,20 +2,47 @@ import { Navigate, createBrowserRouter } from 'react-router-dom';
 
 import { EmptyState } from '../components';
 import { AdminPlaceholder } from '../features/admin';
-import { LoginPage, OtpVerifyPage, RegisterPage } from '../features/auth';
+import { ForgotPasswordPage, LoginPage, OtpVerifyPage, RegisterPage, ResetPasswordPage } from '../features/auth';
 import { BuyerPlaceholder } from '../features/buyer';
+import { ChangePasswordPage, EditProfilePage, ProfilePage, SettingsPage } from '../features/profile';
 import { SellerPlaceholder } from '../features/seller';
+import { ProtectedRoute } from './ProtectedRoute';
 
-// Base routing skeleton (TRD §12), auth routes match App Flow's literal paths (SCR-A01/A02/A03)
-// rather than being nested under /auth. No protected routes yet — those arrive with RBAC
-// (Day 4 per docs/DailyPlan.md), once there's a logged-in screen to actually guard.
+// Base routing skeleton (TRD §12), auth routes match App Flow's literal paths (SCR-A01/A02/A03/A04)
+// rather than being nested under /auth. /seller and /admin are RBAC-guarded via ProtectedRoute
+// (App Flow's global "401 → Login, 403 → not authorised"); the rest of /buyer stays public — SCR-B01
+// is the unauthenticated storefront homepage — but /buyer/profile/* still needs a Buyer session, so
+// it gets its own ProtectedRoute group (react-router ranks static segments over the `/buyer/*`
+// wildcard, so this takes precedence regardless of array order).
 export const router = createBrowserRouter([
   { path: '/', element: <Navigate to="/buyer" replace /> },
   { path: '/register', element: <RegisterPage /> },
   { path: '/verify-otp', element: <OtpVerifyPage /> },
   { path: '/login', element: <LoginPage /> },
+  { path: '/forgot-password', element: <ForgotPasswordPage /> },
+  { path: '/reset-password', element: <ResetPasswordPage /> },
+  {
+    element: <ProtectedRoute allowedRoles={['BUYER']} />,
+    children: [
+      { path: '/buyer/profile', element: <ProfilePage /> },
+      { path: '/buyer/profile/settings', element: <SettingsPage /> },
+      { path: '/buyer/profile/change-password', element: <ChangePasswordPage /> },
+    ],
+  },
   { path: '/buyer/*', element: <BuyerPlaceholder /> },
-  { path: '/seller/*', element: <SellerPlaceholder /> },
-  { path: '/admin/*', element: <AdminPlaceholder /> },
+  {
+    element: <ProtectedRoute allowedRoles={['SELLER']} />,
+    children: [
+      { path: '/seller/profile', element: <ProfilePage /> },
+      { path: '/seller/profile/edit', element: <EditProfilePage /> },
+      { path: '/seller/profile/settings', element: <SettingsPage /> },
+      { path: '/seller/profile/change-password', element: <ChangePasswordPage /> },
+      { path: '/seller/*', element: <SellerPlaceholder /> },
+    ],
+  },
+  {
+    element: <ProtectedRoute allowedRoles={['ADMIN']} />,
+    children: [{ path: '/admin/*', element: <AdminPlaceholder /> }],
+  },
   { path: '*', element: <EmptyState title="Page not found" description="We couldn't find that." /> },
 ]);

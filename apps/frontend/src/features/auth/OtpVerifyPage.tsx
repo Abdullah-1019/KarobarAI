@@ -3,10 +3,8 @@ import { Alert, Button, Input, Typography } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-import { useAuthStore } from '../../lib/authStore';
 import { otpResend, otpVerify } from './authApi';
 import { formatAuthError } from './authErrors';
-import { roleHomePath } from './roleHome';
 
 const OTP_VALIDITY_SECONDS = 10 * 60;
 const RESEND_COOLDOWN_SECONDS = 60;
@@ -16,7 +14,6 @@ export function OtpVerifyPage() {
   const { t } = useTranslation(['auth', 'common']);
   const navigate = useNavigate();
   const location = useLocation();
-  const setSession = useAuthStore((state) => state.setSession);
 
   const phone = (location.state as { phone?: string } | null)?.phone;
 
@@ -51,9 +48,10 @@ export function OtpVerifyPage() {
     setError(null);
     setVerifying(true);
     try {
-      const session = await otpVerify({ phone: phone!, code });
-      setSession(session.accessToken, session.user);
-      navigate(roleHomePath(session.user.role));
+      // Tokens are issued on verify, but we don't auto-login with them — send the user to
+      // Login to sign in explicitly instead of dropping them into their role home.
+      await otpVerify({ phone: phone!, code });
+      navigate('/login');
     } catch (err) {
       setError(formatAuthError(t, err));
     } finally {

@@ -6,6 +6,7 @@ import { Link, useNavigate } from 'react-router-dom';
 
 import { loginSchema } from '@karobarai/shared';
 import { useAuthStore } from '../../lib/authStore';
+import { useLanguageStore } from '../../lib/languageStore';
 import { login } from './authApi';
 import { formatAuthError } from './authErrors';
 import { roleHomePath } from './roleHome';
@@ -49,6 +50,8 @@ export function LoginPage() {
     try {
       const session = await login(parsed.data);
       setSession(session.accessToken, session.user);
+      // Apply the account's saved language on login, same as session-restore does on boot.
+      useLanguageStore.getState().setLanguage(session.user.preferredLanguage);
       navigate(roleHomePath(session.user.role));
     } catch (err) {
       setSubmitError(formatAuthError(t, err));

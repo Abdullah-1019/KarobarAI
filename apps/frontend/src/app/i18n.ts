@@ -2,8 +2,8 @@ import type { Language } from '@karobarai/shared';
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 
-import { auth as authEn, common as commonEn, profile as profileEn } from '../locales/en';
-import { auth as authUr, common as commonUr, profile as profileUr } from '../locales/ur';
+import { auth as authEn, catalog as catalogEn, common as commonEn, profile as profileEn } from '../locales/en';
+import { auth as authUr, catalog as catalogUr, common as commonUr, profile as profileUr } from '../locales/ur';
 
 export const RTL_LANGUAGES = ['UR'] as const;
 
@@ -28,12 +28,12 @@ export function storeLanguage(language: Language): void {
 // uppercase ('EN' | 'UR') to match the backend's user.language column.
 i18n.use(initReactI18next).init({
   resources: {
-    en: { common: commonEn, auth: authEn, profile: profileEn },
-    ur: { common: commonUr, auth: authUr, profile: profileUr },
+    en: { common: commonEn, auth: authEn, profile: profileEn, catalog: catalogEn },
+    ur: { common: commonUr, auth: authUr, profile: profileUr, catalog: catalogUr },
   },
   lng: getStoredLanguage().toLowerCase(),
   fallbackLng: 'en',
-  ns: ['common', 'auth', 'profile'],
+  ns: ['common', 'auth', 'profile', 'catalog'],
   defaultNS: 'common',
   interpolation: { escapeValue: false },
 });

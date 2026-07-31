@@ -47,8 +47,8 @@ export function RegisterPage() {
 
     const payload =
       method === 'mobile'
-        ? { method: 'mobile' as const, role, phone: values.phone, password: values.password }
-        : { method: 'email' as const, role, email: values.email, password: values.password };
+        ? { method: 'mobile' as const, role, phone: values.phone, password: values.password, preferredLanguage: language }
+        : { method: 'email' as const, role, email: values.email, password: values.password, preferredLanguage: language };
 
     const parsed = registerSchema.safeParse(payload);
     if (!parsed.success) {

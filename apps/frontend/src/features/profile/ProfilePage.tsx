@@ -58,11 +58,6 @@ export function ProfilePage() {
           self-profile screen (F2-profiles-backend.md), so ADMIN/SUPPORT stop at the view above. */}
       {(profile.role === 'BUYER' || profile.role === 'SELLER') && (
         <div style={{ marginTop: 24, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          {profile.role === 'SELLER' && (
-            <Link to={`${roleHomePath(profile.role)}/profile/edit`}>
-              <Button>{t('profile:view.editProfile')}</Button>
-            </Link>
-          )}
           <Link to={`${roleHomePath(profile.role)}/profile/settings`}>
             <Button>{t('profile:view.settings')}</Button>
           </Link>

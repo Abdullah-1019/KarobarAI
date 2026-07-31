@@ -4,8 +4,9 @@ import { EmptyState } from '../components';
 import { AdminPlaceholder } from '../features/admin';
 import { ForgotPasswordPage, LoginPage, OtpVerifyPage, RegisterPage, ResetPasswordPage } from '../features/auth';
 import { BuyerPlaceholder } from '../features/buyer';
-import { ChangePasswordPage, EditProfilePage, ProfilePage, SettingsPage } from '../features/profile';
-import { SellerPlaceholder } from '../features/seller';
+import { AddProductPage, EditProductPage, SellerProductsPage } from '../features/catalog';
+import { ChangePasswordPage, ProfilePage, SettingsPage } from '../features/profile';
+import { RequireStore, SellerPlaceholder, StoreSetupWizard } from '../features/seller';
 import { ProtectedRoute } from './ProtectedRoute';
 
 // Base routing skeleton (TRD §12), auth routes match App Flow's literal paths (SCR-A01/A02/A03/A04)
@@ -33,11 +34,19 @@ export const router = createBrowserRouter([
   {
     element: <ProtectedRoute allowedRoles={['SELLER']} />,
     children: [
-      { path: '/seller/profile', element: <ProfilePage /> },
-      { path: '/seller/profile/edit', element: <EditProfilePage /> },
-      { path: '/seller/profile/settings', element: <SettingsPage /> },
-      { path: '/seller/profile/change-password', element: <ChangePasswordPage /> },
-      { path: '/seller/*', element: <SellerPlaceholder /> },
+      { path: '/seller/setup', element: <StoreSetupWizard /> },
+      {
+        element: <RequireStore />,
+        children: [
+          { path: '/seller', element: <SellerProductsPage /> },
+          { path: '/seller/products/new', element: <AddProductPage /> },
+          { path: '/seller/products/:productId/edit', element: <EditProductPage /> },
+          { path: '/seller/profile', element: <ProfilePage /> },
+          { path: '/seller/profile/settings', element: <SettingsPage /> },
+          { path: '/seller/profile/change-password', element: <ChangePasswordPage /> },
+          { path: '/seller/*', element: <SellerPlaceholder /> },
+        ],
+      },
     ],
   },
   {

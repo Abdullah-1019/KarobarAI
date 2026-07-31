@@ -1,13 +1,14 @@
 import { useState } from 'react';
-import { Alert, Segmented, Switch, Typography } from 'antd';
+import { Alert, Segmented, Switch, Tabs, Typography } from 'antd';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
 import { CRITICAL_NOTIFICATION_CHANNELS, type AccountSettingsDTO, type Language } from '@karobarai/shared';
 import { SkeletonLoader } from '../../components';
 import { useLanguageStore } from '../../lib/languageStore';
-import { getSettings, updateSettings } from './profileApi';
+import { PROFILE_QUERY_KEY, getProfile, getSettings, updateSettings } from './profileApi';
 import { formatProfileError } from './profileErrors';
+import { StoreBrandTab } from './StoreBrandTab';
 
 const SETTINGS_QUERY_KEY = ['profile', 'settings'] as const;
 
@@ -24,11 +25,14 @@ export function SettingsPage() {
   const queryClient = useQueryClient();
 
   const { data: settings, isPending } = useQuery({ queryKey: SETTINGS_QUERY_KEY, queryFn: getSettings });
+  // Only needed to decide whether this Seller gets a "Store/Brand" tab (Task 5's composition) —
+  // Buyers render exactly today's flat layout, unwrapped, zero behavior change.
+  const { data: profile, isPending: isProfilePending } = useQuery({ queryKey: PROFILE_QUERY_KEY, queryFn: getProfile });
   const [error, setError] = useState<string | null>(null);
   const [savingField, setSavingField] = useState<ToggleField | null>(null);
   const [savingLanguage, setSavingLanguage] = useState(false);
 
-  if (isPending || !settings) {
+  if (isPending || !settings || isProfilePending || !profile) {
     return (
       <div style={{ maxWidth: 480, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
         <SkeletonLoader rows={4} />
@@ -64,10 +68,8 @@ export function SettingsPage() {
     }
   }
 
-  return (
-    <div style={{ maxWidth: 480, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
-      <Typography.Title level={3}>{t('profile:settings.title')}</Typography.Title>
-
+  const notificationsSection = (
+    <>
       {error && <Alert type="error" message={error} showIcon style={{ marginBottom: 16 }} />}
 
       <div
@@ -121,6 +123,23 @@ export function SettingsPage() {
           </div>
         );
       })}
+    </>
+  );
+
+  return (
+    <div style={{ maxWidth: profile.role === 'SELLER' ? 720 : 480, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
+      <Typography.Title level={3}>{t('profile:settings.title')}</Typography.Title>
+
+      {profile.role === 'SELLER' ? (
+        <Tabs
+          items={[
+            { key: 'store', label: t('profile:storeBrand.tabTitle'), children: <StoreBrandTab profile={profile} /> },
+            { key: 'notifications', label: t('profile:storeBrand.notificationsTabTitle'), children: notificationsSection },
+          ]}
+        />
+      ) : (
+        notificationsSection
+      )}
     </div>
   );
 }

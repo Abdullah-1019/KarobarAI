@@ -1,8 +1,10 @@
 import type {
   AccountSettingsDTO,
   ChangePasswordInput,
+  CreateStoreInput,
   ProfileDTO,
   SetDefaultAddressInput,
+  StoreStatusDTO,
   UpdateSellerProfileInput,
   UpdateSettingsInput,
 } from '@karobarai/shared';
@@ -46,6 +48,40 @@ export function uploadAvatar(file: File): Promise<ProfileDTO> {
 
 export function removeAvatar(): Promise<ProfileDTO> {
   return unwrap(apiClient.delete<ApiEnvelope<ProfileDTO>>('/profile/me/avatar'));
+}
+
+// Feature 3 (Store Management) — F3-store-management-backend.md. Store-Setup Wizard's "Finish"
+// action; returns the same ProfileDTO shape as GET /me, now with hasStore: true.
+export function createStore(input: CreateStoreInput): Promise<ProfileDTO> {
+  return unwrap(apiClient.post<ApiEnvelope<ProfileDTO>>('/profile/me/store', input));
+}
+
+export function uploadStoreLogo(file: File): Promise<ProfileDTO> {
+  const formData = new FormData();
+  formData.append('logo', file);
+  return unwrap(apiClient.post<ApiEnvelope<ProfileDTO>>('/profile/me/store/logo', formData));
+}
+
+export function removeStoreLogo(): Promise<ProfileDTO> {
+  return unwrap(apiClient.delete<ApiEnvelope<ProfileDTO>>('/profile/me/store/logo'));
+}
+
+export function uploadStoreBanner(file: File): Promise<ProfileDTO> {
+  const formData = new FormData();
+  formData.append('banner', file);
+  return unwrap(apiClient.post<ApiEnvelope<ProfileDTO>>('/profile/me/store/banner', formData));
+}
+
+export function removeStoreBanner(): Promise<ProfileDTO> {
+  return unwrap(apiClient.delete<ApiEnvelope<ProfileDTO>>('/profile/me/store/banner'));
+}
+
+// Read-only, derived from users.status (no store-specific status column exists) — mapped to a
+// label/color entirely on the frontend, see components/StatusChip.tsx.
+export const STORE_STATUS_QUERY_KEY = ['profile', 'store', 'status'] as const;
+
+export function getStoreStatus(): Promise<StoreStatusDTO> {
+  return unwrap(apiClient.get<ApiEnvelope<StoreStatusDTO>>('/profile/me/store/status'));
 }
 
 // Rotates the current session's access token too (fresh accessToken/expiresIn) — every *other*

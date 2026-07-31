@@ -9,6 +9,87 @@ or flagged for follow-up. Newest entries at the top.
 
 ---
 
+## Feature: Cart & Checkout (Implementation Plan Phase 9 / Feature 6)
+
+**Status:** Done — 2026-07-31. Backend only. First feature since Feature 4 to introduce genuinely
+new domain modules (`cart/`, `address/`, `order/`'s checkout-creation slice) rather than a
+composition layer. Full backend suite green: **280/280 tests, 28/28 suites** (44 new to this
+feature), confirmed non-flaky across 2 consecutive full-suite runs. Module coverage: cart 98.2%,
+address 98.7%, order 97.8% statements. Full contract in
+`docs/handoffs/F6-cart-checkout-backend.md`, sign-off in `docs/FEATURE_6_CHECKLIST.md`.
+
+**Three real gaps found and resolved before writing any code** (the module doc's own
+"Pre-Generation Reuse Review" claimed these already existed from an "architecture phase" — they
+didn't):
+- **`PaymentAdapter`/`CourierAdapter`** were empty placeholders explicitly marked "implemented in
+  Feature 12/8," not built at all. Built now as mock-only (same D2 shape as sms/email/storage) —
+  the same "mock stub for now" resolution already used for Feature 4's AI-integration gap.
+- **No idempotency-key mechanism existed anywhere.** Implemented directly in
+  `checkout.service.ts` (Redis-cached full response, keyed by buyer + client key, 24h TTL).
+- **`orders.ship_name` (NOT NULL) had no upstream data source** — neither `addresses` nor
+  `users`/`buyer_profiles` has a name field anywhere in the base Schema Doc. Closed with a small
+  migration: `addresses.recipient_name` (required at the API layer). Related:
+  `addresses.contact_phone` is nullable in the DB but `orders.ship_phone` is NOT NULL — validation
+  requires it even though the column itself still permits null.
+
+**A real architectural fix this feature required, not new functionality:** Feature 4's
+`decrementStock`/`restoreStock` each opened their own independent transaction — but Task 7.4
+requires the stock decrement to happen inside the **same** transaction as order creation (Schema
+§0's ACID guarantee). Both functions now accept an optional `Prisma.TransactionClient` parameter:
+omitted, unchanged behavior (Feature 4's own tests re-verified green); passed, they participate in
+the caller's transaction instead of silently opening a separate one. This was the only change to
+any Feature 4 file.
+
+**What shipped:**
+- `cart/` — persisted cart, get-or-create-lazily semantics (never eagerly provisioned), add/
+  update/remove line items (never a duplicate row for the same product), per-seller-grouped
+  totals previewing D4's checkout split, stock-conflict flagging (item stays visible, never
+  silently dropped), per-seller-group minimum-order enforcement reading `platform_config` fresh
+  every call (never hardcoded).
+- `address/` — this feature's first claim on `addresses` (Schema §4.4): full CRUD, field
+  encryption reused from Feature 1 (never reimplemented), first-address auto-default, soft-delete
+  with a last-address guard, explicit default-*change* left to Feature 2's existing endpoint
+  (not duplicated).
+- `order/` (checkout-creation slice) — `POST /checkout` splits the cart's eligible seller groups
+  into one order per seller in a single all-or-nothing transaction: final stock re-validation,
+  order + order_items snapshot creation, per-seller shipping estimate (one mock
+  `CourierAdapter.getRate()` call per group, never full parallel scoring), one payment row per
+  order (JazzCash/Easypaisa via the mock `PaymentAdapter.charge()`, COD with no adapter call),
+  commission-rate snapshot from the seller's own override (never the platform default).
+- `decrementStock`/`restoreStock` (Feature 4) now consumed by a real caller for the first time,
+  exactly as documented as a forward cross-feature contract.
+
+**Real bugs found and fixed during implementation (via this feature's own adversarial tests, not
+found by the user):**
+- **Own test-factory bug**: `createAddress()` wrote `line1`/`contactPhone` as plaintext directly
+  via Prisma (bypassing the real encrypting service), causing every checkout test touching an
+  address to 500 with "Invalid encrypted field payload" the moment `decryptField` ran. Fixed by
+  encrypting in the factory too, matching what the real service always does.
+- **`resetDb()`'s shared test helper would have broken on the very next test after any order was
+  created**: `orders.buyer_id`/`seller_id` and `order_items.product_id` are all `onDelete:
+  Restrict` (append-only order history), and `payments.order_id` is Restrict too — the existing
+  delete order (product/sellerProfile/buyerProfile first) would throw a foreign-key violation the
+  moment any Order row existed. Fixed by deleting `payment` then `order` (cascades `order_items`)
+  before `product`/`sellerProfile`/`buyerProfile` — the same class of gap Feature 4 hit with
+  `products.seller_id`, now recurring one layer deeper.
+- **Own test-assertion bug, not a service bug**: the concurrent-oversell test initially asserted
+  the losing request always gets exactly `409` — but if the winner's transaction fully commits
+  before the loser's own pre-transaction cart-eligibility read runs, the loser correctly sees the
+  depleted stock earlier and gets `422 CHECKOUT_NOT_ELIGIBLE` instead. Both are correct outcomes
+  depending on legitimate timing; the test now accepts either.
+
+**Known limitations / assumptions (see the handoff doc for full detail):**
+- Shipping estimate is a single mock rate per seller group — may diverge from the eventual booked
+  courier's real rate at Feature 7's Order Detail stage; flagged, not reconciled (Gap #1).
+- Payment processing stops at charge()-initiation; a `PENDING` payments row is a valid terminal
+  state here — retry/webhook/settlement is Feature 8 (Gap #2).
+- No `cod_remittances` row is written for COD orders — Feature 8/a dedicated reconciliation
+  concern.
+- Checkout applies one address + one payment method to every order created in a single call —
+  matches App Flow SCR-B05's one-action-→ -N-orders model, not a per-group override.
+
+---
+
 ## Feature: Buyer Marketplace (Implementation Plan Phase 8 / Feature 5)
 
 **Status:** Done — 2026-07-31. Backend only. Per the module doc's own central claim, this feature
@@ -489,6 +570,7 @@ working.
 
 ---
 
-*Next: Feature 5 (Buyer Marketplace) is done — Feature 6 (Cart & Checkout) is next per the
-day-by-day plan (`docs/DailyPlan.md` Days 10-11, PB-F6). Note: F6's Task 5 (inventory) calls the
-`decrementStock`/`restoreStock` cross-feature contract Feature 4 already built and tested.*
+*Next: Feature 6 (Cart & Checkout) is done — Feature 7 (Orders) is next per the day-by-day plan
+(`docs/DailyPlan.md` Day 12, PB-F7). Feature 7 owns order lifecycle/state-machine transitions
+past PAYMENT_PENDING, the full parallel courier-scoring/booking flow (Gap #1 above), and
+consumes the orders this feature creates.*

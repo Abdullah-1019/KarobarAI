@@ -455,26 +455,48 @@ export async function reorderProductImages(
 // Task 5.1 — atomic, race-safe: a single conditional UPDATE, not read-then-write. Zero affected
 // rows means insufficient stock (matches TRD §9's 409 = "oversell" example exactly). No caller
 // exists yet — Checkout (a separate feature) will call this at order confirmation.
-export async function decrementStock(productId: bigint, quantity: number): Promise<void> {
-  await prisma.$transaction(async (tx) => {
-    const result = await tx.product.updateMany({
+// `tx` is optional: Feature 4's own standalone callers/tests get their own self-contained
+// transaction as before; Feature 6's checkout (Task 7.4) passes its own outer transaction client
+// so the stock decrement participates in the SAME atomic order-creation transaction — calling
+// this with no `tx` from inside another transaction would silently run on a separate connection,
+// breaking the "order + stock decrement, all-or-nothing" guarantee Schema §0 requires.
+export async function decrementStock(
+  productId: bigint,
+  quantity: number,
+  tx?: Prisma.TransactionClient,
+): Promise<void> {
+  const run = async (client: Prisma.TransactionClient): Promise<void> => {
+    const result = await client.product.updateMany({
       where: { productId, stock: { gte: quantity } },
       data: { stock: { decrement: quantity } },
     });
     if (result.count === 0) {
       throw new ConflictError('Insufficient stock', undefined, 'INSUFFICIENT_STOCK');
     }
-    await syncStockDerivedStatus(tx, productId);
-  });
+    await syncStockDerivedStatus(client, productId);
+  };
+
+  if (tx) {
+    await run(tx);
+  } else {
+    await prisma.$transaction((innerTx) => run(innerTx));
+  }
 }
 
 // Task 5.2 — symmetric to decrement, for cancellation/rejected-payment paths. Increments are
-// always safe (no lower bound), but re-triggers the OUT_OF_STOCK -> LIVE check.
-export async function restoreStock(productId: bigint, quantity: number): Promise<void> {
-  await prisma.$transaction(async (tx) => {
-    await tx.product.update({ where: { productId }, data: { stock: { increment: quantity } } });
-    await syncStockDerivedStatus(tx, productId);
-  });
+// always safe (no lower bound), but re-triggers the OUT_OF_STOCK -> LIVE check. Same optional-`tx`
+// shape as decrementStock, for the same reason.
+export async function restoreStock(productId: bigint, quantity: number, tx?: Prisma.TransactionClient): Promise<void> {
+  const run = async (client: Prisma.TransactionClient): Promise<void> => {
+    await client.product.update({ where: { productId }, data: { stock: { increment: quantity } } });
+    await syncStockDerivedStatus(client, productId);
+  };
+
+  if (tx) {
+    await run(tx);
+  } else {
+    await prisma.$transaction((innerTx) => run(innerTx));
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -311,20 +311,24 @@ model BuyerProfile {
 // ─────────────────────────────────────────────────────────────────────────────
 
 model Address {
-  addressId    BigInt       @id @default(autoincrement()) @map("address_id")
-  buyerId      BigInt       @map("buyer_id")
-  buyer        BuyerProfile @relation("BuyerAddresses", fields: [buyerId], references: [userId], onDelete: Cascade)
-  label        String?      @db.VarChar(40)
-  line1        String       @db.Text
-  line2        String?      @db.Text
-  city         String       @db.VarChar(80)
-  province     String       @db.VarChar(80)
-  postalCode   String?      @map("postal_code") @db.VarChar(20)
-  contactPhone String?      @map("contact_phone") @db.Text
-  isDefault    Boolean      @default(false) @map("is_default")
-  createdAt    DateTime     @default(now()) @map("created_at")
-  updatedAt    DateTime     @updatedAt @map("updated_at")
-  deletedAt    DateTime?    @map("deleted_at")
+  addressId     BigInt       @id @default(autoincrement()) @map("address_id")
+  buyerId       BigInt       @map("buyer_id")
+  buyer         BuyerProfile @relation("BuyerAddresses", fields: [buyerId], references: [userId], onDelete: Cascade)
+  label         String?      @db.VarChar(40)
+  // Feature 6 (Cart & Checkout) addition — orders.ship_name (Schema §4.10/§14.4) is NOT NULL and
+  // snapshotted at order time, but neither addresses nor users/buyer_profiles has any name field
+  // anywhere in the base Schema Doc. Not encrypted, matching ship_name's own §14.4 classification.
+  recipientName String       @map("recipient_name") @db.VarChar(120)
+  line1         String       @db.Text
+  line2         String?      @db.Text
+  city          String       @db.VarChar(80)
+  province      String       @db.VarChar(80)
+  postalCode    String?      @map("postal_code") @db.VarChar(20)
+  contactPhone  String?      @map("contact_phone") @db.Text
+  isDefault     Boolean      @default(false) @map("is_default")
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+  deletedAt     DateTime?    @map("deleted_at")
 
   defaultForBuyers BuyerProfile[] @relation("BuyerDefaultAddress")
 

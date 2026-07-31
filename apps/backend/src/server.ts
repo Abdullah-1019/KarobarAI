@@ -10,9 +10,12 @@ import { config } from './core/config';
 import { errorHandler } from './core/middleware/errorHandler';
 import { logger } from './core/logger';
 import { swaggerSpec } from './core/swagger';
+import { addressRouter } from './modules/address';
 import { authRouter } from './modules/auth';
+import { cartRouter } from './modules/cart';
 import { publicCatalogRouter, sellerProductRouter } from './modules/catalog';
 import { healthRouter } from './modules/health/health.routes';
+import { checkoutRouter } from './modules/order';
 import { profileRouter } from './modules/profile';
 
 export const app = express();
@@ -41,6 +44,9 @@ app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/profile', profileRouter);
 app.use('/api/v1', publicCatalogRouter);
 app.use('/api/v1/seller/products', sellerProductRouter);
+app.use('/api/v1/cart', cartRouter);
+app.use('/api/v1/addresses', addressRouter);
+app.use('/api/v1/checkout', checkoutRouter);
 
 // Swagger UI (TRD §9) serves an inline <script> bundle — the global helmet() CSP above would
 // block it, so this path gets its own relaxed CSP rather than weakening it everywhere.

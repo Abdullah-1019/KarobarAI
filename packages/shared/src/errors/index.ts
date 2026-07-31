@@ -59,3 +59,16 @@ export const CATALOG_ERROR_CODES = {
 } as const;
 
 export type CatalogErrorCode = (typeof CATALOG_ERROR_CODES)[keyof typeof CATALOG_ERROR_CODES];
+
+// Error codes introduced by the Cart & Checkout feature. Reuses PROFILE_ERROR_CODES'
+// ADDRESS_NOT_FOUND/ADDRESS_NOT_OWNED and CATALOG_ERROR_CODES.INSUFFICIENT_STOCK directly rather
+// than redefining equivalents here — same underlying conditions, same codes.
+export const CART_ERROR_CODES = {
+  CART_ITEM_NOT_FOUND: 'CART_ITEM_NOT_FOUND',
+  CART_ITEM_NOT_OWNED: 'CART_ITEM_NOT_OWNED',
+  LAST_ADDRESS_CANNOT_BE_DELETED: 'LAST_ADDRESS_CANNOT_BE_DELETED',
+  IDEMPOTENCY_KEY_REQUIRED: 'IDEMPOTENCY_KEY_REQUIRED',
+  CHECKOUT_NOT_ELIGIBLE: 'CHECKOUT_NOT_ELIGIBLE',
+} as const;
+
+export type CartErrorCode = (typeof CART_ERROR_CODES)[keyof typeof CART_ERROR_CODES];

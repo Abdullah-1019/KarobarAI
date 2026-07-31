@@ -77,16 +77,22 @@ export async function createTestUser(
   return { userId: user.userId, publicId: user.publicId, ...session };
 }
 
+// line1/contactPhone must be stored encrypted — the real address.service.ts always encrypts
+// them, and checkout's getOwnedAddressForOrder always decrypts them; a plaintext row written
+// directly via Prisma (bypassing the service) makes decryptField throw "Invalid encrypted field
+// payload" the moment any checkout test touches it.
 export async function createAddress(
   buyerId: bigint,
-  overrides: { isDefault?: boolean } = {},
+  overrides: { isDefault?: boolean; city?: string; province?: string } = {},
 ) {
   return prisma.address.create({
     data: {
       buyerId,
-      line1: '123 Test Street',
-      city: 'Lahore',
-      province: 'Punjab',
+      recipientName: 'Test Recipient',
+      line1: encryptField('123 Test Street'),
+      city: overrides.city ?? 'Lahore',
+      province: overrides.province ?? 'Punjab',
+      contactPhone: encryptField('03001234567'),
       isDefault: overrides.isDefault ?? false,
     },
   });

@@ -69,6 +69,21 @@ export async function listCategories(): Promise<CategoryDTO[]> {
   return tree;
 }
 
+// Feature 5 Task 3.2 — the natural-key lookup for the buyer-facing /category/:slug route.
+// categories.slug is unique (Schema §4.5) — a clean 404 for an unknown slug, not a crash.
+export async function findCategoryBySlug(slug: string): Promise<CategorySummaryDTO> {
+  const category = await prisma.category.findUnique({ where: { slug } });
+  if (!category) {
+    throw new NotFoundError('Category not found', undefined, 'CATEGORY_NOT_FOUND');
+  }
+  return {
+    id: category.categoryId.toString(),
+    slug: category.slug,
+    nameEn: category.nameEn,
+    nameUr: category.nameUr,
+  };
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared helpers
 // ─────────────────────────────────────────────────────────────────────────────
@@ -663,4 +678,43 @@ export async function autocompleteProducts(q: string): Promise<Array<{ id: strin
     orderBy: { createdAt: 'desc' },
   });
   return products.map((p) => ({ id: p.publicId, title: p.titleEn }));
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Feature 5 (Buyer Marketplace) Task 2 — Homepage aggregation. No new query logic: this reuses
+// the exact same visibility rule (status=LIVE, deleted_at IS NULL) Feature 4 already established,
+// just ordered by recency with a fixed limit — there is no merchandising/is_featured column
+// anywhere in the schema (Feature Overview's Documentation Gap).
+// ─────────────────────────────────────────────────────────────────────────────
+
+const HOME_FEED_LIMIT = 12;
+
+// "Featured" and "New Arrivals" are the SAME query for now (Assumption #1) — both proxied by
+// recency, since no dedicated merchandising field exists. Kept as one function, called twice
+// under two labels in getHomeFeed(), rather than two near-identical copies that would drift the
+// moment one is changed and the other isn't.
+async function getRecentLiveProducts(limit: number): Promise<ProductDetailDTO[]> {
+  const products = await prisma.product.findMany({
+    where: { status: 'LIVE', deletedAt: null },
+    orderBy: { createdAt: 'desc' },
+    take: limit,
+    include: PRODUCT_INCLUDE,
+  });
+  return products.map(toProductDetail);
+}
+
+// GET /marketplace/home — the one genuinely new endpoint this feature introduces. Three
+// independent reads composed via Promise.all; categories reuse Feature 4's own 5-minute cache
+// (listCategories() above), not a second cache/query.
+export async function getHomeFeed(): Promise<{
+  featured: ProductDetailDTO[];
+  newArrivals: ProductDetailDTO[];
+  categories: CategoryDTO[];
+}> {
+  const [featured, newArrivals, categories] = await Promise.all([
+    getRecentLiveProducts(HOME_FEED_LIMIT),
+    getRecentLiveProducts(HOME_FEED_LIMIT),
+    listCategories(),
+  ]);
+  return { featured, newArrivals, categories };
 }

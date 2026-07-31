@@ -9,6 +9,48 @@ or flagged for follow-up. Newest entries at the top.
 
 ---
 
+## Feature: Buyer Marketplace (Implementation Plan Phase 8 / Feature 5)
+
+**Status:** Done — 2026-07-31. Backend only. Per the module doc's own central claim, this feature
+is almost entirely a **thin composition layer over Feature 4** — confirmed via a grep-level reuse
+audit (Task 7.4), not just asserted. Full backend suite green: **241/241 tests, 25/25 suites** (16
+new to this feature), confirmed non-flaky across 2 consecutive full-suite runs. Zero new Prisma
+models, zero new migrations. Full contract in `docs/handoffs/F5-marketplace-backend.md`.
+
+**What's genuinely new (everything else is Feature 4's existing endpoints, unmodified):**
+- `GET /marketplace/home` — aggregates featured + new-arrivals (both proxied by recency, no
+  merchandising field exists anywhere in the schema — an explicitly documented Assumption) +
+  Feature 4's own cached category tree, via `Promise.all`. Lives in a new
+  `marketplace.controller.ts` file inside `modules/catalog/` (per the module doc's explicit
+  Engineering Decision: no parallel `modules/marketplace/` folder, no second repository —
+  everything shares `catalog.service.ts`).
+- `GET /categories/:slug` — resolves a category's natural key to its id/names for the
+  `/category/:slug` route, `404 CATEGORY_NOT_FOUND` for an unknown slug.
+
+**Confirmed via direct testing, not just documentation, that zero Feature 4 backend changes were
+needed:** `GET /products/search?categoryId=X` (no `q`) already worked correctly before this
+feature touched anything — category-browse and text-search are genuinely one data-layer
+mechanism, exactly as the module doc's Assumption states.
+
+**Guest-access sweep (this feature's primary guarantee, since it's the platform's first fully
+public-facing read surface):** every endpoint touched by this feature — new and reused — verified
+`200` with zero `Authorization` header at all.
+
+**Confirmed exclusions (per explicit direction, not oversights):** Wishlist is not built or
+stubbed in any form (Future, F17); Add to Cart/Buy Now are frontend-only inert stubs (Cart &
+Checkout feature's future responsibility); the seller-rating filter/sort stub is unchanged from
+Feature 4.
+
+**Known limitations / assumptions:** Homepage content is identical for Guest and authenticated
+Buyer (no personalization in MVP scope); "Featured" has no real merchandising rule behind it yet.
+
+**Frontend note (not this entry's own work, logged here for shared visibility):** the frontend
+side of Features 3 and 4 (Store Setup Wizard, Store/Brand settings tab, seller product list/add/
+edit screens) landed since the last entry in this log — see
+`docs/handoffs/F3-Frontend-store-management.md` and `docs/handoffs/F4-Frontend-product-management.md`.
+
+---
+
 ## Feature: Product Management (Implementation Plan Phase 7 / Feature 4)
 
 **Status:** Done — 2026-07-30. Backend only (`apps/backend`'s catalog module +
@@ -447,5 +489,6 @@ working.
 
 ---
 
-*Next: Feature 4 (Product Management) is done — Feature 5 (Buyer Marketplace) is next per the
-day-by-day plan (`docs/DailyPlan.md` Day 9, PB-F5).*
+*Next: Feature 5 (Buyer Marketplace) is done — Feature 6 (Cart & Checkout) is next per the
+day-by-day plan (`docs/DailyPlan.md` Days 10-11, PB-F6). Note: F6's Task 5 (inventory) calls the
+`decrementStock`/`restoreStock` cross-feature contract Feature 4 already built and tested.*

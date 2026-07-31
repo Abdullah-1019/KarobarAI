@@ -30,6 +30,7 @@ import {
   searchQuerySchema,
   updateProductSchema,
 } from './catalog.dto';
+import { getCategoryBySlugHandler, getHomeFeedHandler } from './marketplace.controller';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024, files: 10 } });
 
@@ -52,6 +53,37 @@ export const publicCatalogRouter = Router();
  *         description: CategoryDTO[] (root categories with nested children[])
  */
 publicCatalogRouter.get('/categories', listCategoriesHandler);
+
+/**
+ * @swagger
+ * /api/v1/categories/{slug}:
+ *   get:
+ *     summary: Resolve a category slug to its id/names (Feature 5 Task 3.2 — the /category/:slug route's lookup)
+ *     tags: [Catalog]
+ *     parameters:
+ *       - in: path
+ *         name: slug
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: CategorySummaryDTO
+ *       404:
+ *         description: Unknown slug (CATEGORY_NOT_FOUND)
+ */
+publicCatalogRouter.get('/categories/:slug', getCategoryBySlugHandler);
+
+/**
+ * @swagger
+ * /api/v1/marketplace/home:
+ *   get:
+ *     summary: Homepage feed — featured + new-arrivals (both recency-proxied, no merchandising field exists) + the cached category tree
+ *     tags: [Marketplace]
+ *     responses:
+ *       200:
+ *         description: "HomeFeedDTO: { featured: ProductDetailDTO[], newArrivals: ProductDetailDTO[], categories: CategoryDTO[] }"
+ */
+publicCatalogRouter.get('/marketplace/home', getHomeFeedHandler);
 
 /**
  * @swagger

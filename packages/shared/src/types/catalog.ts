@@ -74,3 +74,13 @@ export interface GeneratedListingDTO {
   category: string; // best-guess category slug; apps/backend resolves this to a real categoryId
   tags: string[];
 }
+
+// Feature 5 (Buyer Marketplace) — GET /marketplace/home's aggregation response. "featured" and
+// "newArrivals" are both currently proxied by the same recency query (no merchandising field
+// exists anywhere in the schema, per the module doc's own Documentation Gap) — they may
+// legitimately return overlapping/identical data for now; that's intentional, not a bug.
+export interface HomeFeedDTO {
+  featured: ProductDetailDTO[];
+  newArrivals: ProductDetailDTO[];
+  categories: CategoryDTO[];
+}

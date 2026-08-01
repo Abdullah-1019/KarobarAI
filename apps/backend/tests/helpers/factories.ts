@@ -1,4 +1,5 @@
-import type { UserRole } from '@prisma/client';
+import type { OrderStatus, PaymentMethod, Product, UserRole } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import { randomUUID } from 'node:crypto';
 
@@ -118,6 +119,62 @@ export async function createTestProduct(
       stock: overrides.stock ?? 10,
       status: overrides.status ?? 'DRAFT',
       categoryId: overrides.categoryId ?? null,
+    },
+  });
+}
+
+// Feature 7 (Order Management) — builds a full order (+ order_item + payment row) directly via
+// Prisma, bypassing checkout.service.ts entirely. Order-lifecycle tests need orders sitting in
+// specific statuses (PROCESSING, DELIVERED, ...) that checkout itself can never produce — only
+// transitionOrderStatus (exercised directly, standing in for Feature 8's future caller) does.
+export async function createTestOrder(
+  buyerId: bigint,
+  sellerId: bigint,
+  product: Pick<Product, 'productId' | 'titleEn' | 'price'>,
+  overrides: {
+    status?: OrderStatus;
+    paymentMethod?: PaymentMethod;
+    quantity?: number;
+    deliveredAt?: Date | null;
+  } = {},
+) {
+  const quantity = overrides.quantity ?? 1;
+  const unitPrice = new Prisma.Decimal(product.price);
+  const subtotal = unitPrice.times(quantity);
+  const shippingFee = new Prisma.Decimal(150);
+  const paymentMethod = overrides.paymentMethod ?? 'COD';
+
+  return prisma.order.create({
+    data: {
+      buyerId,
+      sellerId,
+      status: overrides.status ?? 'PAYMENT_PENDING',
+      paymentMethod,
+      subtotal,
+      shippingFee,
+      totalAmount: subtotal.plus(shippingFee),
+      commissionRateSnapshot: new Prisma.Decimal(0.05),
+      shipName: 'Test Recipient',
+      shipLine1: encryptField('123 Test Street'),
+      shipCity: 'Lahore',
+      shipProvince: 'Punjab',
+      shipPhone: encryptField('03001234567'),
+      deliveredAt: overrides.deliveredAt ?? null,
+      items: {
+        create: {
+          productId: product.productId,
+          titleSnapshot: product.titleEn,
+          unitPrice,
+          quantity,
+        },
+      },
+      payment: {
+        create: {
+          method: paymentMethod,
+          amount: subtotal.plus(shippingFee),
+          idempotencyKey: randomUUID(),
+        },
+      },
     },
   });
 }

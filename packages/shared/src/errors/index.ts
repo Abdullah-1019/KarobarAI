@@ -72,3 +72,13 @@ export const CART_ERROR_CODES = {
 } as const;
 
 export type CartErrorCode = (typeof CART_ERROR_CODES)[keyof typeof CART_ERROR_CODES];
+
+// Error codes introduced by the Order Management feature.
+export const ORDER_ERROR_CODES = {
+  ORDER_NOT_FOUND: 'ORDER_NOT_FOUND',
+  ORDER_NOT_OWNED: 'ORDER_NOT_OWNED',
+  INVALID_STATUS_TRANSITION: 'INVALID_STATUS_TRANSITION',
+  ORDER_NOT_CANCELLABLE: 'ORDER_NOT_CANCELLABLE',
+} as const;
+
+export type OrderErrorCode = (typeof ORDER_ERROR_CODES)[keyof typeof ORDER_ERROR_CODES];

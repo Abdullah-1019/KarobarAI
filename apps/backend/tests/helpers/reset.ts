@@ -17,7 +17,8 @@ export async function resetDb(): Promise<void> {
   await prisma.refreshToken.deleteMany();
   await prisma.notificationPreference.deleteMany();
   await prisma.payment.deleteMany();
-  await prisma.order.deleteMany(); // cascades order_items
+  await prisma.return.deleteMany(); // Feature 7's return-eligibility tests seed rows here; Return.orderId is onDelete: Restrict
+  await prisma.order.deleteMany(); // cascades order_items/tracking_events/courier_quotes
   await prisma.product.deleteMany();
   await prisma.sellerProfile.deleteMany();
   await prisma.buyerProfile.deleteMany();

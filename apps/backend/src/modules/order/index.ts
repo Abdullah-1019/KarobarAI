@@ -1,1 +1,1 @@
-export { checkoutRouter } from './order.routes';
+export { checkoutRouter, orderRouter, sellerOrderRouter } from './order.routes';

@@ -9,6 +9,85 @@ or flagged for follow-up. Newest entries at the top.
 
 ---
 
+## Feature: Order Management (Implementation Plan Phase 10 / Feature 7)
+
+**Status:** Done — 2026-08-02. Extends Feature 6's existing `order/` module (no parallel module) —
+order retrieval, the status state machine, seller cancellation, a generic courier hand-off
+enqueue, and an on-demand invoice. Full backend suite green: **364/364 tests, 33/33 suites** (84
+new to this feature), confirmed non-flaky across 2 consecutive full-suite runs. Zero new Prisma
+models, zero new migrations. Full contract in `docs/handoffs/F7-orders-backend.md`, sign-off in
+`docs/FEATURE_7_CHECKLIST.md`.
+
+**A real, sourced scope correction found and followed, not invented:** the module doc contains a
+mid-document patch that supersedes its own original "Task 7 — Courier Booking & Tracking" section
+with "Task 7 — Courier Hand-off Stub." Courier scoring, booking + retry/fallback, COD-coverage
+filtering, the tracking poll job, WebSocket push, and the tracking screens are **not** this
+feature's scope — deferred to Feature 8, per the doc's own correction. This also means the
+previous entry's "Next" footer (written before that patch existed) was wrong to say Feature 7
+would own "the full parallel courier-scoring/booking flow" — corrected below.
+
+**The actual handoff contract to Feature 8:** this feature owns the state machine and every
+transition function; Feature 8 owns the triggers. `confirmPayment(orderId)` transitions
+`PAYMENT_PENDING → PAYMENT_CONFIRMED` and enqueues a generic BullMQ job with no consumer written
+here. `transitionOrderStatus` is the single write path for `orders.status` in the entire
+codebase (grep-audited) — Feature 8's courier-booking/poll-job code should call it directly for
+every later transition, never write `orders.status` a second way.
+
+**What shipped:**
+- `core/state-machines/order.state-machine.ts` — the single canonical transition table
+  (`canTransition`, `isCancellable`), imported by every caller, never redefined (TRD §3). Every
+  valid edge and every adjacent invalid non-edge tested explicitly.
+- `order.service.ts` — `getOrdersForBuyer`/`getOrdersForSeller` (one shared `queryOrders` builder,
+  two thin role-scoped callers), tri-mode ownership on `getOrderById` (Buyer OR Seller OR
+  Admin/Support — the first non-single-owner check in this codebase), commission visible only to
+  the order's own Seller, shipping fields decrypted server-side for an authorized viewer only.
+  `transitionOrderStatus` wraps the status write + a `tracking_events` insert + entry actions
+  (`CANCELLED` restores stock via Feature 4's `restoreStock`, reused as-is; `DELIVERED` on a `COD`
+  order confirms the payment as a side effect) in one transaction. `cancelOrder` — Seller-only,
+  pre-shipment-only.
+- A read-only return-eligibility gate on the buyer's list (`returnEligible`), batched (one query
+  set per page, not N+1), gated on `platform_config.return_window_days` and no existing `returns`
+  row.
+- `invoice.service.ts` — an on-demand, print-friendly HTML render reusing `getOrderById` entirely
+  (zero direct Prisma calls of its own); no PDF library added (none existed in this codebase); no
+  `invoices` table. Commission excluded for every role, stricter than Order Detail.
+- New endpoints: `GET /api/v1/orders` (Buyer), `GET /api/v1/orders/:id`, `POST
+  /api/v1/orders/:id/cancel`, `GET /api/v1/orders/:id/invoice`, `GET /api/v1/seller/orders`. Role
+  is always derived from the JWT, never a client-supplied `?role=` param.
+
+**A real bug found and fixed during this feature's own closing verification, not by the user:**
+the generic courier hand-off `Queue` (`bullmq`) was constructed **eagerly**, at module load, as a
+top-level `const`. Since `order.service.ts` is pulled in (via `server.ts`) by nearly every test
+file, and Jest gives each test file its own isolated module registry, this opened one new Redis
+connection per test file — none of them ever closed. The first full-suite run after implementation
+passed all 364 tests but the process never exited (`Jest did not exit one second after the test
+run has completed`), the exact same class of bug the Auth feature's `redis.quit()` gap caused
+earlier in this project. Fixed by making the queue **lazily constructed** (only the one test that
+actually calls `confirmPayment` ever opens a connection) and exposing a `closeCourierHandoffQueue()`
+for that test's `afterAll`, mirroring the existing `redis.quit()` convention. Verified fixed: a
+targeted re-run exited cleanly, then 2 consecutive full-suite runs both exited cleanly.
+
+**Not a bug, flagged for the record:** the very first full-suite confirmation run (before the fix
+above was verified a second time) showed 5 failures, all `beforeEach` hook timeouts on the shared
+`resetDb`/`resetRedis` test helpers, with Jest reporting a nonsensical ~13,000-second suite
+duration. This was the dev machine sleeping mid-run, not a code defect — confirmed by two
+subsequent clean runs (219s and 233s, both fully green) with no code changes in between.
+
+**Known limitations / assumptions (see the handoff doc for full detail):**
+- Cancel is Seller-only, not Buyer-triggerable — Gap #3's literal phrasing and App Flow SCR-S06
+  both point the same way; a Buyer-initiated cancel/cancellation-request flow would be new scope.
+- Seller's order list shows only the snapshotted recipient name, never phone/full address — this
+  feature's own resolution of Task 4.3's vague "masked/summary" wording.
+- No real trigger drives `PROCESSING → ... → DELIVERED` in this feature — only
+  `transitionOrderStatus` called directly in tests, standing in for Feature 8's future poll job.
+  `courierStatus` in Order Detail is always the literal `"not_booked"` until Feature 8 adds real
+  courier-assignment data.
+- `queryOrders` takes a fully-formed `Prisma.OrderWhereInput`, not the module doc's literal
+  `{ownerColumn, ownerId}` shape — avoids losing type-safety against Prisma's strict where-clause
+  typing, while keeping "one shared builder, two thin callers" in spirit.
+
+---
+
 ## Feature: Cart & Checkout (Implementation Plan Phase 9 / Feature 6)
 
 **Status:** Done — 2026-07-31. Backend only. First feature since Feature 4 to introduce genuinely
@@ -570,7 +649,10 @@ working.
 
 ---
 
-*Next: Feature 6 (Cart & Checkout) is done — Feature 7 (Orders) is next per the day-by-day plan
-(`docs/DailyPlan.md` Day 12, PB-F7). Feature 7 owns order lifecycle/state-machine transitions
-past PAYMENT_PENDING, the full parallel courier-scoring/booking flow (Gap #1 above), and
-consumes the orders this feature creates.*
+*Next: Feature 7 (Order Management) is done — Feature 8 (Courier & Tracking) is next per the
+day-by-day plan. Feature 8 owns everything Feature 7's own module-doc patch deferred: courier
+scoring/booking + retry/fallback, COD-coverage filtering, the 5-minute tracking poll, WebSocket
+push, both tracking screens (SCR-B08/SCR-B09), and the `cod_remittances` ledger. It should call
+Feature 7's `transitionOrderStatus` for every status change (never write `orders.status` a second
+way) and write the actual consumer for the `courier-assignment-pending` queue Feature 7's
+`confirmPayment` already enqueues into.*

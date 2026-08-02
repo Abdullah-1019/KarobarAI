@@ -40,3 +40,15 @@ itself is correctly formed via curl. Will work wherever MinIO/S3 is actually rea
 Buyer-facing homepage, search results, category browse, product detail (buyer view) — Feature 5.
 The public `GET /products/search`, `/products/:publicId`, `/products/autocomplete` endpoints exist
 and are ready to build against when that feature starts.
+
+## Post-handoff fixes (found while testing the F5/6/7 buyer journey, 2026-08-02)
+
+1. **Delete redirected to a dead route.** `EditProductPage.tsx`'s `handleDelete` navigated to
+   `/seller/products` after a successful delete — not a real route (the list lives at `/seller`) —
+   so it silently fell through to the `/seller/*` catch-all placeholder instead of the product
+   list. Fixed to `navigate('/seller')`.
+2. **Edit/navigation discoverability.** The product list's only path to Edit was clicking the
+   title text, which read as ambiguous (no visible affordance). Added an explicit **Edit** button
+   per row. Added a "← Products" back link to both Add and Edit Product pages, and an "Add
+   product" button on the Edit page, since neither page had any way back to the list before.
+   (Delete stays Edit-page-only, not added to the list row — kept as-is per explicit preference.)

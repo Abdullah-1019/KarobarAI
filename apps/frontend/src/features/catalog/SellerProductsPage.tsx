@@ -68,6 +68,16 @@ export function SellerProductsPage() {
       key: 'status',
       render: (status: ProductStatus) => <ProductStatusTag status={status} />,
     },
+    {
+      title: '',
+      key: 'actions',
+      width: 80,
+      render: (_: unknown, record: SellerProductListItemDTO) => (
+        <Link to={`/seller/products/${record.id}/edit`}>
+          <Button size="small">{t('common:actions.edit')}</Button>
+        </Link>
+      ),
+    },
   ];
 
   return (

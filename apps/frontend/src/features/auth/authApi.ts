@@ -67,3 +67,10 @@ export function me(token?: string): Promise<AuthUser> {
   const config = token ? { headers: { Authorization: `Bearer ${token}` } } : undefined;
   return unwrap(apiClient.get<ApiEnvelope<AuthUser>>('/auth/me', config));
 }
+
+// No frontend caller existed yet (no header/nav shell to put a logout action in until this
+// feature adds one) — revokes the karobarai_rt cookie server-side; callers still need to clear
+// the local session themselves (useAuthStore.clearSession()).
+export function logout(): Promise<{ loggedOut: true }> {
+  return unwrap(apiClient.post<ApiEnvelope<{ loggedOut: true }>>('/auth/logout'));
+}

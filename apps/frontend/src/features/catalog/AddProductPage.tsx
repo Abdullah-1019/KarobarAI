@@ -3,7 +3,7 @@ import { Alert, Button, Input, InputNumber, Select, Typography } from 'antd';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 import { createProductSchema, type CategoryDTO } from '@karobarai/shared';
 import { SkeletonLoader } from '../../components';
@@ -83,6 +83,7 @@ export function AddProductPage() {
 
   return (
     <div style={{ maxWidth: 480, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
+      <Link to="/seller">← {t('catalog:productsList.title')}</Link>
       <Typography.Title level={3}>{t('catalog:addProduct.title')}</Typography.Title>
 
       {submitError && <Alert type="error" message={submitError} showIcon style={{ marginBottom: 16 }} />}

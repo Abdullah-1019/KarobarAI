@@ -3,7 +3,7 @@ import { Alert, Button, Input, InputNumber, Select, Typography } from 'antd';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { updateProductSchema, type CategoryDTO, type ProductCondition } from '@karobarai/shared';
 import { ApiError } from '../../api';
@@ -201,7 +201,7 @@ export function EditProductPage() {
     try {
       await deleteProduct(id);
       await queryClient.invalidateQueries({ queryKey: ['catalog', 'seller-products'] });
-      navigate('/seller/products');
+      navigate('/seller');
     } catch (err) {
       toast.error(formatCatalogError(t, err));
       setDeleting(false);
@@ -211,7 +211,8 @@ export function EditProductPage() {
 
   return (
     <div style={{ maxWidth: 640, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+      <Link to="/seller">← {t('catalog:productsList.title')}</Link>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, marginBottom: 8 }}>
         <Typography.Title level={3} style={{ margin: 0 }}>
           {t('catalog:editProduct.title')}
         </Typography.Title>
@@ -333,6 +334,9 @@ export function EditProductPage() {
           <Button danger onClick={() => setDeleteModalOpen(true)}>
             {t('catalog:editProduct.delete')}
           </Button>
+          <Link to="/seller/products/new" style={{ marginLeft: 'auto' }}>
+            <Button>{t('catalog:productsList.addProduct')}</Button>
+          </Link>
         </div>
       </div>
 

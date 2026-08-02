@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Alert, Button, Input, Typography } from 'antd';
 import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { loginSchema } from '@karobarai/shared';
 import { useAuthStore } from '../../lib/authStore';
@@ -22,6 +22,7 @@ interface FormValues {
 export function LoginPage() {
   const { t } = useTranslation(['auth', 'common']);
   const navigate = useNavigate();
+  const location = useLocation();
   const setSession = useAuthStore((state) => state.setSession);
 
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -52,7 +53,10 @@ export function LoginPage() {
       setSession(session.accessToken, session.user);
       // Apply the account's saved language on login, same as session-restore does on boot.
       useLanguageStore.getState().setLanguage(session.user.preferredLanguage);
-      navigate(roleHomePath(session.user.role));
+      // Buy Now as a guest lands here with a `redirect` state (ProductDetailPage/CartPage) so
+      // login sends them back to Checkout instead of always to their role home.
+      const redirect = (location.state as { redirect?: string } | null)?.redirect;
+      navigate(redirect ?? roleHomePath(session.user.role));
     } catch (err) {
       setSubmitError(formatAuthError(t, err));
     } finally {

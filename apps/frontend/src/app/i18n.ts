@@ -2,8 +2,24 @@ import type { Language } from '@karobarai/shared';
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 
-import { auth as authEn, catalog as catalogEn, common as commonEn, profile as profileEn } from '../locales/en';
-import { auth as authUr, catalog as catalogUr, common as commonUr, profile as profileUr } from '../locales/ur';
+import {
+  auth as authEn,
+  cart as cartEn,
+  catalog as catalogEn,
+  common as commonEn,
+  marketplace as marketplaceEn,
+  orders as ordersEn,
+  profile as profileEn,
+} from '../locales/en';
+import {
+  auth as authUr,
+  cart as cartUr,
+  catalog as catalogUr,
+  common as commonUr,
+  marketplace as marketplaceUr,
+  orders as ordersUr,
+  profile as profileUr,
+} from '../locales/ur';
 
 export const RTL_LANGUAGES = ['UR'] as const;
 
@@ -28,12 +44,28 @@ export function storeLanguage(language: Language): void {
 // uppercase ('EN' | 'UR') to match the backend's user.language column.
 i18n.use(initReactI18next).init({
   resources: {
-    en: { common: commonEn, auth: authEn, profile: profileEn, catalog: catalogEn },
-    ur: { common: commonUr, auth: authUr, profile: profileUr, catalog: catalogUr },
+    en: {
+      common: commonEn,
+      auth: authEn,
+      profile: profileEn,
+      catalog: catalogEn,
+      marketplace: marketplaceEn,
+      cart: cartEn,
+      orders: ordersEn,
+    },
+    ur: {
+      common: commonUr,
+      auth: authUr,
+      profile: profileUr,
+      catalog: catalogUr,
+      marketplace: marketplaceUr,
+      cart: cartUr,
+      orders: ordersUr,
+    },
   },
   lng: getStoredLanguage().toLowerCase(),
   fallbackLng: 'en',
-  ns: ['common', 'auth', 'profile', 'catalog'],
+  ns: ['common', 'auth', 'profile', 'catalog', 'marketplace', 'cart', 'orders'],
   defaultNS: 'common',
   interpolation: { escapeValue: false },
 });

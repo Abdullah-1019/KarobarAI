@@ -7,3 +7,4 @@ export { EmptyState } from './EmptyState';
 export { PasswordStrengthMeter } from './PasswordStrengthMeter';
 export { ImageUploader } from './ImageUploader';
 export { StatusChip } from './StatusChip';
+export { QuantityStepper } from './QuantityStepper';

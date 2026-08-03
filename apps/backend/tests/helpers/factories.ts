@@ -4,7 +4,7 @@ import bcrypt from 'bcrypt';
 import { randomUUID } from 'node:crypto';
 
 import { config } from '../../src/core/config';
-import { blindIndex, encryptField, normalizeEmail } from '../../src/core/crypto/fieldCipher';
+import { blindIndex, encryptField, normalizeEmail, normalizePhone } from '../../src/core/crypto/fieldCipher';
 import { signAccessToken } from '../../src/core/jwt';
 import { prisma } from '../../src/core/prisma';
 import { issueRefreshToken } from '../../src/modules/auth/auth.tokens';
@@ -22,14 +22,16 @@ export interface TestUser {
   cookieValue: string;
 }
 
-async function createUserRow(role: UserRole, email: string, password: string, onboarded: boolean) {
+async function createUserRow(role: UserRole, email: string, password: string, onboarded: boolean, phone?: string) {
   const passwordHash = await bcrypt.hash(password, config.bcryptCost);
   const normalized = normalizeEmail(email);
+  const normalizedPhone = phone ? normalizePhone(phone) : undefined;
 
   const user = await prisma.user.create({
     data: {
       email: encryptField(normalized),
       emailBidx: blindIndex(normalized),
+      ...(normalizedPhone && { phone: encryptField(normalizedPhone), phoneBidx: blindIndex(normalizedPhone) }),
       passwordHash,
       role,
       status: 'ACTIVE',
@@ -67,12 +69,12 @@ export async function issueSession(
 
 export async function createTestUser(
   role: UserRole,
-  overrides: { email?: string; password?: string; onboarded?: boolean } = {},
+  overrides: { email?: string; password?: string; onboarded?: boolean; phone?: string } = {},
 ): Promise<TestUser> {
   const email = overrides.email ?? `${role.toLowerCase()}-${randomUUID()}@example.com`;
   const password = overrides.password ?? 'Correct1$Pass';
 
-  const user = await createUserRow(role, email, password, overrides.onboarded ?? false);
+  const user = await createUserRow(role, email, password, overrides.onboarded ?? false, overrides.phone);
   const session = await issueSession(user, role);
 
   return { userId: user.userId, publicId: user.publicId, ...session };

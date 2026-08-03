@@ -126,7 +126,7 @@ describe('runPollCycle / pollOneOrder (Task 6 — 5-min poll)', () => {
     await trackingService.runPollCycle();
 
     let failureAlerts = notificationQueueAddSpy.mock.calls.filter(
-      (call) => call[1] && (call[1] as { type?: string; orderId?: string }).type === 'COURIER_TRACKING_FAILURE',
+      (call) => call[1] && (call[1] as { type?: string; orderId?: string }).type === 'TRACKING_POLL_FAILURE',
     );
     expect(failureAlerts).toHaveLength(1);
 
@@ -141,7 +141,7 @@ describe('runPollCycle / pollOneOrder (Task 6 — 5-min poll)', () => {
     await trackingService.runPollCycle();
 
     failureAlerts = notificationQueueAddSpy.mock.calls.filter(
-      (call) => call[1] && (call[1] as { type?: string; orderId?: string }).type === 'COURIER_TRACKING_FAILURE',
+      (call) => call[1] && (call[1] as { type?: string; orderId?: string }).type === 'TRACKING_POLL_FAILURE',
     );
     expect(failureAlerts).toHaveLength(2); // proves the counter actually reset, not just capped
   });

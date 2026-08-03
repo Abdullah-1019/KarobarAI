@@ -269,7 +269,7 @@ export async function bookCourier(
     userId: order.sellerId.toString(),
     type: 'COURIER_MANUAL_LOGISTICS',
     orderId: order.publicId,
-    message: 'All couriers failed to book this shipment — manual logistics required.',
+    vars: { orderId: order.publicId },
   });
   return getOrderById(orderPublicId, { userId: sellerId, role: 'SELLER' });
 }
@@ -372,9 +372,9 @@ export async function pollOneOrder(order: Order): Promise<void> {
     if (failures === 3) {
       await enqueueNotification({
         userId: order.sellerId.toString(),
-        type: 'COURIER_TRACKING_FAILURE',
+        type: 'TRACKING_POLL_FAILURE',
         orderId: order.publicId,
-        message: 'Tracking updates have failed 3 times in a row for this shipment.',
+        vars: { orderId: order.publicId },
       });
     }
     return;
@@ -406,7 +406,7 @@ export async function pollOneOrder(order: Order): Promise<void> {
         userId: order.buyerId.toString(),
         type: 'ORDER_DELIVERED',
         orderId: order.publicId,
-        message: 'Your order has been delivered!',
+        vars: { orderId: order.publicId },
       });
     }
   } catch (err) {

@@ -17,6 +17,7 @@ import { authRouter } from './modules/auth';
 import { cartRouter } from './modules/cart';
 import { publicCatalogRouter, sellerProductRouter } from './modules/catalog';
 import { healthRouter } from './modules/health/health.routes';
+import { notificationRouter, startNotificationConsumer } from './modules/notification';
 import { checkoutRouter, orderRouter, sellerOrderRouter } from './modules/order';
 import { profileRouter } from './modules/profile';
 import {
@@ -61,6 +62,7 @@ app.use('/api/v1/orders', courierRouter);
 app.use('/api/v1/seller/orders', sellerOrderRouter);
 app.use('/api/v1/tracking', authenticatedTrackingRouter);
 app.use('/api/v1/t', publicTrackingRouter);
+app.use('/api/v1/notifications', notificationRouter);
 
 // Swagger UI (TRD §9) serves an inline <script> bundle — the global helmet() CSP above would
 // block it, so this path gets its own relaxed CSP rather than weakening it everywhere.
@@ -83,4 +85,5 @@ if (require.main === module) {
   });
   startCourierAssignmentConsumer();
   startTrackingPollJob().catch((err) => logger.error({ err }, 'failed to start tracking poll job'));
+  startNotificationConsumer();
 }

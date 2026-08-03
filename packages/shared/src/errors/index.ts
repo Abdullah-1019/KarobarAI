@@ -93,3 +93,11 @@ export const TRACKING_ERROR_CODES = {
 } as const;
 
 export type TrackingErrorCode = (typeof TRACKING_ERROR_CODES)[keyof typeof TRACKING_ERROR_CODES];
+
+// Error codes introduced by the Notifications feature.
+export const NOTIFICATION_ERROR_CODES = {
+  NOTIFICATION_NOT_FOUND: 'NOTIFICATION_NOT_FOUND',
+  NOTIFICATION_NOT_OWNED: 'NOTIFICATION_NOT_OWNED',
+} as const;
+
+export type NotificationErrorCode = (typeof NOTIFICATION_ERROR_CODES)[keyof typeof NOTIFICATION_ERROR_CODES];

@@ -9,6 +9,73 @@ or flagged for follow-up. Newest entries at the top.
 
 ---
 
+## Feature: Notifications (Implementation Plan Phase 12 / Feature 9)
+
+**Status:** Done — 2026-08-03. New `notification/` module (repository/service/consumer/
+controller/routes/dto) — the consumer/dispatch side of every notification job Features 1/6/7/8
+were supposed to enqueue. Full backend suite green: **439/439 tests, 44/44 suites** (35 new to
+this feature), confirmed non-flaky across 2 consecutive full-suite runs. Zero new Prisma models,
+zero new migrations. Full contract in `docs/handoffs/F9-notifications-backend.md`, event-by-event
+producer audit in `docs/FEATURE_9_EVENT_INVENTORY.md`, sign-off in `docs/FEATURE_9_CHECKLIST.md`.
+
+**The single most important finding this feature surfaced:** the module doc claims Feature 6
+(checkout) enqueues order-placed/payment notification jobs and Feature 7 (orders) enqueues
+status-milestone jobs. **Neither is true in this codebase** — a direct search of `modules/order/`,
+`modules/cart/`, and `modules/address/` shows zero calls to `enqueueNotification` anywhere.
+Feature 8's `tracking.service.ts` is the *only* real producer that exists, for exactly 3 of the 10
+canonical event types (`ORDER_DELIVERED`, `COURIER_MANUAL_LOGISTICS`, `TRACKING_POLL_FAILURE`).
+Per this feature's own module doc (Task 2.3/2.4: flag mismatches, don't silently patch across
+feature boundaries), this is logged as a named, carried-forward gap in
+`FEATURE_9_EVENT_INVENTORY.md` rather than fixed by quietly adding enqueue calls into Feature 6/7's
+files. The consumer/template/dispatch pipeline is fully built and tested for all six missing event
+types (`ORDER_PLACED`, `ORDER_PAYMENT_CONFIRMED`, `ORDER_CANCELLED`, `ORDER_PICKED_UP`,
+`ORDER_IN_TRANSIT`, `ORDER_OUT_FOR_DELIVERY`) via synthetic test payloads — they just won't fire
+in production until a follow-up change adds the real enqueue calls to Feature 6/7.
+
+**A second, smaller mismatch was fixed directly** (not just flagged), since it was an integration
+bug within the same body of work rather than a cross-team boundary: Feature 8's own
+`NotificationPayload` originally carried a pre-rendered, English-only `message` string —
+incompatible with this feature's bilingual, per-recipient-language template rendering (Task 2.5/
+REQ-F-Notif003). Fixed by changing the payload to carry `vars: Record<string, unknown>` instead
+and updating `tracking.service.ts`'s three call sites accordingly; also renamed Feature 8's ad hoc
+`COURIER_TRACKING_FAILURE` to this feature's canonical `TRACKING_POLL_FAILURE`. Feature 8's full
+test suite re-verified clean afterward.
+
+**What shipped:**
+- `adapters/whatsapp/` — built fresh (index/mock/live), filling in Feature 0's placeholder, same
+  D2 shape as sms/email/courier/payment.
+- `notification/templates.ts` — a single typed EN/UR registry (one pair per canonical event type,
+  `{{var}}` interpolation), decoupled from dispatch logic.
+- `notification.service.ts` — `dispatchInApp`/`dispatchEmail`/`dispatchSms`/`dispatchWhatsApp`,
+  structurally identical gating (critical-event allowlist overrides the preference check, never
+  the reverse), each independently try/caught so one channel's failure never blocks another.
+  `processNotificationEvent()` is the single consumer entry point: validates the job envelope,
+  resolves the recipient once, fans out to all four channels via `Promise.allSettled`.
+- `notification.consumer.ts` — the first real BullMQ `Worker` in this codebase (Feature 7/8 only
+  ever produced into queues; this is the first actual consumer).
+- Notification Center: `GET /api/v1/notifications` (cursor-paginated, IN_APP rows only), `GET
+  /api/v1/notifications/unread-count`, `PATCH /api/v1/notifications/:id/read` (ownership-checked).
+  Each item carries the related order's publicId for click-through into Feature 7/8's existing
+  routes — no new navigation scheme invented.
+- Confirmed Feature 2's `GET/PATCH /profile/me/settings` (already reading/writing
+  `notification_preferences`) is **not** duplicated — this feature's own critical-event allowlist
+  (specific events override any channel's preference) and Feature 2's channel-level "SMS + in-app
+  always on" rule are complementary, both hold simultaneously, neither was changed.
+
+**Known limitations / assumptions (see the handoff doc for full detail):**
+- Six order-lifecycle event types have no real producer yet (see above) — the single biggest
+  carried-forward gap.
+- Feature 1's OTP dispatch remains a direct, synchronous call, deliberately never rerouted through
+  this feature's async consumer (OTP must not wait on a queue round-trip); `OTP_REQUESTED` is
+  registered in the template registry for documentation consistency only.
+- Email is the "optional, no traced requirement" channel (TRD §28) — safest to cut under schedule
+  pressure. WhatsApp is PRD R1.1, consciously pulled forward per explicit instruction, not scope
+  creep — real Meta Cloud API integration needs Business approval, deferred to Feature 16 anyway.
+- No frontend for any of this — the shared bell-icon component and full Notification Center screen
+  remain separate, not-yet-started work.
+
+---
+
 ## Feature: Courier & Tracking (Implementation Plan Phase 11 / Feature 8)
 
 **Status:** Done — 2026-08-03. New `tracking/` module (repository/service/controller/routes/dto),
@@ -723,13 +790,19 @@ working.
 
 ---
 
-*Next: Feature 8 (Courier & Tracking) is done — Feature 9 (Notifications) is next per the
-day-by-day plan. Feature 9 owns the real dispatch consumer (SMS/in-app/WhatsApp) for the
-`notifications-pending` queue Feature 8 already produces into (`enqueueNotification()`,
-`modules/notification/notification.producer.ts`) — three payload types already flowing in:
-`COURIER_MANUAL_LOGISTICS`, `COURIER_TRACKING_FAILURE`, `ORDER_DELIVERED`. It should build the
-rest of the `modules/notification/` module (repository/service/controller/routes) around that
-existing producer, not redefine the queue or payload shape. `cod_remittances` (the ledger row
-itself), the `DELIVERED → COMPLETED` transition trigger, and real courier/payment-gateway
-integrations all remain open gaps for Feature 12 (Payments & Admin Operations)/Feature 16
-(External APIs), unchanged from Feature 8's own carried-forward list.*
+*Next: Feature 9 (Notifications) is done — Feature 10 (Returns & Refunds) is next per the
+day-by-day plan. Feature 10 should add `RETURN_DECISION`/`REFUND_ISSUED` to
+`packages/shared/src/types/notification.ts`'s now-open `NotificationEventType` union (already
+structured to accept them, per Feature 9's Task 2.1) and both already sit in
+`CRITICAL_EVENT_TYPES`, reusing Feature 9's `enqueueNotification()`/dispatch pipeline entirely
+unchanged — no new adapter, no new consumer, just two new template registry entries and the
+actual enqueue calls at Feature 10's own return-decision/refund-issued points. Separately, a real
+gap Feature 9 found and did **not** fix (flagged instead, per its own module doc's instruction):
+Features 6/7 never actually enqueue any order-lifecycle notification job
+(`ORDER_PLACED`/`ORDER_PAYMENT_CONFIRMED`/`ORDER_CANCELLED`/`ORDER_PICKED_UP`/`ORDER_IN_TRANSIT`/
+`ORDER_OUT_FOR_DELIVERY`) despite the consumer/template side being fully built and tested for all
+six — see `docs/FEATURE_9_EVENT_INVENTORY.md` before assuming those notifications work end to
+end. `cod_remittances` (the ledger row itself), the `DELIVERED → COMPLETED` transition trigger,
+and real courier/payment-gateway integrations all remain open gaps for Feature 12 (Payments &
+Admin Operations)/Feature 16 (External APIs), unchanged from Feature 8's own carried-forward
+list.*

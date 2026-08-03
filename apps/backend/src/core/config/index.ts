@@ -59,4 +59,11 @@ export const config = {
     publicBaseUrl:
       process.env.S3_PUBLIC_BASE_URL ?? process.env.MINIO_ENDPOINT ?? 'http://localhost:9000',
   },
+  courier: {
+    // Real retry spacing for Feature 8's book-with-fallback flow (REQ-F-Logistics-005: 3
+    // attempts, 30s apart). Env-overridable so tests can shrink this to a few ms instead of
+    // waiting 90+ real seconds per adversarial retry/fallback test — production always gets the
+    // real 30s default; only a test-time env override changes it.
+    retryDelayMs: Number(process.env.COURIER_RETRY_DELAY_MS ?? 30000),
+  },
 };

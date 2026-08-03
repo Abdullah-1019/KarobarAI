@@ -19,22 +19,31 @@ function listTsFiles(dir: string): string[] {
 const allSourceFiles = listTsFiles(SRC_ROOT);
 const orderServicePath = path.join(SRC_ROOT, 'modules/order/order.service.ts');
 
+const FEATURE_7_OWN_FILES = [
+  path.join(SRC_ROOT, 'modules/order/order.service.ts'),
+  path.join(SRC_ROOT, 'modules/order/invoice.service.ts'),
+  path.join(SRC_ROOT, 'modules/order/order.controller.ts'),
+  path.join(SRC_ROOT, 'modules/order/order.routes.ts'),
+];
+
 describe('Feature 7 reuse/scope audit (module doc Task 7 patch + Task 9)', () => {
-  it('modules/tracking is still just the Feature-0 folder-structure placeholder, untouched by Feature 7', () => {
-    const trackingFiles = allSourceFiles.filter((file) => file.split(path.sep).includes('tracking'));
-    expect(trackingFiles).toEqual([path.join(SRC_ROOT, 'modules/tracking/index.ts')]);
-    expect(fs.readFileSync(trackingFiles[0]!, 'utf-8')).toContain('implemented in Feature 8');
-  });
-
-  it('no tracking.service.ts file exists', () => {
-    const trackingServiceFiles = allSourceFiles.filter((file) => path.basename(file) === 'tracking.service.ts');
-    expect(trackingServiceFiles).toEqual([]);
-  });
-
-  it('no Socket.IO /tracking namespace or socket.io dependency is wired up', () => {
-    const hits = allSourceFiles.filter((file) => {
+  // Feature 8 (Courier & Tracking) has since filled in modules/tracking/ for real, exactly as
+  // Feature 7's own patch deferred it to — these checks were always about Feature 7's OWN files
+  // never reaching into tracking/CourierAdapter/Socket.IO, never about those things not existing
+  // anywhere in the codebase forever. Scoped accordingly (matching the CourierAdapter check below,
+  // which was always correctly scoped this way).
+  it('Feature 7\'s own files never import from modules/tracking or reference tracking.service', () => {
+    const hits = FEATURE_7_OWN_FILES.filter((file) => {
       const content = fs.readFileSync(file, 'utf-8');
-      return content.includes('socket.io') || content.includes('/tracking namespace');
+      return content.includes('modules/tracking') || content.includes('tracking.service');
+    });
+    expect(hits).toEqual([]);
+  });
+
+  it('Feature 7\'s own files never reference Socket.IO / the /tracking namespace', () => {
+    const hits = FEATURE_7_OWN_FILES.filter((file) => {
+      const content = fs.readFileSync(file, 'utf-8');
+      return content.includes('socket.io') || content.includes('core/socket');
     });
     expect(hits).toEqual([]);
   });

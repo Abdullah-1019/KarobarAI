@@ -1,4 +1,4 @@
-import type { OrderStatus, PaymentMethod, Product, UserRole } from '@prisma/client';
+import type { CourierCode, OrderStatus, PaymentMethod, Product, UserRole } from '@prisma/client';
 import { Prisma } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import { randomUUID } from 'node:crypto';
@@ -136,6 +136,10 @@ export async function createTestOrder(
     paymentMethod?: PaymentMethod;
     quantity?: number;
     deliveredAt?: Date | null;
+    shipCity?: string;
+    courier?: CourierCode | null;
+    trackingNo?: string | null;
+    courierOverridden?: boolean;
   } = {},
 ) {
   const quantity = overrides.quantity ?? 1;
@@ -156,10 +160,13 @@ export async function createTestOrder(
       commissionRateSnapshot: new Prisma.Decimal(0.05),
       shipName: 'Test Recipient',
       shipLine1: encryptField('123 Test Street'),
-      shipCity: 'Lahore',
+      shipCity: overrides.shipCity ?? 'Lahore',
       shipProvince: 'Punjab',
       shipPhone: encryptField('03001234567'),
       deliveredAt: overrides.deliveredAt ?? null,
+      courier: overrides.courier ?? null,
+      trackingNo: overrides.trackingNo ?? null,
+      courierOverridden: overrides.courierOverridden ?? false,
       items: {
         create: {
           productId: product.productId,

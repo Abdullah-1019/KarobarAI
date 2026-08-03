@@ -82,3 +82,14 @@ export const ORDER_ERROR_CODES = {
 } as const;
 
 export type OrderErrorCode = (typeof ORDER_ERROR_CODES)[keyof typeof ORDER_ERROR_CODES];
+
+// Error codes introduced by the Courier & Tracking feature.
+export const TRACKING_ERROR_CODES = {
+  ORDER_NOT_COURIER_ELIGIBLE: 'ORDER_NOT_COURIER_ELIGIBLE',
+  COURIER_ALREADY_BOOKED: 'COURIER_ALREADY_BOOKED',
+  COURIER_QUOTES_NOT_READY: 'COURIER_QUOTES_NOT_READY',
+  INVALID_COURIER_SELECTION: 'INVALID_COURIER_SELECTION',
+  TRACKING_TOKEN_INVALID: 'TRACKING_TOKEN_INVALID',
+} as const;
+
+export type TrackingErrorCode = (typeof TRACKING_ERROR_CODES)[keyof typeof TRACKING_ERROR_CODES];

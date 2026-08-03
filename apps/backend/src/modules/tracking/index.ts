@@ -1,2 +1,2 @@
-// Tracking module (poll jobs + WebSocket gateway) — implemented in Feature 8. Placeholder for folder structure (TRD §12).
-export {};
+export { courierRouter, authenticatedTrackingRouter, publicTrackingRouter } from './tracking.routes';
+export { startCourierAssignmentConsumer, startTrackingPollJob } from './tracking.service';

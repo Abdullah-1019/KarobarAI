@@ -9,6 +9,80 @@ or flagged for follow-up. Newest entries at the top.
 
 ---
 
+## Feature: Courier & Tracking (Implementation Plan Phase 11 / Feature 8)
+
+**Status:** Done — 2026-08-03. New `tracking/` module (repository/service/controller/routes/dto),
+exactly where Feature 7's own mid-document patch deferred this scope to. Full backend suite
+green: **404/404 tests, 38/38 suites** (136 new to this feature), confirmed non-flaky across 2
+consecutive full-suite runs. Zero new Prisma models, zero new migrations — `courier_quotes`/
+`tracking_events` already existed complete from the Database feature. Full contract in
+`docs/handoffs/F8-courier-tracking-backend.md`, sign-off in `docs/FEATURE_8_CHECKLIST.md`.
+
+**Two real infrastructure gaps found and resolved before writing any of the actual scoring/
+booking/tracking logic** (the module doc's own "Pre-Generation Reuse Review" claimed both already
+existed from an earlier "architecture phase" — neither did, the same class of gap Feature 6 found
+with `PaymentAdapter`/`CourierAdapter`):
+- **A Socket.IO `/tracking` gateway.** `socket.io` was an installed dependency with zero wiring
+  anywhere in the codebase. Built now (`core/socket/index.ts`): `server.ts` now creates an
+  explicit `http.Server` (previously a bare `app.listen()`) so Socket.IO has something to attach
+  to; one `/tracking` namespace, clients join a per-order room. Initialized unconditionally at
+  module load (not gated behind process bootstrap) so tests get a working, emit-capable instance
+  for free — emitting to zero connected sockets is a harmless no-op.
+- **A Notification producer/enqueue interface**, claimed "reserved earlier in TRD §12" —
+  `modules/notification/` was, and otherwise still is, Feature 0's empty placeholder. Built only
+  the minimal producer contract this feature needs (`notification.producer.ts`, a generic BullMQ
+  queue) — the same "build the contract now, no consumer yet" pattern Feature 7 used for the
+  `courier-assignment-pending` queue. Feature 9 owns the real dispatch consumer.
+
+**A real pipeline gap found and fixed, not just a documentation gap:** Task 6.1's literal wording
+lists the poll job's candidate orders as PICKED_UP/IN_TRANSIT/OUT_FOR_DELIVERY only. Feature 7's
+state machine's only edge out of PROCESSING is PROCESSING → PICKED_UP, and nothing else in either
+feature ever fires that transition — taken literally, every booked order would sit in PROCESSING
+forever with no path forward at all. Fixed by including PROCESSING in the poll job's candidate
+query, flagged as this feature's own correction to the doc's literal wording, not a bug report
+against a spec that was actually correct.
+
+**A real bug this feature's own tests caught: a duplicate `tracking_events` row per milestone.**
+Feature 7's `transitionOrderStatus` already inserts its own `tracking_events` row on every
+transition; the poll job's first pass also called a separate repository insert (carrying location
+data) *before* calling `transitionOrderStatus` — two rows per genuine milestone, one with location
+data and one without. Fixed by extending `transitionOrderStatus` itself with an optional
+`location?: {lat, lng}` parameter (the same "add an optional param, old callers unaffected"
+pattern Feature 6 used for `decrementStock`/`restoreStock`'s transaction client) and removing the
+standalone insert entirely.
+
+**What shipped:**
+- `CourierAdapter` extended from Feature 6's single `getRate()` call to the full interface:
+  `checkCoverage()`, `getQuote()`, `book()`, `track()`, `cancel()` — deterministic mock (three
+  couriers, fixed cost/ETA/reliability, a couple of deliberate COD/general coverage gaps for
+  adversarial testing, a fixed 4-step milestone progression).
+- `tracking.service.ts` — `initializeShipment` (consumes Feature 7's `courier-assignment-pending`
+  job, Gap #2's idempotent-scoring guard), `scoreCouriers` (COD-coverage pre-filter, parallel
+  `getQuote()` calls, weighted scoring read fresh from `platform_config.courier_weights`),
+  `bookCourier` (retry×3@30s per courier, fallback to next-best-scored — never random — seller
+  override flagged automatically, all-fail → `PENDING_MANUAL_LOGISTICS` + notification),
+  `runPollCycle` (5-min recurring job, milestone-driven `tracking_events` + Socket.IO push,
+  3-consecutive-failure alert with verified reset-and-realert behavior), public/authenticated
+  tracking reads (deliberately minimal, no-PII DTO, adversarially tested).
+- New endpoints: `GET/POST /api/v1/orders/:id/courier-quotes`, `refresh-rates`, `book-courier`
+  (Seller-only), `GET /api/v1/tracking/:orderId` (authenticated, tri-mode), `GET /api/v1/t/
+  :publicToken` (public, no auth).
+- `core/queue`'s `createWorker()` — this feature's first BullMQ `Worker`/consumer in the codebase
+  (Feature 7 only ever produced into queues).
+
+**Known limitations / assumptions (see the handoff doc for full detail):**
+- No automated re-booking path from `PENDING_MANUAL_LOGISTICS` — Gap #4's eligibility rule is read
+  literally (`PAYMENT_CONFIRMED` + `courier IS NULL` only); that status requires human (Admin/
+  Support) intervention, not an automatic retry seam this feature builds.
+- The 3-consecutive-poll-failure counter is in-memory, per-process — no schema column exists for
+  it (would violate zero-new-migrations), and resets on a process restart.
+- Coverage score is uniform among candidates already past the binary coverage pre-filter — no
+  source document specifies a finer-grained signal.
+- No frontend for any of this — SCR-S06's courier card/booking UI, SCR-B08, SCR-B09 all remain
+  separate, not-yet-started work.
+
+---
+
 ## Feature: Order Management (Implementation Plan Phase 10 / Feature 7)
 
 **Status:** Done — 2026-08-02. Extends Feature 6's existing `order/` module (no parallel module) —
@@ -649,10 +723,13 @@ working.
 
 ---
 
-*Next: Feature 7 (Order Management) is done — Feature 8 (Courier & Tracking) is next per the
-day-by-day plan. Feature 8 owns everything Feature 7's own module-doc patch deferred: courier
-scoring/booking + retry/fallback, COD-coverage filtering, the 5-minute tracking poll, WebSocket
-push, both tracking screens (SCR-B08/SCR-B09), and the `cod_remittances` ledger. It should call
-Feature 7's `transitionOrderStatus` for every status change (never write `orders.status` a second
-way) and write the actual consumer for the `courier-assignment-pending` queue Feature 7's
-`confirmPayment` already enqueues into.*
+*Next: Feature 8 (Courier & Tracking) is done — Feature 9 (Notifications) is next per the
+day-by-day plan. Feature 9 owns the real dispatch consumer (SMS/in-app/WhatsApp) for the
+`notifications-pending` queue Feature 8 already produces into (`enqueueNotification()`,
+`modules/notification/notification.producer.ts`) — three payload types already flowing in:
+`COURIER_MANUAL_LOGISTICS`, `COURIER_TRACKING_FAILURE`, `ORDER_DELIVERED`. It should build the
+rest of the `modules/notification/` module (repository/service/controller/routes) around that
+existing producer, not redefine the queue or payload shape. `cod_remittances` (the ledger row
+itself), the `DELIVERED → COMPLETED` transition trigger, and real courier/payment-gateway
+integrations all remain open gaps for Feature 12 (Payments & Admin Operations)/Feature 16
+(External APIs), unchanged from Feature 8's own carried-forward list.*

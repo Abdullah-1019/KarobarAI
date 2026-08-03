@@ -231,6 +231,13 @@ export async function transitionOrderStatus(
   targetStatus: OrderStatus,
   actor: 'system' | 'seller',
   description?: string,
+  // Feature 8 addition — every courier-driven milestone its poll job records also doubles as a
+  // canonical status transition (its mock adapter's tracking call maps 1:1 onto OrderStatus
+  // values), so routing location data through this single tracking_events insert avoids a
+  // second, duplicate row per milestone (one from here, one from a separate write) — the same
+  // "extend with an optional param, old callers unaffected" pattern Feature 6 used to add an
+  // optional transaction client to Feature 4's decrementStock/restoreStock.
+  location?: { lat: number; lng: number },
 ): Promise<void> {
   await prisma.$transaction(async (tx) => {
     const order = await tx.order.findUniqueOrThrow({ where: { orderId } });
@@ -257,6 +264,8 @@ export async function transitionOrderStatus(
         status: targetStatus,
         description: description ?? `Order status changed to ${targetStatus}`,
         eventTime: new Date(),
+        locationLat: location?.lat,
+        locationLng: location?.lng,
       },
     });
 

@@ -9,6 +9,50 @@ or flagged for follow-up. Newest entries at the top.
 
 ---
 
+## Gap Closure: Settlement Engine (unblocks Feature 11 Task 2 / Feature 12 Task 2 GMV)
+
+**Status:** Done — 2026-08-04. New `settlement/` module (`settlement.repository.ts`,
+`settlement.service.ts`). Full backend suite green: **606/606 tests, 63/63 suites** (15 new to
+this gap closure), confirmed non-flaky across 2 consecutive full-suite runs. Zero new Prisma
+models — `settlements` already existed complete; this is the first code path that ever writes to
+it. Full contract in `docs/handoffs/F-settlement-engine-gap-closure.md`.
+
+**Why this exists:** not a numbered Implementation Plan feature — no feature in the entire
+16-feature module list (0–15) owns "Payments/Settlement Engine" as its own deliverable, yet both
+Feature 11's Task 2 (Revenue Aggregation) and Feature 12's Task 2 (Dashboard GMV) specify
+`SUM(net) OVER settlements WHERE status=SETTLED` as their literal data source. Feature 11 shipped
+with this flagged as a known, honest limitation (correctly returning `0.00` for every seller).
+Rather than let Feature 12 hit the same gap a second time, built the missing piece now, before
+starting Feature 12, so its own Dashboard work lands against real numbers.
+
+**What it does:** a daily BullMQ poll job (`startSettlementPollJob`, structurally identical to
+Feature 8's `startTrackingPollJob` — `createQueue`/`createWorker`, only started from `server.ts`'s
+process-startup guard, never from a request handler) that finds orders where the return window
+has closed (`deliveredAt + platform_config.return_window_days <= now`, config-driven, never
+hardcoded) with nothing left to refund (no `Return` filed, or one that ended `CLOSED` — a `Return`
+still active holds the order back, one that reached `REFUND_ISSUED` excludes it permanently), and
+creates a `Settlement` row: `gross = order.subtotal`, `commission = gross *
+commissionRateSnapshot` (rounded 2dp `ROUND_HALF_UP` before subtracting, so it's exactly
+self-consistent with the `chk_settlements_net` CHECK constraint regardless of DB-side rounding),
+`net = gross - commission`, `status = SETTLED` immediately (no `PENDING` staging — no real
+payout/banking gateway exists anywhere in this codebase to gate that on, mock-only like every
+other adapter this session). `Settlement.orderId`'s existing unique constraint doubles as the
+idempotency guard against a poll cycle re-processing an already-settled order.
+
+**Deliberately not built:** actual payout/bank-transfer execution, `cod_remittances`
+reconciliation, or an admin manual-settlement override (`SettlementStatus.ON_HOLD` stays unused) —
+all remain Feature 12+/Feature 16 (External APIs) concerns. A `Settlement` reaching `SETTLED`
+means "this revenue is finalized and no longer at refund risk," not "money has moved."
+
+**Verified:** `tsc --noEmit` clean; 15 new tests (correct gross/commission/net math,
+window-not-closed exclusion, config-driven cutoff, open-return exclusion, `REFUND_ISSUED`
+exclusion, `CLOSED`-return inclusion, idempotency, non-delivered exclusion, one-order-failure
+isolation via a mocked throw, and a grep-based reuse audit); full suite run twice consecutively,
+606/606 both times; Feature 11's existing `revenue.test.ts` (built against synthetic seeded
+settlements) re-run unchanged and still green — this addition is purely additive.
+
+---
+
 ## Feature: Analytics Dashboard (Implementation Plan Phase 14 / Feature 11)
 
 **Status:** Done — 2026-08-04. New `analytics/` module (repository/service/dto, plus
@@ -935,22 +979,24 @@ working.
 
 ---
 
-*Next: Feature 11 (Analytics Dashboard) is done — Feature 12 (Admin Panel) is next per the
-day-by-day plan. Its module doc (`docs/modules/12-Admin Panel.md`) is complete — verified by
+*Next: the Settlement Engine gap closure (above) is done — Feature 12 (Admin Panel) is next per
+the day-by-day plan. Its module doc (`docs/modules/12-Admin Panel.md`) is complete — verified by
 reading the whole file this time, not just the header (a lesson learned directly from a real
 mistake made in this log during the Feature 10→11 handoff: the top of the file shows a stale
 "Draft — Response 1 of 3" header left over from the first of 3 appended "Response" batches, but
 the doc's own last line confirms "Final — Response 3 of 3, All three responses... now complete,"
 and Tasks 1–6 + Validation & Testing + Consistency Review are all genuinely present in full).
-Feature 12 explicitly depends on Feature 11 (this feature) — its own doc states it "does not
-rebuild Feature 11's aggregation logic; it composes/queries across all sellers using the same
-underlying repositories with the ownership filter removed" for the platform-wide Admin Dashboard
-(SCR-AD01). **Two real, still-open gaps carried forward for whoever starts Feature 12:**
-1. Feature 11's Task 2 (Revenue Aggregation) reads `settlements.net WHERE status=SETTLED`, and
-   still nothing in this codebase creates a `Settlement` row (see Feature 11's entry above) — if
-   Feature 12's Dashboard KPIs also read from `settlements`, they will show the same honest zero
-   until a settlement engine exists. Same guidance as before: build against the real schema, do
-   not invent a settlement-creation trigger without an explicit spec for its timing.
-2. `cod_remittances` (the ledger row itself), the `DELIVERED → COMPLETED` transition trigger, and
-   real courier/payment-gateway integrations all remain open gaps for Feature 12/Feature 16
-   (External APIs), unchanged from Feature 8's own carried-forward list.*
+Feature 12 explicitly depends on Feature 11 — its own doc states it "does not rebuild Feature 11's
+aggregation logic; it composes/queries across all sellers using the same underlying repositories
+with the ownership filter removed" for the platform-wide Admin Dashboard (SCR-AD01), including
+Task 2's GMV tile, which reads the identical `SUM(net) OVER settlements WHERE status=SETTLED`
+query shape Feature 11's Task 2 uses. **This dependency is now real data, not another documented
+zero** — the settlement-creation gap that would have made Feature 12's GMV tile read `0.00` too is
+closed as of the entry directly above. **One real, still-open gap carried forward for whoever
+starts Feature 12:** `cod_remittances` (the ledger row itself), the `DELIVERED → COMPLETED`
+transition trigger, and real courier/payment-gateway integrations all remain open gaps for
+Feature 12/Feature 16 (External APIs), unchanged from Feature 8's own carried-forward list. Note
+also that `SettlementStatus.ON_HOLD` exists in the schema and is currently written by no code
+path — a natural fit for Feature 12's own Admin Panel if a manual settlement-hold/override
+capability is wanted, not built as part of the gap closure itself (out of scope: that's a
+privileged Admin action, not the automated settlement engine).*

@@ -22,6 +22,7 @@ import { notificationRouter, startNotificationConsumer } from './modules/notific
 import { checkoutRouter, orderRouter, sellerOrderRouter } from './modules/order';
 import { profileRouter } from './modules/profile';
 import { adminReturnsRouter, returnsRouter, sellerReturnsRouter } from './modules/returns';
+import { startSettlementPollJob } from './modules/settlement';
 import {
   authenticatedTrackingRouter,
   courierRouter,
@@ -92,4 +93,5 @@ if (require.main === module) {
   startCourierAssignmentConsumer();
   startTrackingPollJob().catch((err) => logger.error({ err }, 'failed to start tracking poll job'));
   startNotificationConsumer();
+  startSettlementPollJob().catch((err) => logger.error({ err }, 'failed to start settlement poll job'));
 }

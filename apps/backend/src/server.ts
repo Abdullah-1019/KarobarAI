@@ -13,6 +13,7 @@ import { logger } from './core/logger';
 import { initSocketServer } from './core/socket';
 import { swaggerSpec } from './core/swagger';
 import { addressRouter } from './modules/address';
+import { analyticsRouter } from './modules/analytics';
 import { authRouter } from './modules/auth';
 import { cartRouter } from './modules/cart';
 import { publicCatalogRouter, sellerProductRouter } from './modules/catalog';
@@ -67,6 +68,7 @@ app.use('/api/v1/notifications', notificationRouter);
 app.use('/api/v1/returns', returnsRouter);
 app.use('/api/v1/seller/returns', sellerReturnsRouter);
 app.use('/api/v1/admin/returns', adminReturnsRouter);
+app.use('/api/v1/seller/analytics', analyticsRouter);
 
 // Swagger UI (TRD §9) serves an inline <script> bundle — the global helmet() CSP above would
 // block it, so this path gets its own relaxed CSP rather than weakening it everywhere.

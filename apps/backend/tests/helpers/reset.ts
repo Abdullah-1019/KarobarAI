@@ -17,6 +17,7 @@ export async function resetDb(): Promise<void> {
   await prisma.refreshToken.deleteMany();
   await prisma.notificationPreference.deleteMany();
   await prisma.payment.deleteMany();
+  await prisma.settlement.deleteMany(); // Feature 11 — Settlement.orderId is onDelete: Restrict, must precede order.deleteMany()
   await prisma.dispute.deleteMany(); // Feature 10 — Dispute.returnId is onDelete: Restrict, must precede return.deleteMany()
   await prisma.return.deleteMany(); // cascades return_images; Return.orderId is onDelete: Restrict, must precede order.deleteMany()
   await prisma.order.deleteMany(); // cascades order_items/tracking_events/courier_quotes
@@ -27,7 +28,7 @@ export async function resetDb(): Promise<void> {
 }
 
 export async function resetRedis(): Promise<void> {
-  const prefixes = ['otp:*', 'lockout:*', 'denylist:*', 'resetpwd:*'];
+  const prefixes = ['otp:*', 'lockout:*', 'denylist:*', 'resetpwd:*', 'analytics:*'];
   const keys = (await Promise.all(prefixes.map((pattern) => redis.keys(pattern)))).flat();
   if (keys.length > 0) await redis.del(...keys);
 }

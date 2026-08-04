@@ -9,6 +9,84 @@ or flagged for follow-up. Newest entries at the top.
 
 ---
 
+## Feature: Analytics Dashboard (Implementation Plan Phase 14 / Feature 11)
+
+**Status:** Done — 2026-08-04. New `analytics/` module (repository/service/dto, plus
+`analytics.dateRange.ts`/`analytics.cache.ts` utilities). Full backend suite green:
+**591/591 tests, 61/61 suites** (66 new to this feature), confirmed non-flaky across 2
+consecutive full-suite runs. Zero new Prisma models, zero new migrations — `settlements`,
+`orders`, `order_items`, `products`, `categories` already existed. Full contract in
+`docs/handoffs/F11-analytics-backend.md`, sign-off in `docs/FEATURE_11_CHECKLIST.md`.
+
+**The one real, still-open gap — confirmed with the project owner before building, not
+discovered after:**
+- Task 2 (Revenue Aggregation) sources `current`/`previous`/`ytd` from `settlements.net WHERE
+  status=SETTLED`. **No code path anywhere in this codebase has ever created a `Settlement`
+  row** — confirmed via `grep -rln "settlement.create\|prisma.settlement" apps/backend/src`
+  returning zero hits outside this feature's own tests. The module doc's dependency line names
+  "Feature 10 (Payments)" as already providing this — a numbering mismatch, since this
+  codebase's actual Feature 10 is Returns & Refunds. Decision made before writing any code:
+  build Task 2 exactly as specified against `settlements` (tested correct with synthetic seeded
+  rows), rather than substituting `orders.total_amount` (would produce a structurally different,
+  wrong number — includes commission/shipping/unsettled orders) or inventing an undocumented
+  settlement-creation trigger. `GET /seller/analytics/revenue` correctly returns all-zero output
+  for every real seller until a settlement engine exists (Feature 12+) — this is the honest
+  output of the spec as written, not a bug, and needs zero code changes here once one exists.
+
+**A real bug found and fixed by this feature's own tests:**
+- `enumerateDays()` and `dailyRevenueSeries()` originally built date-bucket keys with
+  `date.toISOString().slice(0, 10)` applied to local-midnight `Date` objects — reads the UTC
+  calendar day, which silently rolls back one day on any positive-UTC-offset machine (confirmed:
+  this dev environment is PKT/UTC+5, and KarobarAI's target market is Pakistan, so production
+  will be too). Would have zero-filled the wrong calendar days in the sales-trend chart and
+  misattributed early-morning-delivered orders to the previous day's revenue. Fixed with a
+  `toLocalDateKey()` helper (`getFullYear()`/`getMonth()`/`getDate()`, never `toISOString()`),
+  used consistently in both places; regression-tested directly.
+
+**Other decisions made this pass:**
+- **Caching is TTL-based (60s Redis), not the module doc's literal per-metric event-driven
+  design.** Wiring four separate cache-bust hooks into Features 7/8/10's already-signed-off
+  files would be disproportionate cross-feature coupling for a performance optimization when the
+  only real requirement is "<3s reload" (Doc 5 §7) — a flat TTL fully satisfies that. Grep-
+  audited: no other module imports `analytics.cache`.
+- **`seller_daily_stats`/`seller_recommendations` (Schema §15.1/§15.2) intentionally left
+  unpopulated.** These are clearly the intended pre-aggregation mechanism at scale, but have zero
+  writers anywhere in this codebase, and populating them requires an undefined batch-job trigger
+  no source document specifies — same "don't invent unspecified business logic" reasoning as
+  Features 7/8's `DELIVERED → COMPLETED` gap. Task 3's daily trend is computed live from
+  `orders`/`order_items` instead (fast enough under the 60s cache). Flagged as a real Feature
+  12/optimization opportunity, not an oversight.
+- **`analytics.repository.ts` is plain exported functions, not a class hierarchy** the module
+  doc's literal "AnalyticsRepository base class" wording implies — matches every other
+  repository in this codebase (none are class-based).
+- **Products with `category_id = NULL`** (Task 3's own flagged gap) bucket into a synthetic
+  "Uncategorized" category rather than being silently excluded, which would make every other
+  category's `pctOfTotal` misrepresent the period's real total.
+- **New-vs-repeat customer classification** (Task 5) is checked against the buyer's *lifetime*
+  order history with this seller, not range-bounded — the module doc's own flagged
+  miscalculation risk. Directly regression-tested: a buyer whose first-ever order predates the
+  range start, with a second order inside the range, is correctly counted as repeat, not new.
+
+**Verified (not just written):**
+- `tsc --noEmit` clean across `packages/shared` and `apps/backend`.
+- 66 new tests: date-range pure-function unit tests, all 6 metric endpoints (happy path + edge
+  cases: zero-data, divide-by-zero guards, ownership isolation per endpoint), uniform RBAC
+  adversarial tests (401/403/403/200) across all 6 endpoints, caching behavior (spy-verified
+  cache hit/miss on TTL/range/seller boundaries), and a grep-based reuse audit.
+- Full backend suite run twice consecutively: 591/591 tests, 61/61 suites both times, zero
+  flakiness. (`tests/helpers/reset.ts` extended with `settlement.deleteMany()` — `Settlement.
+  orderId` is `onDelete: Restrict` — and an `analytics:*` Redis-key sweep, both needed since this
+  is the first feature to create `Settlement` rows or write `analytics:*` cache keys at all.)
+
+**Known limitations / assumptions:** see `docs/handoffs/F11-analytics-backend.md`'s full list —
+in short: Task 2 reads zero until a settlement engine exists (above), `seller_daily_stats`
+unpopulated (above), `ANALYTICS_RANGE_TOO_LARGE` registered but not enforced (module doc's own
+Assumption #5, no limit specified), no frontend (SCR-S08 not started), Admin's platform-wide KPIs
+(SCR-AD01) are explicitly out of scope — Feature 12 composes this module's repository functions
+with the ownership filter removed rather than duplicating the aggregation logic.
+
+---
+
 ## Feature: Returns & Refunds (Implementation Plan Phase 13 / Feature 10)
 
 **Status:** Done — 2026-08-04. New `returns/` module (repository/service/decision-service, plus
@@ -857,21 +935,22 @@ working.
 
 ---
 
-*Next: Feature 10 (Returns & Refunds) is done — Feature 11 (Analytics Dashboard) is next per the
-day-by-day plan. Its module doc (`docs/modules/11-Analytics Dashboard.md`) is complete — all 6
-tasks + Validation & Testing + the Consistency Review are present (written across 3 appended
-"Response" batches; only the very top of the file shows a stale "Draft — Response 1 of 3" header
-left over from the first batch — the doc's own last line confirms "Final — Response 3 of 3,"
-Tasks 1–6 all follow it in full). **A real, still-open gap for whoever starts it:** Feature 11's
-Task 2 (Revenue Aggregation) is specified to source revenue from `settlements.net WHERE status =
-SETTLED` — but no code anywhere in this codebase has ever created a `Settlement` row (confirmed:
-zero `prisma.settlement.create` calls in `apps/backend/src`). The doc's own dependency line names
-"Feature 10 (Payments)" as already providing this — a numbering mismatch, since *this* codebase's
-Feature 10 is Returns & Refunds, and no dedicated settlement/payout engine has been built as its
-own feature yet (only `PaymentAdapter.charge()`/`refund()`, both mock-only, from Features 6/10).
-Task 2 as literally specified cannot produce real data until something writes settlement rows —
-worth resolving (build a minimal settlement-creation step, or source revenue from `orders`/
-`payments` instead, or defer Task 2 explicitly) before assuming the dependency is satisfied.
-`cod_remittances` (the ledger row itself), the `DELIVERED → COMPLETED` transition trigger, and
-real courier/payment-gateway integrations all remain open gaps for Feature 12 (Payments & Admin
-Operations)/Feature 16 (External APIs), unchanged from Feature 8's own carried-forward list.*
+*Next: Feature 11 (Analytics Dashboard) is done — Feature 12 (Admin Panel) is next per the
+day-by-day plan. Its module doc (`docs/modules/12-Admin Panel.md`) is complete — verified by
+reading the whole file this time, not just the header (a lesson learned directly from a real
+mistake made in this log during the Feature 10→11 handoff: the top of the file shows a stale
+"Draft — Response 1 of 3" header left over from the first of 3 appended "Response" batches, but
+the doc's own last line confirms "Final — Response 3 of 3, All three responses... now complete,"
+and Tasks 1–6 + Validation & Testing + Consistency Review are all genuinely present in full).
+Feature 12 explicitly depends on Feature 11 (this feature) — its own doc states it "does not
+rebuild Feature 11's aggregation logic; it composes/queries across all sellers using the same
+underlying repositories with the ownership filter removed" for the platform-wide Admin Dashboard
+(SCR-AD01). **Two real, still-open gaps carried forward for whoever starts Feature 12:**
+1. Feature 11's Task 2 (Revenue Aggregation) reads `settlements.net WHERE status=SETTLED`, and
+   still nothing in this codebase creates a `Settlement` row (see Feature 11's entry above) — if
+   Feature 12's Dashboard KPIs also read from `settlements`, they will show the same honest zero
+   until a settlement engine exists. Same guidance as before: build against the real schema, do
+   not invent a settlement-creation trigger without an explicit spec for its timing.
+2. `cod_remittances` (the ledger row itself), the `DELIVERED → COMPLETED` transition trigger, and
+   real courier/payment-gateway integrations all remain open gaps for Feature 12/Feature 16
+   (External APIs), unchanged from Feature 8's own carried-forward list.*

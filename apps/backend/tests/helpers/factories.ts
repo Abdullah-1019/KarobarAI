@@ -187,3 +187,28 @@ export async function createTestOrder(
     },
   });
 }
+
+// Feature 11 (Analytics) — Task 2's revenue figures are sourced from settlements.net WHERE
+// status=SETTLED, but no production code path creates Settlement rows anywhere in this codebase
+// yet (see the handoff doc's known limitation). Tests seed rows directly via Prisma to prove the
+// aggregation logic itself is correct, independent of that gap.
+export async function createTestSettlement(
+  orderId: bigint,
+  sellerId: bigint,
+  overrides: { gross?: number; commission?: number; status?: 'PENDING' | 'SETTLED' | 'ON_HOLD'; settledAt?: Date | null } = {},
+) {
+  const gross = overrides.gross ?? 1000;
+  const commission = overrides.commission ?? 50;
+  const net = gross - commission; // DB CHECK constraint chk_settlements_net enforces net = gross - commission exactly
+  return prisma.settlement.create({
+    data: {
+      orderId,
+      sellerId,
+      gross: new Prisma.Decimal(gross),
+      commission: new Prisma.Decimal(commission),
+      net: new Prisma.Decimal(net),
+      status: overrides.status ?? 'SETTLED',
+      settledAt: overrides.status === 'PENDING' ? null : (overrides.settledAt ?? new Date()),
+    },
+  });
+}

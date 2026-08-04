@@ -109,6 +109,16 @@ export const RETURN_ERROR_CODES = {
 
 export type ReturnErrorCode = (typeof RETURN_ERROR_CODES)[keyof typeof RETURN_ERROR_CODES];
 
+// Error codes introduced by the Analytics Dashboard feature.
+export const ANALYTICS_ERROR_CODES = {
+  INVALID_DATE_RANGE: 'INVALID_DATE_RANGE',
+  // Registered per Task 1.6 but not enforced by default — no source document specifies a max
+  // lookback bound (module doc's own Assumption #5); available for a future confirmed limit.
+  ANALYTICS_RANGE_TOO_LARGE: 'ANALYTICS_RANGE_TOO_LARGE',
+} as const;
+
+export type AnalyticsErrorCode = (typeof ANALYTICS_ERROR_CODES)[keyof typeof ANALYTICS_ERROR_CODES];
+
 // Error codes introduced by the Notifications feature.
 export const NOTIFICATION_ERROR_CODES = {
   NOTIFICATION_NOT_FOUND: 'NOTIFICATION_NOT_FOUND',

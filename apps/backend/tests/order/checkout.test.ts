@@ -1,3 +1,4 @@
+import { Queue } from 'bullmq';
 import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 
@@ -5,21 +6,28 @@ import { MockPaymentAdapter } from '../../src/adapters/payment/mock';
 import { prisma } from '../../src/core/prisma';
 import { redis } from '../../src/core/redis';
 import { app } from '../../src/server';
+import { closeNotificationQueue } from '../../src/modules/notification';
 import { createAddress, createTestProduct, createTestUser } from '../helpers/factories';
 import { resetDb, resetRedis } from '../helpers/reset';
 
 const chargeSpy = jest.spyOn(MockPaymentAdapter.prototype, 'charge');
+// Checkout now enqueues ORDER_PLACED (Feature 9 gap closure) — mocked exactly like every other
+// BullMQ producer in this test suite, so these tests never depend on a live queue being drained.
+const queueAddSpy = jest.spyOn(Queue.prototype, 'add').mockResolvedValue({} as never);
 
 beforeEach(async () => {
   await resetDb();
   await resetRedis();
   chargeSpy.mockClear();
+  queueAddSpy.mockClear();
 });
 
 afterAll(async () => {
+  await closeNotificationQueue();
   await prisma.$disconnect();
   await redis.quit();
   chargeSpy.mockRestore();
+  queueAddSpy.mockRestore();
 });
 
 async function addToCart(accessToken: string, productPublicId: string, quantity: number) {
@@ -72,6 +80,13 @@ describe('POST /api/v1/checkout (Task 7 — happy path)', () => {
     // Cart is cleared of purchased items.
     const cartRes = await request(app).get('/api/v1/cart').set('Authorization', `Bearer ${buyer.accessToken}`);
     expect(cartRes.body.data.sellerGroups).toEqual([]);
+
+    // Feature 9 gap closure — checkout enqueues ORDER_PLACED for the buyer.
+    const placedCalls = queueAddSpy.mock.calls.filter(
+      (call) => call[1] && (call[1] as { type?: string }).type === 'ORDER_PLACED',
+    );
+    expect(placedCalls).toHaveLength(1);
+    expect(placedCalls[0]?.[1]).toMatchObject({ userId: buyer.userId.toString(), orderId: order.id });
   });
 
   it('multi-seller checkout: a 2-seller cart splits into exactly 2 orders, each with its own shipping line', async () => {
@@ -99,6 +114,12 @@ describe('POST /api/v1/checkout (Task 7 — happy path)', () => {
     const orderRows = await prisma.order.findMany({ where: { buyerId: buyer.userId } });
     expect(orderRows).toHaveLength(2);
     expect(new Set(orderRows.map((o) => o.sellerId))).toEqual(new Set([sellerA.userId, sellerB.userId]));
+
+    // One ORDER_PLACED per created order, not one per checkout call.
+    const placedCalls = queueAddSpy.mock.calls.filter(
+      (call) => call[1] && (call[1] as { type?: string }).type === 'ORDER_PLACED',
+    );
+    expect(placedCalls).toHaveLength(2);
   });
 
   it('COD checkout: payment row has method=COD, no gateway call made', async () => {
@@ -208,6 +229,13 @@ describe('POST /api/v1/checkout — Idempotency (Task 7.2/8.2)', () => {
 
     const productRow = await prisma.product.findUniqueOrThrow({ where: { productId: product.productId } });
     expect(productRow.stock).toBe(9); // decremented exactly once, not twice
+
+    // The idempotent replay returns the cached response before ever reaching the enqueue call —
+    // ORDER_PLACED fires exactly once, not once per request.
+    const placedCalls = queueAddSpy.mock.calls.filter(
+      (call) => call[1] && (call[1] as { type?: string }).type === 'ORDER_PLACED',
+    );
+    expect(placedCalls).toHaveLength(1);
   });
 
   it('rejects a checkout request with no Idempotency-Key header (400)', async () => {

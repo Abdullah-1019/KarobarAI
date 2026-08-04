@@ -1,5 +1,5 @@
 import { ORDER_STATUS_TABS } from '@karobarai/shared';
-import type { OrderDetailDTO, OrderListDTO, OrderListItemDTO } from '@karobarai/shared';
+import type { NotificationEventType, OrderDetailDTO, OrderListDTO, OrderListItemDTO } from '@karobarai/shared';
 import type { Order, OrderStatus, Prisma, UserRole } from '@prisma/client';
 import type { Queue } from 'bullmq';
 
@@ -10,6 +10,7 @@ import { prisma } from '../../core/prisma';
 import { createQueue } from '../../core/queue';
 import { canTransition, isCancellable } from '../../core/state-machines/order.state-machine';
 import { restoreStock } from '../catalog/catalog.service';
+import { enqueueNotification } from '../notification';
 import type { ListOrdersQueryInput } from './order.dto';
 
 // Feature 7 — extends Feature 6's order/ module with lifecycle logic (Task 1.1's "same module,
@@ -239,7 +240,7 @@ export async function transitionOrderStatus(
   // optional transaction client to Feature 4's decrementStock/restoreStock.
   location?: { lat: number; lng: number },
 ): Promise<void> {
-  await prisma.$transaction(async (tx) => {
+  const committedOrder = await prisma.$transaction(async (tx) => {
     const order = await tx.order.findUniqueOrThrow({ where: { orderId } });
 
     if (!canTransition(order.status, targetStatus)) {
@@ -290,8 +291,35 @@ export async function transitionOrderStatus(
     }
 
     logger.info({ orderId: orderId.toString(), from: order.status, to: targetStatus, actor }, 'Order status transitioned');
+    return order;
   });
+
+  // Feature 9's own event inventory (FEATURE_9_EVENT_INVENTORY.md, Finding #2) flagged that this
+  // feature enqueued zero notification jobs for any status transition, despite the Feature 9
+  // module doc's claim otherwise. Closed here — buyer-facing lifecycle notifications live in
+  // transitionOrderStatus itself (the single source of truth for status changes) rather than
+  // scattered across every caller (cancelOrder, confirmPayment, Feature 8's bookCourier/poll job).
+  // Enqueued only after the transaction commits — a side effect that must never fire for a
+  // rolled-back transition, and a failure to enqueue must never fail the transition itself.
+  const eventType = STATUS_NOTIFICATION_EVENTS[targetStatus];
+  if (eventType) {
+    await enqueueNotification({
+      userId: committedOrder.buyerId.toString(),
+      type: eventType,
+      orderId: committedOrder.publicId,
+      vars: { orderId: committedOrder.publicId },
+    }).catch((err) => logger.error({ err, orderId: orderId.toString() }, 'Failed to enqueue order-status notification'));
+  }
 }
+
+const STATUS_NOTIFICATION_EVENTS: Partial<Record<OrderStatus, NotificationEventType>> = {
+  PAYMENT_CONFIRMED: 'ORDER_PAYMENT_CONFIRMED',
+  CANCELLED: 'ORDER_CANCELLED',
+  PICKED_UP: 'ORDER_PICKED_UP',
+  IN_TRANSIT: 'ORDER_IN_TRANSIT',
+  OUT_FOR_DELIVERY: 'ORDER_OUT_FOR_DELIVERY',
+  DELIVERED: 'ORDER_DELIVERED',
+};
 
 // Task 7 (patched — "Courier Hand-off Stub"): a generic queue, no consumer written here. Feature
 // 8 owns the actual courier-scoring/booking job that reads from this queue.

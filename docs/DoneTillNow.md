@@ -13,24 +13,28 @@ or flagged for follow-up. Newest entries at the top.
 
 **Status:** Done — 2026-08-03. New `notification/` module (repository/service/consumer/
 controller/routes/dto) — the consumer/dispatch side of every notification job Features 1/6/7/8
-were supposed to enqueue. Full backend suite green: **439/439 tests, 44/44 suites** (35 new to
-this feature), confirmed non-flaky across 2 consecutive full-suite runs. Zero new Prisma models,
-zero new migrations. Full contract in `docs/handoffs/F9-notifications-backend.md`, event-by-event
-producer audit in `docs/FEATURE_9_EVENT_INVENTORY.md`, sign-off in `docs/FEATURE_9_CHECKLIST.md`.
+were supposed to enqueue. Full backend suite green: **443/443 tests, 44/44 suites** (39 new to
+this feature, including a same-session follow-up — see below), confirmed non-flaky across 2
+consecutive full-suite runs. Zero new Prisma models, zero new migrations. Full contract in
+`docs/handoffs/F9-notifications-backend.md`, event-by-event producer audit in
+`docs/FEATURE_9_EVENT_INVENTORY.md`, sign-off in `docs/FEATURE_9_CHECKLIST.md`.
 
-**The single most important finding this feature surfaced:** the module doc claims Feature 6
-(checkout) enqueues order-placed/payment notification jobs and Feature 7 (orders) enqueues
-status-milestone jobs. **Neither is true in this codebase** — a direct search of `modules/order/`,
-`modules/cart/`, and `modules/address/` shows zero calls to `enqueueNotification` anywhere.
-Feature 8's `tracking.service.ts` is the *only* real producer that exists, for exactly 3 of the 10
-canonical event types (`ORDER_DELIVERED`, `COURIER_MANUAL_LOGISTICS`, `TRACKING_POLL_FAILURE`).
-Per this feature's own module doc (Task 2.3/2.4: flag mismatches, don't silently patch across
-feature boundaries), this is logged as a named, carried-forward gap in
-`FEATURE_9_EVENT_INVENTORY.md` rather than fixed by quietly adding enqueue calls into Feature 6/7's
-files. The consumer/template/dispatch pipeline is fully built and tested for all six missing event
-types (`ORDER_PLACED`, `ORDER_PAYMENT_CONFIRMED`, `ORDER_CANCELLED`, `ORDER_PICKED_UP`,
-`ORDER_IN_TRANSIT`, `ORDER_OUT_FOR_DELIVERY`) via synthetic test payloads — they just won't fire
-in production until a follow-up change adds the real enqueue calls to Feature 6/7.
+**The single most important finding this feature surfaced, closed the same session:** the module
+doc claims Feature 6 (checkout) enqueues order-placed/payment notification jobs and Feature 7
+(orders) enqueues status-milestone jobs. **Neither was true in this codebase** — a direct search
+of `modules/order/`, `modules/cart/`, and `modules/address/` showed zero calls to
+`enqueueNotification` anywhere; Feature 8's `tracking.service.ts` was the *only* real producer,
+for 3 of the 10 canonical event types. Initially logged as a named, carried-forward gap in
+`FEATURE_9_EVENT_INVENTORY.md` rather than silently patched (per Task 2.3/2.4's explicit
+instruction) — then, at the user's explicit request immediately after Feature 9's own sign-off,
+actually closed: `checkout.service.ts` now enqueues `ORDER_PLACED` after the order-creation
+transaction commits (once per created order, not once per idempotent-replay request); Feature 7's
+`transitionOrderStatus` now enqueues `ORDER_PAYMENT_CONFIRMED`/`ORDER_CANCELLED`/
+`ORDER_PICKED_UP`/`ORDER_IN_TRANSIT`/`ORDER_OUT_FOR_DELIVERY`/`ORDER_DELIVERED` via a
+`STATUS_NOTIFICATION_EVENTS` map — living inside the single source of truth for status changes,
+not scattered across every caller. Feature 8's `pollOneOrder` had its own now-redundant explicit
+`ORDER_DELIVERED` enqueue removed to avoid double-notifying the buyer. `FEATURE_9_EVENT_INVENTORY.md`
+updated to reflect all 10 non-reserved event types now have a real, tested producer.
 
 **A second, smaller mismatch was fixed directly** (not just flagged), since it was an integration
 bug within the same body of work rather than a cross-team boundary: Feature 8's own
@@ -63,8 +67,6 @@ test suite re-verified clean afterward.
   always on" rule are complementary, both hold simultaneously, neither was changed.
 
 **Known limitations / assumptions (see the handoff doc for full detail):**
-- Six order-lifecycle event types have no real producer yet (see above) — the single biggest
-  carried-forward gap.
 - Feature 1's OTP dispatch remains a direct, synchronous call, deliberately never rerouted through
   this feature's async consumer (OTP must not wait on a queue round-trip); `OTP_REQUESTED` is
   registered in the template registry for documentation consistency only.
@@ -790,19 +792,17 @@ working.
 
 ---
 
-*Next: Feature 9 (Notifications) is done — Feature 10 (Returns & Refunds) is next per the
-day-by-day plan. Feature 10 should add `RETURN_DECISION`/`REFUND_ISSUED` to
-`packages/shared/src/types/notification.ts`'s now-open `NotificationEventType` union (already
-structured to accept them, per Feature 9's Task 2.1) and both already sit in
-`CRITICAL_EVENT_TYPES`, reusing Feature 9's `enqueueNotification()`/dispatch pipeline entirely
-unchanged — no new adapter, no new consumer, just two new template registry entries and the
-actual enqueue calls at Feature 10's own return-decision/refund-issued points. Separately, a real
-gap Feature 9 found and did **not** fix (flagged instead, per its own module doc's instruction):
-Features 6/7 never actually enqueue any order-lifecycle notification job
-(`ORDER_PLACED`/`ORDER_PAYMENT_CONFIRMED`/`ORDER_CANCELLED`/`ORDER_PICKED_UP`/`ORDER_IN_TRANSIT`/
-`ORDER_OUT_FOR_DELIVERY`) despite the consumer/template side being fully built and tested for all
-six — see `docs/FEATURE_9_EVENT_INVENTORY.md` before assuming those notifications work end to
-end. `cod_remittances` (the ledger row itself), the `DELIVERED → COMPLETED` transition trigger,
-and real courier/payment-gateway integrations all remain open gaps for Feature 12 (Payments &
-Admin Operations)/Feature 16 (External APIs), unchanged from Feature 8's own carried-forward
-list.*
+*Next: Feature 9 (Notifications) is done, including a same-session follow-up that closed its own
+biggest flagged gap — Features 6/7 now actually enqueue every order-lifecycle notification
+(`ORDER_PLACED` at checkout, `ORDER_PAYMENT_CONFIRMED`/`ORDER_CANCELLED`/`ORDER_PICKED_UP`/
+`ORDER_IN_TRANSIT`/`ORDER_OUT_FOR_DELIVERY`/`ORDER_DELIVERED` via `transitionOrderStatus`'s
+`STATUS_NOTIFICATION_EVENTS` map) — see `docs/FEATURE_9_EVENT_INVENTORY.md` for the full
+before/after. Feature 10 (Returns & Refunds) is next per the day-by-day plan. Feature 10 should
+add `RETURN_DECISION`/`REFUND_ISSUED` to `packages/shared/src/types/notification.ts`'s now-open
+`NotificationEventType` union (already structured to accept them, per Feature 9's Task 2.1) and
+both already sit in `CRITICAL_EVENT_TYPES`, reusing Feature 9's `enqueueNotification()`/dispatch
+pipeline entirely unchanged — no new adapter, no new consumer, just two new template registry
+entries and the actual enqueue calls at Feature 10's own return-decision/refund-issued points.
+`cod_remittances` (the ledger row itself), the `DELIVERED → COMPLETED` transition trigger, and
+real courier/payment-gateway integrations all remain open gaps for Feature 12 (Payments & Admin
+Operations)/Feature 16 (External APIs), unchanged from Feature 8's own carried-forward list.*

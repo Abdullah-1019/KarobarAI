@@ -400,15 +400,9 @@ export async function pollOneOrder(order: Order): Promise<void> {
       lng: result.locationLng,
     });
 
-    // Task 7.3 — final delivery notification, once, right after the DELIVERED transition.
-    if (result.status === 'DELIVERED') {
-      await enqueueNotification({
-        userId: order.buyerId.toString(),
-        type: 'ORDER_DELIVERED',
-        orderId: order.publicId,
-        vars: { orderId: order.publicId },
-      });
-    }
+    // Task 7.3's final delivery notification (and every other milestone's) now fires from inside
+    // transitionOrderStatus itself (order.service.ts's STATUS_NOTIFICATION_EVENTS map) — a
+    // second, explicit enqueue here would double-notify the buyer on every DELIVERED transition.
   } catch (err) {
     // One order's bad transition must not fail the whole poll cycle for every other order.
     logger.error({ orderId: order.orderId.toString(), error: (err as Error).message }, '[tracking] poll cycle error for order');

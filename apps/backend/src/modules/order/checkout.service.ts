@@ -11,6 +11,7 @@ import { redis } from '../../core/redis';
 import { getOwnedAddressForOrder } from '../address/address.service';
 import { getRawCart, removeCartItems, type RawSellerGroup } from '../cart/cart.service';
 import { decrementStock } from '../catalog/catalog.service';
+import { enqueueNotification } from '../notification';
 import type { CheckoutInput } from './checkout.dto';
 
 // Feature 6 Task 7 — the checkout-creation slice of the order/ module (TRD §12's folder note:
@@ -212,6 +213,21 @@ export async function processCheckout(
   // Only the purchased groups' items are removed — any other seller's still-ineligible or
   // newly-added items remain in the cart untouched.
   await removeCartItems(purchasedCartItemIds);
+
+  // Closes the gap Feature 9's own event inventory flagged (FEATURE_9_EVENT_INVENTORY.md,
+  // Finding #2): this feature previously enqueued zero notification jobs. One ORDER_PLACED per
+  // created order, to the buyer, after the transaction commits — a failure to enqueue must never
+  // fail the checkout itself, and each order's notification is independent of the others'.
+  await Promise.allSettled(
+    createdOrders.map((order) =>
+      enqueueNotification({
+        userId: buyerId.toString(),
+        type: 'ORDER_PLACED',
+        orderId: order.id,
+        vars: { orderId: order.id },
+      }),
+    ),
+  );
 
   const result: CheckoutResultDTO = { orders: createdOrders };
 

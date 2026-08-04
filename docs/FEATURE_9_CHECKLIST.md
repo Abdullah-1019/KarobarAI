@@ -112,7 +112,7 @@ event-type registry closed/non-extensible: none — open union confirmed
 
 | # | Item | Status |
 |---|---|---|
-| 1 | Features 6/7 enqueue nothing — 6 event types have no real producer | **Named, unresolved gap** — needs a follow-up change to Feature 6/7's code, decided case-by-case per Task 2's own instruction |
+| 1 | Features 6/7 enqueued nothing — 6 event types had no real producer | **Resolved** — same-session follow-up, at the user's explicit request: `ORDER_PLACED` added to `checkout.service.ts`; the other five wired into `transitionOrderStatus`'s `STATUS_NOTIFICATION_EVENTS` map. See `docs/FEATURE_9_EVENT_INVENTORY.md` Finding #2. |
 | 2 | Email's "optional, no traced requirement" status | Documented (Gap #1) — safest to cut under schedule pressure |
 | 3 | WhatsApp pulled forward from PRD R1.1 | Documented (Gap #2) — conscious choice, not scope creep |
 | 4 | Admin broadcast tool (SCR-AD07) | Explicitly deferred — Feature 12 |
@@ -127,6 +127,7 @@ non-flaky across 2 consecutive full-suite runs.
 
 ## Sign-off
 
-Backend scope: **complete**, with one explicitly named, unresolved cross-feature gap (Features
-6/7's missing enqueue calls) carried forward rather than silently worked around. Frontend scope
-(bell icon, Notification Center screen): **not started**.
+Backend scope: **complete**. The one cross-feature gap this feature initially flagged rather than
+silently patched (Features 6/7's missing enqueue calls) was closed the same session, at the
+user's explicit request — see `docs/FEATURE_9_EVENT_INVENTORY.md`. Frontend scope (bell icon,
+Notification Center screen): **not started**.

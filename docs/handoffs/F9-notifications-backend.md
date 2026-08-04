@@ -7,24 +7,25 @@ consumer/controller/routes/dto) — the consumer/dispatch side of every notifica
 suite green — see `docs/DoneTillNow.md`'s Feature 9 entry for the exact final count.
 
 **Read `docs/FEATURE_9_EVENT_INVENTORY.md` before building against this** — it's the load-bearing
-artifact for this feature. Two of the four features this one depends on (Features 6 and 7) turn
-out to enqueue **zero** notification jobs in this actual codebase, despite the module doc's own
-claim that they do. That's not a bug in this feature — it's flagged, tested against synthetic
-payloads, and carried forward as a named gap, per the module doc's own explicit instruction not to
-silently patch across feature boundaries.
+artifact for this feature. Two of the four features this one depends on (Features 6 and 7)
+originally enqueued **zero** notification jobs in this actual codebase, despite the module doc's
+own claim that they do — flagged, tested against synthetic payloads, and initially carried forward
+as a named gap, per the module doc's own explicit instruction not to silently patch across feature
+boundaries. **That gap was closed the same session**, at the user's explicit request, immediately
+after this feature's own sign-off — see Finding #2 in the inventory doc for the full before/after.
 
 ---
 
 ## What this feature actually found (read the inventory doc for full detail)
 
-1. **Feature 6 (checkout) and Feature 7 (orders) never call `enqueueNotification()`.** Only
-   Feature 8's `tracking.service.ts` does, for exactly 3 events: `ORDER_DELIVERED`,
+1. **Feature 6 (checkout) and Feature 7 (orders) originally called `enqueueNotification()`
+   nowhere.** Only Feature 8's `tracking.service.ts` did, for exactly 3 events: `ORDER_DELIVERED`,
    `COURIER_MANUAL_LOGISTICS`, `TRACKING_POLL_FAILURE`. This feature's consumer, template
-   registry, and dispatch pipeline are fully built and tested for **all ten** canonical event
-   types (via synthetic test payloads for the six that have no real producer yet) — but six of
-   them will never actually fire in production until a follow-up change adds the missing enqueue
-   calls to Features 6/7. **This is the single most important thing for whoever picks this up
-   next to know.**
+   registry, and dispatch pipeline were fully built and tested for **all ten** canonical event
+   types (via synthetic test payloads for the six that had no real producer yet) — and the same
+   session, the missing producer calls were added: `ORDER_PLACED` in `checkout.service.ts`, the
+   other five inside `transitionOrderStatus`'s `STATUS_NOTIFICATION_EVENTS` map. All ten now fire
+   for real.
 2. **Feature 8's own producer payload needed a real fix, not just a flag.** It originally sent a
    pre-rendered, English-only `message` string — incompatible with this feature's bilingual,
    per-recipient-language template rendering. Fixed by changing the payload to carry `vars`

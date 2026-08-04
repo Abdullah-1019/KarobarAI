@@ -20,6 +20,7 @@ import { healthRouter } from './modules/health/health.routes';
 import { notificationRouter, startNotificationConsumer } from './modules/notification';
 import { checkoutRouter, orderRouter, sellerOrderRouter } from './modules/order';
 import { profileRouter } from './modules/profile';
+import { adminReturnsRouter, returnsRouter, sellerReturnsRouter } from './modules/returns';
 import {
   authenticatedTrackingRouter,
   courierRouter,
@@ -63,6 +64,9 @@ app.use('/api/v1/seller/orders', sellerOrderRouter);
 app.use('/api/v1/tracking', authenticatedTrackingRouter);
 app.use('/api/v1/t', publicTrackingRouter);
 app.use('/api/v1/notifications', notificationRouter);
+app.use('/api/v1/returns', returnsRouter);
+app.use('/api/v1/seller/returns', sellerReturnsRouter);
+app.use('/api/v1/admin/returns', adminReturnsRouter);
 
 // Swagger UI (TRD §9) serves an inline <script> bundle — the global helmet() CSP above would
 // block it, so this path gets its own relaxed CSP rather than weakening it everywhere.

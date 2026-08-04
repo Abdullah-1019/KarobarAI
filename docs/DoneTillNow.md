@@ -9,6 +9,71 @@ or flagged for follow-up. Newest entries at the top.
 
 ---
 
+## Feature: Returns & Refunds (Implementation Plan Phase 13 / Feature 10)
+
+**Status:** Done — 2026-08-04. New `returns/` module (repository/service/decision-service, plus
+`seller/` and `admin/` submodules per the module doc's own literal artifact structure). Full
+backend suite green: **525/525 tests, 52/52 suites** (82 new to this feature), confirmed
+non-flaky across 2 consecutive full-suite runs. Zero new Prisma models, zero new migrations —
+`returns`/`return_images`/`disputes` already existed complete. Full contract in
+`docs/handoffs/F10-returns-refunds-backend.md`, sign-off in `docs/FEATURE_10_CHECKLIST.md`.
+
+**Real gaps found and resolved, the now-familiar pattern for this project:**
+- **No "Payments Feature" refund-trigger interface existed anywhere in this codebase** — the
+  module doc's dependency line names an "already implemented" Payments Feature; in reality
+  `PaymentAdapter` (Feature 6) only ever had `charge()`. Extended it with a mock-only `refund()`
+  method, same D2 shape, synchronous/immediate like every other mock adapter in this codebase
+  (courier `book()`/`track()`, sms/email `send()`) rather than modeling a webhook confirmation
+  step nothing here has ever built.
+- **`audit_logs` had never been written to by any prior feature**, despite the module doc's claim
+  that this feature "reuses the existing audit_logs write pattern from Feature 1/Admin
+  foundation." Built the first writer (`core/audit/index.ts`'s `createAuditLog()`), accepting an
+  optional transaction client so a caller can log in the same transaction as the mutation it
+  audits — generic enough for any future privileged-action feature to reuse as-is.
+- **No task in the module doc's own 7-task breakdown builds the buyer-appeal endpoint**
+  (REJECTED → UNDER_DISPUTE), despite the doc's own Flow diagram showing it and Task 5's
+  Dependencies assuming disputed cases exist to review. Built as `POST /returns/:id/appeal`.
+- **COD "nominated wallet" refund path** (Task 6.3) has no schema support anywhere (no column on
+  `BuyerProfile`/`Address`/`Return` to capture one, and the schema is frozen) — resolved
+  behaviorally: the refund call passes `order.paymentMethod` to the mock adapter, no wallet data
+  model needed since real money movement is out of scope for a mock regardless.
+- **This is the first feature to gate a route by `authorize('ADMIN', 'SUPPORT')` at the router
+  level** — every prior Admin/Support access (Feature 7's Order Detail) checked role inside the
+  service instead, since those routes were also Buyer/Seller-reachable.
+
+**A real bug this feature's own tests caught:** `decideReturn()` (the function shared by seller
+and admin decisions) originally inferred "is this case disputed?" from `row.status ===
+'UNDER_DISPUTE'` rather than checking the actual `Dispute` row. In real usage the pairing always
+holds (`appealReturn()` creates the row and sets the status together), but the service shouldn't
+assume an invariant it can just check — fixed to `row.dispute !== null`.
+
+**What shipped:**
+- `core/state-machines/return.state-machine.ts` — mirrors `order.state-machine.ts`'s exact shape.
+- Full return lifecycle: `INITIATED → IMAGES_SUBMITTED → MANUAL_REVIEW → {APPROVED →
+  PICKUP_BOOKED → REFUND_ISSUED} | {REJECTED → (buyer appeal) → UNDER_DISPUTE → admin-final}`.
+- `ReturnDecisionService` (`decision.service.ts`) — the single `decideReturn()` function both
+  Seller and Admin decision endpoints call, per Task 5's Engineering Decision; differs only in
+  whether a rejection auto-closes (Admin only, BR-008) and which parties get notified.
+- Image upload/delete/submit reusing Feature 4's validation utility and the existing
+  `StorageAdapter` — zero new upload/storage code.
+- Refund sync (`triggerRefund`) — idempotent by construction (only proceeds from
+  `PICKUP_BOOKED`, no idempotency-key table needed), zero direct `payments`/`settlements` writes.
+- Four new notification template registry entries (`RETURN_INITIATED`, `RETURN_UNDER_REVIEW`,
+  `RETURN_DECISION`, `REFUND_ISSUED`) — the latter two using Feature 9's own pre-reserved
+  canonical names, zero changes to Feature 9's dispatch logic.
+- One shared `ReturnListItemDTO`/query builder reused across buyer/seller/admin list **and**
+  history endpoints (Task 7).
+
+**Known limitations / assumptions (see the handoff doc for full detail):**
+- Return-pickup booking has no retry/fallback (unlike Feature 8's order-booking flow) — the mock
+  always succeeds and no source document asks for return-specific retry logic.
+- Admin history/list endpoints don't inline the full audit trail per row (would need N+1
+  queries) — only the detail endpoint does.
+- No frontend for any of this — SCR-B10, SCR-B11, SCR-S07, SCR-AD04 all remain separate,
+  not-yet-started work.
+
+---
+
 ## Feature: Notifications (Implementation Plan Phase 12 / Feature 9)
 
 **Status:** Done — 2026-08-03. New `notification/` module (repository/service/consumer/
@@ -792,17 +857,21 @@ working.
 
 ---
 
-*Next: Feature 9 (Notifications) is done, including a same-session follow-up that closed its own
-biggest flagged gap — Features 6/7 now actually enqueue every order-lifecycle notification
-(`ORDER_PLACED` at checkout, `ORDER_PAYMENT_CONFIRMED`/`ORDER_CANCELLED`/`ORDER_PICKED_UP`/
-`ORDER_IN_TRANSIT`/`ORDER_OUT_FOR_DELIVERY`/`ORDER_DELIVERED` via `transitionOrderStatus`'s
-`STATUS_NOTIFICATION_EVENTS` map) — see `docs/FEATURE_9_EVENT_INVENTORY.md` for the full
-before/after. Feature 10 (Returns & Refunds) is next per the day-by-day plan. Feature 10 should
-add `RETURN_DECISION`/`REFUND_ISSUED` to `packages/shared/src/types/notification.ts`'s now-open
-`NotificationEventType` union (already structured to accept them, per Feature 9's Task 2.1) and
-both already sit in `CRITICAL_EVENT_TYPES`, reusing Feature 9's `enqueueNotification()`/dispatch
-pipeline entirely unchanged — no new adapter, no new consumer, just two new template registry
-entries and the actual enqueue calls at Feature 10's own return-decision/refund-issued points.
+*Next: Feature 10 (Returns & Refunds) is done — Feature 11 (Analytics Dashboard) is next per the
+day-by-day plan. Its module doc (`docs/modules/11-Analytics Dashboard.md`) is complete — all 6
+tasks + Validation & Testing + the Consistency Review are present (written across 3 appended
+"Response" batches; only the very top of the file shows a stale "Draft — Response 1 of 3" header
+left over from the first batch — the doc's own last line confirms "Final — Response 3 of 3,"
+Tasks 1–6 all follow it in full). **A real, still-open gap for whoever starts it:** Feature 11's
+Task 2 (Revenue Aggregation) is specified to source revenue from `settlements.net WHERE status =
+SETTLED` — but no code anywhere in this codebase has ever created a `Settlement` row (confirmed:
+zero `prisma.settlement.create` calls in `apps/backend/src`). The doc's own dependency line names
+"Feature 10 (Payments)" as already providing this — a numbering mismatch, since *this* codebase's
+Feature 10 is Returns & Refunds, and no dedicated settlement/payout engine has been built as its
+own feature yet (only `PaymentAdapter.charge()`/`refund()`, both mock-only, from Features 6/10).
+Task 2 as literally specified cannot produce real data until something writes settlement rows —
+worth resolving (build a minimal settlement-creation step, or source revenue from `orders`/
+`payments` instead, or defer Task 2 explicitly) before assuming the dependency is satisfied.
 `cod_remittances` (the ledger row itself), the `DELIVERED → COMPLETED` transition trigger, and
 real courier/payment-gateway integrations all remain open gaps for Feature 12 (Payments & Admin
 Operations)/Feature 16 (External APIs), unchanged from Feature 8's own carried-forward list.*

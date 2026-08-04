@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { logger } from '../../core/logger';
-import type { ChargeParams, ChargeResult, PaymentAdapter } from './index';
+import type { ChargeParams, ChargeResult, PaymentAdapter, RefundParams, RefundResult } from './index';
 
 // Deterministic mock (D2): never contacts a real gateway. Always "succeeds" at initiation
 // (status PENDING) — a real failure-at-initiation path isn't modeled here since Feature 6's
@@ -17,5 +17,13 @@ export class MockPaymentAdapter implements PaymentAdapter {
       gateway: `mock-${params.method.toLowerCase()}`,
       status: 'PENDING',
     };
+  }
+
+  async refund(params: RefundParams): Promise<RefundResult> {
+    logger.info(
+      { orderPublicId: params.orderPublicId, amount: params.amount, method: params.method },
+      '[MockPaymentAdapter] refund confirmed (ADAPTER_MODE=mock, no real gateway called)',
+    );
+    return { refundRef: `mock-refund-${randomUUID()}`, status: 'CONFIRMED' };
   }
 }

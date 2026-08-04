@@ -55,6 +55,30 @@ const TEMPLATES: Record<string, TemplatePair> = {
     en: 'Tracking updates have failed repeatedly for order #{{orderId}}.',
     ur: 'آرڈر #{{orderId}} کے لیے ٹریکنگ اپ ڈیٹس بار بار ناکام ہو رہی ہیں۔',
   },
+  // Feature 10 (Returns & Refunds) — extends this registry with four new entries, exactly per
+  // Feature 9's own explicit design goal ("Feature 10 to add... reusing the dispatch pipeline
+  // unchanged"). RETURN_DECISION/REFUND_ISSUED reuse Feature 9's own pre-reserved canonical
+  // names (CRITICAL_EVENT_TYPES); RETURN_INITIATED/RETURN_UNDER_REVIEW are new, non-critical,
+  // informational touchpoints the module doc's Task 2.6/3.7 describe but Feature 9 never named.
+  RETURN_INITIATED: {
+    en: 'A return request has been submitted for order #{{orderId}}.',
+    ur: 'آرڈر #{{orderId}} کے لیے واپسی کی درخواست جمع کرائی گئی ہے۔',
+  },
+  RETURN_UNDER_REVIEW: {
+    en: 'The return for order #{{orderId}} is now under review.',
+    ur: 'آرڈر #{{orderId}} کی واپسی کا اب جائزہ لیا جا رہا ہے۔',
+  },
+  // {{reasonText}} is pre-computed by the caller — empty string on approval, " Reason: X" on
+  // rejection — since the template registry only does flat {{var}} interpolation, never
+  // conditional logic (Task 2.5's own boundary).
+  RETURN_DECISION: {
+    en: 'Your return for order #{{orderId}} has been {{decision}}.{{reasonText}}',
+    ur: 'آرڈر #{{orderId}} کے لیے آپ کی واپسی {{decision}} کر دی گئی ہے۔{{reasonText}}',
+  },
+  REFUND_ISSUED: {
+    en: 'Your refund for order #{{orderId}} has been issued.',
+    ur: 'آرڈر #{{orderId}} کے لیے آپ کا ریفنڈ جاری کر دیا گیا ہے۔',
+  },
 };
 
 export function getTemplate(eventType: NotificationEventType): TemplatePair | undefined {

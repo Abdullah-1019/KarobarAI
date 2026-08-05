@@ -14,6 +14,14 @@ import { redis } from '../../src/core/redis';
 // both be deleted before product/sellerProfile/buyerProfile, or checkout tests would break every
 // later test's resetDb() call with a foreign-key violation.
 export async function resetDb(): Promise<void> {
+  // Feature 12 — audit_logs has no FK dependents (AuditLog.actorId -> users is onDelete:
+  // SetNull, never Restrict), so this was never *required* for the deletes below to succeed.
+  // It's here for test isolation: every prior feature's audit-row tests scoped by a fresh
+  // entityId each run, so stale rows never mattered — Feature 12's config-change audits have
+  // entityId: null (platform_config's PK is a string, not the bigint entityId expects), so
+  // without this, old CONFIG_CHANGE rows from earlier runs leak into entityId-null-scoped
+  // queries in later ones.
+  await prisma.auditLog.deleteMany();
   await prisma.refreshToken.deleteMany();
   await prisma.notificationPreference.deleteMany();
   await prisma.payment.deleteMany();

@@ -1,2 +1,5 @@
-// Admin module (users, config, KPIs, audit) — implemented in Feature 12. Placeholder for folder structure (TRD §12).
-export {};
+export { adminDashboardRouter } from './dashboard/dashboard.routes';
+export { adminUsersRouter } from './users/users.routes';
+export { adminModerationRouter } from './moderation/moderation.routes';
+export { adminReportsRouter } from './reports/reports.routes';
+export { adminConfigRouter } from './config/config.routes';

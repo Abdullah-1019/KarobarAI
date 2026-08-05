@@ -126,3 +126,18 @@ export const NOTIFICATION_ERROR_CODES = {
 } as const;
 
 export type NotificationErrorCode = (typeof NOTIFICATION_ERROR_CODES)[keyof typeof NOTIFICATION_ERROR_CODES];
+
+// Error codes introduced by the Admin Panel feature (Task 1.6).
+export const ADMIN_ERROR_CODES = {
+  // Distinct from generic FORBIDDEN: a Support-role principal (already past the router-level
+  // ADMIN/SUPPORT gate) attempted a write-restricted (Admin-only) action.
+  ADMIN_WRITE_REQUIRED: 'ADMIN_WRITE_REQUIRED',
+  REASON_REQUIRED: 'REASON_REQUIRED',
+  INVALID_CONFIG_VALUE: 'INVALID_CONFIG_VALUE',
+  USER_NOT_FOUND: 'USER_NOT_FOUND',
+  CONFIG_KEY_NOT_FOUND: 'CONFIG_KEY_NOT_FOUND',
+  CONFIG_KEY_NOT_WRITABLE: 'CONFIG_KEY_NOT_WRITABLE',
+  PRODUCT_INVALID_MODERATION_STATE: 'PRODUCT_INVALID_MODERATION_STATE',
+} as const;
+
+export type AdminErrorCode = (typeof ADMIN_ERROR_CODES)[keyof typeof ADMIN_ERROR_CODES];

@@ -9,6 +9,82 @@ or flagged for follow-up. Newest entries at the top.
 
 ---
 
+## Feature: Admin Panel (Implementation Plan Phase 15 / Feature 12)
+
+**Status:** Done — 2026-08-04. New `admin/` module (`dashboard/`, `users/`, `moderation/`,
+`reports/`, `config/` submodules, plus shared `admin.middleware.ts`/`admin.mutation.ts`). Full
+backend suite green: **701/701 tests, 70/70 suites** (95 new to this feature), confirmed
+non-flaky across 2 consecutive full-suite runs. Zero new Prisma models, zero new migrations —
+every table this feature touches already existed. Full contract in
+`docs/handoffs/F12-admin-panel-backend.md`, sign-off in `docs/FEATURE_12_CHECKLIST.md`.
+
+**Its own module doc's completeness was verified by reading the whole file this time** — a direct
+lesson from the Feature 10→11 mistake logged further down this file: confirmed all 6 tasks +
+Validation + Consistency Review genuinely present (3 appended "Response" batches), not just the
+stale "Draft" header at the top.
+
+**Real gaps found and resolved, the now-familiar pattern for this project:**
+- **No adapter/dependency-uptime counter infrastructure exists anywhere** — the module doc's
+  Task 2 claims "TRD §24 adapter/health counters... already implemented"; confirmed false (zero
+  hits grepping for uptime/success/failure counters). Building real per-adapter instrumentation
+  would mean touching every mock adapter across Features 6/7/8/9/10's already-signed-off files —
+  disproportionate for one KPI tile. Resolved by extracting `/ready`'s existing Postgres+Redis
+  check into `core/health/checkDependencies.ts` (now shared by both `/ready` and the dashboard),
+  reporting `adapterUptime` as an **instantaneous reachability snapshot**, not a true rolling
+  percentage — documented as a known limitation, not passed off as the real thing.
+- **`AuditedMutation` and session revocation needed almost no new code** — Feature 10's
+  `createAuditLog()` already accepted an optional transaction client (built as exactly this kind
+  of reusable helper), and `revokeAllRefreshTokensForUser()` already existed in `auth.tokens.ts`,
+  literally comment-flagged "admin suspend/ban later" since Auth (Phase 3). The only genuinely
+  new piece was the small `requireAdminWrite()` writeGuard, for a distinct `403
+  ADMIN_WRITE_REQUIRED` code Support gets on write routes vs. the generic `FORBIDDEN` a
+  Buyer/Seller gets for the surface entirely.
+- **`gmv-trend`'s `groupBy=category` mixes two incompatible revenue bases — a real gap in the
+  module doc itself**, not an implementation shortcut: `Settlement` has no per-item breakdown (one
+  row per order), so a category split of *settled net GMV* isn't representable in the schema.
+  Implemented on Feature 11's realized-order-item-revenue basis instead, with an explicit
+  `basisNote` field so the mismatch is never silent.
+- **A real, previously-undiscovered gap**: `platform_config.commission_rate_default` is seeded
+  and now admin-editable via this feature's new config endpoint, but **no code anywhere in this
+  codebase actually reads it** — `checkout.service.ts`'s commission comes from `seller_profiles.
+  commission_rate` (a per-seller column) instead. Changing it via this feature's endpoint
+  currently has zero live effect. Documented, not fixed here (would mean touching Auth's
+  already-signed-off seller-activation flow, outside this feature's scope) — Task 6.4's own
+  "confirm a config change is visible to a live consumer" requirement was satisfied instead using
+  `return_window_days` (a real, tested, live-read consumer via Feature 10).
+- **Product-report/flag mechanism (Task 4.1) doesn't exist** — no table, no buyer-facing "report
+  this listing" flow anywhere. The moderation queue is exactly what's real: all products,
+  filterable by status only, no `reported` filter exposed (would silently do nothing).
+- **Seller-ban-with-open-orders** (Task 3.6) is a non-blocking `openOrdersCount` warning, not a
+  blocking reconciliation workflow — no source document defines what one would consist of.
+
+**A real test-isolation bug found by this feature's own tests, fixed:**
+- `tests/helpers/reset.ts` never truncated `audit_logs` — every prior feature's audit-row tests
+  scoped by a fresh bigint `entityId` per test run, so stale rows never mattered. Feature 12's
+  `CONFIG_CHANGE` audits are the first with `entityId: null` (`platform_config`'s PK is a string),
+  so old rows from earlier suite runs leaked into later assertions. Fixed by adding
+  `prisma.auditLog.deleteMany()` to `resetDb()`.
+
+**Verified (not just written):**
+- `tsc --noEmit` clean.
+- 95 new tests: RBAC parity across all 8 read endpoints + every write route's `ADMIN_WRITE_
+  REQUIRED` behavior, `AuditedMutation` rollback-on-failure, GMV/active-users/alert-feed
+  correctness, blind-index user search, the full suspend→reactivate→ban lifecycle with live
+  session revocation, ban-with-open-orders warning, product takedown/restore (incl. the
+  DRAFT-restores-to-DRAFT edge case and live storefront exclusion), all three report endpoints
+  (incl. BR-006's WARNING/AUTO_SUSPEND fraud-flag tiers), and config validation/write-protection.
+- Full backend suite run twice consecutively: 701/701 tests, 70/70 suites both times, zero
+  flakiness.
+
+**Known limitations / assumptions:** see `docs/handoffs/F12-admin-panel-backend.md`'s full list —
+in short: `adapterUptime` is a snapshot not a rolling percentage, "active users" definition
+unconfirmed, product-report mechanism doesn't exist, seller-ban reconciliation is a warning only,
+`groupBy=category` GMV uses a different basis (flagged via `basisNote`),
+`commission_rate_default` has zero live consumers, no frontend (SCR-AD01/AD02/AD05/AD06 not
+started).
+
+---
+
 ## Gap Closure: Settlement Engine (unblocks Feature 11 Task 2 / Feature 12 Task 2 GMV)
 
 **Status:** Done — 2026-08-04. New `settlement/` module (`settlement.repository.ts`,
@@ -979,24 +1055,18 @@ working.
 
 ---
 
-*Next: the Settlement Engine gap closure (above) is done — Feature 12 (Admin Panel) is next per
-the day-by-day plan. Its module doc (`docs/modules/12-Admin Panel.md`) is complete — verified by
-reading the whole file this time, not just the header (a lesson learned directly from a real
-mistake made in this log during the Feature 10→11 handoff: the top of the file shows a stale
-"Draft — Response 1 of 3" header left over from the first of 3 appended "Response" batches, but
-the doc's own last line confirms "Final — Response 3 of 3, All three responses... now complete,"
-and Tasks 1–6 + Validation & Testing + Consistency Review are all genuinely present in full).
-Feature 12 explicitly depends on Feature 11 — its own doc states it "does not rebuild Feature 11's
-aggregation logic; it composes/queries across all sellers using the same underlying repositories
-with the ownership filter removed" for the platform-wide Admin Dashboard (SCR-AD01), including
-Task 2's GMV tile, which reads the identical `SUM(net) OVER settlements WHERE status=SETTLED`
-query shape Feature 11's Task 2 uses. **This dependency is now real data, not another documented
-zero** — the settlement-creation gap that would have made Feature 12's GMV tile read `0.00` too is
-closed as of the entry directly above. **One real, still-open gap carried forward for whoever
-starts Feature 12:** `cod_remittances` (the ledger row itself), the `DELIVERED → COMPLETED`
-transition trigger, and real courier/payment-gateway integrations all remain open gaps for
-Feature 12/Feature 16 (External APIs), unchanged from Feature 8's own carried-forward list. Note
-also that `SettlementStatus.ON_HOLD` exists in the schema and is currently written by no code
-path — a natural fit for Feature 12's own Admin Panel if a manual settlement-hold/override
-capability is wanted, not built as part of the gap closure itself (out of scope: that's a
-privileged Admin action, not the automated settlement engine).*
+*Next: Feature 12 (Admin Panel) is done — Feature 13 (AI Store Builder) is next per the
+day-by-day plan. Its module doc (`docs/modules/13_ AI Store Builder.md`, 613 lines) was checked
+for completeness before writing this line (same discipline established after the Feature 10→11
+mistake): the header shows a stale "Draft — Response 1 of 3," but the doc's own last "Response 3
+of 3" status line near the end confirms Tasks 1–6 + Validation & Consistency Review are all
+present — not yet read in full otherwise, so no claims about its actual task content or
+dependencies beyond that completeness check. **Carried-forward gaps for whoever starts Feature
+13 or any later feature:** `cod_remittances` (the ledger row itself), the `DELIVERED → COMPLETED`
+transition trigger, and real courier/payment-gateway integrations remain open (Feature 8's
+original list). `platform_config.commission_rate_default` has zero live consumers anywhere in
+this codebase (Feature 12's own finding, above) — `SellerProfile.commissionRate` is set only by
+its Prisma schema default (`0.0500`) at account-activation time, never from this config key;
+worth fixing in Auth's seller-activation flow whenever that file is next touched, not urgent on
+its own. `SettlementStatus.ON_HOLD` exists in the schema and is written by no code path — a
+natural fit for a future Admin manual settlement-hold/override action, not built anywhere yet.*

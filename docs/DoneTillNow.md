@@ -9,6 +9,75 @@ or flagged for follow-up. Newest entries at the top.
 
 ---
 
+## Feature: AI Store Builder (Implementation Plan Phase 16 / Feature 13)
+
+**Status:** Done — 2026-08-04. New AI Service module (`apps/ai-service/app/llm/`: `client.py`,
+`gemini_client.py`, `mock_client.py`, `fallback_orchestrator.py`, `errors.py`; rewired
+`app/routers/listing.py`) and new Core API module (`apps/backend/src/modules/ai-store-builder/`).
+Full suite green: Core API **740/740 tests, 74/74 suites** (39 new), confirmed non-flaky across 2
+consecutive runs; AI Service **29/29 pytest tests**, mypy/flake8/black clean. Zero new Prisma
+models — only `products.ai_generated` (already existed) gets set. Full contract in
+`docs/handoffs/F13-ai-store-builder.md`, sign-off in `docs/FEATURE_13_CHECKLIST.md`.
+
+**Explicit user-directed deviation from D3**: Google Gemini Flash on both the primary and
+fallback side (dev-cost reasons — free tier, no credit card) instead of D3's literal GPT-4 Vision
+/ GPT-3.5-turbo pairing. `LlmClient`/`LlmFallbackOrchestrator` built exactly per Task 1's
+architecture; `GeminiVisionClient` is the sole concrete provider (two instances, one per
+`LLM_PRIMARY_MODEL`/`LLM_FALLBACK_MODEL`), each retrying-with-backoff internally before the
+orchestrator fails over to the other. Zero hardcoded model names anywhere (grep-audited in both
+services) — swapping to a paid provider at launch needs one new `LlmClient` subclass plus an env
+var change, nothing else.
+
+**Two real contradictions found *inside the module doc itself*, resolved (not silently picked
+one way):**
+- Task 2.4 ("frontend carries forward the images array") vs. Task 3.2 ("Core API resolves
+  stagingId → cdnUrl") can't both be literally true without server-side state. Resolved with a
+  Redis-backed staging store (TTL 1h, keyed by stagingId) — no new Postgres table, and the client
+  only needs to remember `stagingId` across the upload→generate→save flow.
+- Task 4.2's "exact shape Feature 4's product-create DTO already expects" doesn't exist as one
+  DTO — Feature 4's create schema covers only `{titleEn, price, categoryId}`; everything else
+  lives in its separate update schema. The save step calls both `createProduct()` and
+  `updateProduct()` in sequence, exactly mirroring how Feature 4's own manual-entry flow already
+  works in two steps — zero duplicate write logic invented to paper over the mismatch.
+
+**Coexistence, not duplication, with Feature 4's existing AI endpoint**: Feature 4 already
+shipped a complete, different, already-tested `POST /:productId/generate-listing` (create a Draft
+first, then regenerate its fields in place, category resolved by exact slug match). This feature
+adds a separate three-step flow (upload before any product exists → generate a draft → save) —
+the flagship SCR-S02 wizard. Both now call the same AI Service `/generate-listing` route, so
+Feature 4's existing endpoint transparently gets real Gemini output instead of the old mock stub,
+with zero changes to Feature 4's own file. Feature 4's full test suite re-run unchanged and green.
+
+**A real, latent cross-feature gap found (not fixed):** every multer instance in this codebase
+configures `limits.fileSize` at exactly the same 10MB constant `validateImageFile()`'s own
+Sec-012 check uses, so multer's own limit always rejects an oversized multipart file first — the
+intended `PRODUCT_IMAGE_TOO_LARGE`-style code is unreachable via a real upload, and
+`errorHandler.ts`'s generic `LIMIT_FILE_SIZE` branch hardcodes `'AVATAR_TOO_LARGE'` regardless of
+route (a name from when only the Avatar feature existed). Confirmed pre-existing: Feature 4's own
+image-upload tests never exercised this path either. Not fixed here (cosmetic — still a correct
+400, just a misleading code; fixing it means touching shared `errorHandler.ts` and every existing
+multer instance across several already-signed-off files) — flagged for whoever next touches
+upload validation broadly.
+
+**Verified (not just written):** `tsc --noEmit` (Core API) and `mypy`/`flake8`/`black` (AI
+Service) all clean; 39 new Core API tests (staging upload validate-before-store, category
+resolution exact/fuzzy/null, tag truncation, all 3 AI-failure classifications, stateless retry,
+Task 3.6's never-partial-on-failure guarantee, publish validation parity with Feature 4's manual
+path, staged-image promotion, `ai_generated` true/false on both the AI and manual-fallback paths
+through the same endpoint, and a full upload→generate→save→storefront-search end-to-end test); 29
+AI Service pytest tests (ABC enforcement, retry/backoff/malformed-JSON/non-2xx handling, all 3
+orchestrator paths, config-driven client construction, schema validation, router success/failure).
+Full backend suite run twice consecutively: 740/740 tests, 74/74 suites both times.
+
+**Known limitations / assumptions:** see `docs/handoffs/F13-ai-store-builder.md`'s full list — in
+short: no orphaned-staging-image cleanup job, category auto-creation policy undefined (null
+fallback to manual selection), the Core API/AI Service timeout budget split (28s outer / 10s×2
+per client) is an implementation judgment call, `meta_description`'s 155-char truncation is an
+unsourced SEO convention, the `AVATAR_TOO_LARGE` cosmetic gap above, no frontend (SCR-S02 not
+started).
+
+---
+
 ## Feature: Admin Panel (Implementation Plan Phase 15 / Feature 12)
 
 **Status:** Done — 2026-08-04. New `admin/` module (`dashboard/`, `users/`, `moderation/`,
@@ -1055,18 +1124,28 @@ working.
 
 ---
 
-*Next: Feature 12 (Admin Panel) is done — Feature 13 (AI Store Builder) is next per the
-day-by-day plan. Its module doc (`docs/modules/13_ AI Store Builder.md`, 613 lines) was checked
-for completeness before writing this line (same discipline established after the Feature 10→11
-mistake): the header shows a stale "Draft — Response 1 of 3," but the doc's own last "Response 3
-of 3" status line near the end confirms Tasks 1–6 + Validation & Consistency Review are all
-present — not yet read in full otherwise, so no claims about its actual task content or
-dependencies beyond that completeness check. **Carried-forward gaps for whoever starts Feature
-13 or any later feature:** `cod_remittances` (the ledger row itself), the `DELIVERED → COMPLETED`
-transition trigger, and real courier/payment-gateway integrations remain open (Feature 8's
-original list). `platform_config.commission_rate_default` has zero live consumers anywhere in
-this codebase (Feature 12's own finding, above) — `SellerProfile.commissionRate` is set only by
-its Prisma schema default (`0.0500`) at account-activation time, never from this config key;
-worth fixing in Auth's seller-activation flow whenever that file is next touched, not urgent on
-its own. `SettlementStatus.ON_HOLD` exists in the schema and is written by no code path — a
-natural fit for a future Admin manual settlement-hold/override action, not built anywhere yet.*
+*Next: Feature 13 (AI Store Builder) is done — Feature 14 (AI Returns) is next per the day-by-day
+plan. Its module doc (`docs/modules/14_ AI Returns.md`, 681 lines) was checked for completeness
+before writing this line: header shows a stale "Draft — Response 1 of 3," but the doc's own last
+"Response 3 of 3" status line confirms Tasks 1–7 + Validation & Consistency Review are all
+present — not yet read in full otherwise. Feature 14 is the other AI Service consumer named in
+Feature 13's own Explicitly-Out-of-Scope list ("ReturnsAI (Feature 8/R1.1, different AI Service
+router)") — it will very likely want its own `LlmClient`-shaped vision call for return-photo
+condition assessment; **the `app/llm/` foundation (client.py/gemini_client.py/mock_client.py/
+fallback_orchestrator.py/errors.py) built this pass is provider-agnostic and Gemini-specific
+config lives entirely in `app/config.py`, so Feature 14 should be able to reuse the same
+`LlmFallbackOrchestrator` shape (a second orchestrator instance, or a shared one if the same two
+models suit both use cases) rather than building a parallel LLM-client stack** — confirm this
+against Feature 14's actual doc content before assuming it, this is a prediction, not a verified
+fact. **Carried-forward gaps for whoever starts Feature 14 or any later feature:**
+`cod_remittances` (the ledger row itself), the `DELIVERED → COMPLETED` transition trigger, and
+real courier/payment-gateway integrations remain open (Feature 8's original list).
+`platform_config.commission_rate_default` has zero live consumers anywhere in this codebase
+(Feature 12's own finding) — `SellerProfile.commissionRate` is set only by its Prisma schema
+default (`0.0500`) at account-activation time, never from this config key. `SettlementStatus.
+ON_HOLD` exists in the schema and is written by no code path. The `AVATAR_TOO_LARGE`-on-any-
+oversized-multipart-upload cosmetic gap (Feature 13's own finding, above) — still unfixed, still
+just cosmetic. `returns_confidence_threshold` (`platform_config`, R1.1-scoped, read-only in
+Feature 12's Admin Panel) is very likely the exact config key Feature 14's AI confidence-gating
+logic will finally give a real consumer to — worth checking first, since Feature 12's own
+handoff doc flagged it as configured-but-inert until this feature.*

@@ -36,7 +36,7 @@ export async function resetDb(): Promise<void> {
 }
 
 export async function resetRedis(): Promise<void> {
-  const prefixes = ['otp:*', 'lockout:*', 'denylist:*', 'resetpwd:*', 'analytics:*'];
+  const prefixes = ['otp:*', 'lockout:*', 'denylist:*', 'resetpwd:*', 'analytics:*', 'ai-store-builder:*'];
   const keys = (await Promise.all(prefixes.map((pattern) => redis.keys(pattern)))).flat();
   if (keys.length > 0) await redis.del(...keys);
 }

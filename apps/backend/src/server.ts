@@ -14,6 +14,7 @@ import { initSocketServer } from './core/socket';
 import { swaggerSpec } from './core/swagger';
 import { addressRouter } from './modules/address';
 import { adminConfigRouter, adminDashboardRouter, adminModerationRouter, adminReportsRouter, adminUsersRouter } from './modules/admin';
+import { aiStoreBuilderRouter } from './modules/ai-store-builder';
 import { analyticsRouter } from './modules/analytics';
 import { authRouter } from './modules/auth';
 import { cartRouter } from './modules/cart';
@@ -76,6 +77,7 @@ app.use('/api/v1/admin/users', adminUsersRouter);
 app.use('/api/v1/admin/moderation/products', adminModerationRouter);
 app.use('/api/v1/admin/reports', adminReportsRouter);
 app.use('/api/v1/admin/config', adminConfigRouter);
+app.use('/api/v1/products/ai-generate', aiStoreBuilderRouter);
 
 // Swagger UI (TRD §9) serves an inline <script> bundle — the global helmet() CSP above would
 // block it, so this path gets its own relaxed CSP rather than weakening it everywhere.

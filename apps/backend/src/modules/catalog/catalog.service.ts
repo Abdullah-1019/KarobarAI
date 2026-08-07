@@ -122,7 +122,11 @@ function toProductDetail(product: ProductWithRelations): ProductDetailDTO {
   };
 }
 
-async function getProductDetailByProductId(productId: bigint): Promise<ProductDetailDTO> {
+// Exported for Feature 13 (AI Store Builder)'s save step — after promoting staged images and
+// setting ai_generated (both post-date updateProduct()'s own returned snapshot), it needs one
+// final fresh read by the already-resolved internal productId, same as every other function in
+// this file already does internally.
+export async function getProductDetailByProductId(productId: bigint): Promise<ProductDetailDTO> {
   const product = await prisma.product.findUniqueOrThrow({
     where: { productId },
     include: PRODUCT_INCLUDE,
@@ -134,7 +138,10 @@ async function getProductDetailByProductId(productId: bigint): Promise<ProductDe
 // nonexistent product is always 404 regardless of who's asking, while an existing-but-not-owned
 // product is 403 (the requester is authenticated; it's the ownership boundary being enforced,
 // not existence — Task 8.2's explicit reasoning, distinct from Task 3.6's anonymous-Draft case).
-async function loadOwnedProduct(sellerUserId: bigint, productPublicId: string): Promise<Product> {
+// Exported for Feature 13 (AI Store Builder): its save step needs the same ownership-checked
+// resolution to publicId -> internal Product row (for product_images promotion) that every
+// function in this file already uses — reused as-is rather than duplicated.
+export async function loadOwnedProduct(sellerUserId: bigint, productPublicId: string): Promise<Product> {
   const product = await prisma.product.findUnique({ where: { publicId: productPublicId } });
   if (!product || product.deletedAt) {
     throw new NotFoundError('Product not found', undefined, 'PRODUCT_NOT_FOUND');
@@ -263,6 +270,16 @@ export async function generateListing(
     include: PRODUCT_INCLUDE,
   });
   return toProductDetail(updated);
+}
+
+// Feature 13 (AI Store Builder) Task 6.3 — ai_generated is deliberately not part of
+// updateProductSchema (never seller-settable via the manual PATCH route); this mirrors
+// generateListing() above's own existing direct-update pattern for the identical field, just
+// exported for the AI Store Builder's save step to call after creating a product from an AI
+// draft. The only other writer of this column is generateListing() itself.
+export async function markAiGenerated(sellerUserId: bigint, productPublicId: string): Promise<void> {
+  const product = await loadOwnedProduct(sellerUserId, productPublicId);
+  await prisma.product.update({ where: { productId: product.productId }, data: { aiGenerated: true } });
 }
 
 // Task 3.5 — REQ-F-Store003: publishing requires title, >=1 image, category. titleEn is

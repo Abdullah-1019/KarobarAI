@@ -6,9 +6,11 @@ import { ForgotPasswordPage, LoginPage, OtpVerifyPage, RegisterPage, ResetPasswo
 import { AddProductPage, EditProductPage, SellerProductsPage } from '../features/catalog';
 import { CartPage, CheckoutConfirmationPage, CheckoutPage } from '../features/cart';
 import { CategoryPage, HomePage, ProductDetailPage, SearchPage, StorefrontLayout } from '../features/marketplace';
+import { NotificationCenterPage } from '../features/notifications';
 import { BuyerOrderDetailPage, BuyerOrdersPage, SellerOrderDetailPage, SellerOrdersPage } from '../features/orders';
 import { ChangePasswordPage, ProfilePage, SettingsPage } from '../features/profile';
-import { RequireStore, SellerPlaceholder, StoreSetupWizard } from '../features/seller';
+import { RequireStore, SellerLayout, SellerPlaceholder, StoreSetupWizard } from '../features/seller';
+import { BuyerTrackingPage, PublicTrackingPage, SellerTrackingPage } from '../features/tracking';
 import { ProtectedRoute } from './ProtectedRoute';
 
 // Base routing skeleton (TRD §12), auth routes match App Flow's literal paths (SCR-A01/A02/A03/A04)
@@ -25,6 +27,9 @@ export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
   { path: '/forgot-password', element: <ForgotPasswordPage /> },
   { path: '/reset-password', element: <ResetPasswordPage /> },
+  // SCR-B09 — public, login-free tracking (REQ-F-Track005). Top-level like the auth routes above:
+  // no StorefrontLayout header/chrome, no account actions.
+  { path: '/t/:publicToken', element: <PublicTrackingPage /> },
   {
     element: <StorefrontLayout />,
     children: [
@@ -40,6 +45,7 @@ export const router = createBrowserRouter([
           { path: '/checkout/confirmation', element: <CheckoutConfirmationPage /> },
           { path: '/orders', element: <BuyerOrdersPage /> },
           { path: '/orders/:id', element: <BuyerOrderDetailPage /> },
+          { path: '/orders/:id/track', element: <BuyerTrackingPage /> },
           { path: '/buyer/profile', element: <ProfilePage /> },
           { path: '/buyer/profile/settings', element: <SettingsPage /> },
           { path: '/buyer/profile/change-password', element: <ChangePasswordPage /> },
@@ -50,19 +56,27 @@ export const router = createBrowserRouter([
   {
     element: <ProtectedRoute allowedRoles={['SELLER']} />,
     children: [
-      { path: '/seller/setup', element: <StoreSetupWizard /> },
+      // SellerLayout wraps the whole branch (including /seller/setup, so a brand-new Seller
+      // still gets consistent chrome) — previously nothing here rendered any header/nav at all.
       {
-        element: <RequireStore />,
+        element: <SellerLayout />,
         children: [
-          { path: '/seller', element: <SellerProductsPage /> },
-          { path: '/seller/products/new', element: <AddProductPage /> },
-          { path: '/seller/products/:productId/edit', element: <EditProductPage /> },
-          { path: '/seller/orders', element: <SellerOrdersPage /> },
-          { path: '/seller/orders/:id', element: <SellerOrderDetailPage /> },
-          { path: '/seller/profile', element: <ProfilePage /> },
-          { path: '/seller/profile/settings', element: <SettingsPage /> },
-          { path: '/seller/profile/change-password', element: <ChangePasswordPage /> },
-          { path: '/seller/*', element: <SellerPlaceholder /> },
+          { path: '/seller/setup', element: <StoreSetupWizard /> },
+          {
+            element: <RequireStore />,
+            children: [
+              { path: '/seller', element: <SellerProductsPage /> },
+              { path: '/seller/products/new', element: <AddProductPage /> },
+              { path: '/seller/products/:productId/edit', element: <EditProductPage /> },
+              { path: '/seller/orders', element: <SellerOrdersPage /> },
+              { path: '/seller/orders/:id', element: <SellerOrderDetailPage /> },
+              { path: '/seller/orders/:id/track', element: <SellerTrackingPage /> },
+              { path: '/seller/profile', element: <ProfilePage /> },
+              { path: '/seller/profile/settings', element: <SettingsPage /> },
+              { path: '/seller/profile/change-password', element: <ChangePasswordPage /> },
+              { path: '/seller/*', element: <SellerPlaceholder /> },
+            ],
+          },
         ],
       },
     ],
@@ -70,6 +84,12 @@ export const router = createBrowserRouter([
   {
     element: <ProtectedRoute allowedRoles={['ADMIN']} />,
     children: [{ path: '/admin/*', element: <AdminPlaceholder /> }],
+  },
+  // Feature 9 — personal to any authenticated role, not nested under either layout (same
+  // bare-page convention as features/tracking's detail-style pages).
+  {
+    element: <ProtectedRoute allowedRoles={['BUYER', 'SELLER', 'ADMIN']} />,
+    children: [{ path: '/notifications', element: <NotificationCenterPage /> }],
   },
   { path: '*', element: <EmptyState title="Page not found" description="We couldn't find that." /> },
 ]);

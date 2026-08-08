@@ -2,9 +2,11 @@ import { useState } from 'react';
 import { Alert, Button, Card, Divider, Timeline, Typography } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 
 import { Modal, SkeletonLoader, toast } from '../../components';
+import { CourierRecommendationCard } from '../tracking';
+import { getAuthenticatedTracking, trackingQueryKey } from '../tracking/trackingApi';
 import { OrderStatusTag } from './OrderStatusTag';
 import { cancelOrder, getOrder, orderQueryKey, viewInvoice } from './ordersApi';
 import { formatOrdersError } from './ordersErrors';
@@ -13,10 +15,10 @@ interface OrderDetailPageProps {
   scope: 'buyer' | 'seller';
 }
 
-// Generic detail page backing SCR-B07's order detail (Buyer) and SCR-S06 minus the courier-
-// booking portion (Feature 8, not built yet — courierStatus is always the backend's hardcoded
-// "not_booked"). `commission` renders only when present, which the backend already gates to the
-// order's own Seller — nothing to filter client-side for the Buyer view.
+// Generic detail page backing SCR-B07's order detail (Buyer) and SCR-S06 (Seller) — the courier
+// card/booking (Feature 8) lives in features/tracking, consumed here. `commission` renders only
+// when present, which the backend already gates to the order's own Seller — nothing to filter
+// client-side for the Buyer view.
 export function OrderDetailPage({ scope }: OrderDetailPageProps) {
   const { t } = useTranslation(['orders']);
   const { id = '' } = useParams<{ id: string }>();
@@ -26,6 +28,15 @@ export function OrderDetailPage({ scope }: OrderDetailPageProps) {
   const { data: order, isPending, isError, error } = useQuery({
     queryKey: orderQueryKey(id),
     queryFn: () => getOrder(id),
+    enabled: !!id,
+  });
+
+  // Real courier/tracking data never lives on OrderDetailDTO (courierStatus there is permanently
+  // "not_booked" — Feature 7's field, Feature 8 never touches it) — fetched separately here. Works
+  // for any order regardless of booking state (nulls pre-booking), so it's safe to always fetch.
+  const { data: tracking } = useQuery({
+    queryKey: trackingQueryKey(id),
+    queryFn: () => getAuthenticatedTracking(id),
     enabled: !!id,
   });
 
@@ -105,9 +116,18 @@ export function OrderDetailPage({ scope }: OrderDetailPageProps) {
           <Typography.Text strong>Rs. {Number(order.totalAmount).toLocaleString()}</Typography.Text>
         </div>
         <Typography.Text type="secondary">
-          {t('detail.courier')}: {t('detail.courierNotBooked')}
+          {t('detail.courier')}:{' '}
+          {tracking?.courier
+            ? `${t(`courierNames.${tracking.courier}`)}${tracking.trackingNo ? ` (${tracking.trackingNo})` : ''}`
+            : t('detail.courierNotBooked')}
         </Typography.Text>
       </Card>
+
+      {scope === 'seller' && order.status === 'PAYMENT_CONFIRMED' && !tracking?.courier && (
+        <div style={{ marginTop: 16 }}>
+          <CourierRecommendationCard orderId={id} />
+        </div>
+      )}
 
       <Card title={t('detail.timeline')} style={{ marginTop: 16 }}>
         <Timeline
@@ -127,6 +147,11 @@ export function OrderDetailPage({ scope }: OrderDetailPageProps) {
 
       <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
         <Button onClick={() => viewInvoice(order.id)}>{t('detail.viewInvoice')}</Button>
+        {tracking?.courier && (
+          <Link to={scope === 'buyer' ? `/orders/${id}/track` : `/seller/orders/${id}/track`}>
+            <Button>{t('tracking.trackButton')}</Button>
+          </Link>
+        )}
         {scope === 'seller' && order.cancellable && (
           <Button danger onClick={() => setCancelModalOpen(true)}>
             {t('detail.cancel')}

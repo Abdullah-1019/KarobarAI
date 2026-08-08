@@ -7,6 +7,7 @@ import { useLanguage } from '../../hooks';
 import { useAuthStore } from '../../lib/authStore';
 import { logout as logoutApi } from '../auth/authApi';
 import { useCartCount } from '../cart/useCartCount';
+import { NotificationBell } from '../notifications';
 import { SearchBar } from './SearchBar';
 
 // New — nothing like this exists in the repo today (AppProviders.tsx renders <RouterProvider>
@@ -91,9 +92,12 @@ export function StorefrontHeader() {
       </Link>
 
       {user ? (
-        <Dropdown menu={{ items: menuItems }}>
-          <Button>{t('common:nav.profile')}</Button>
-        </Dropdown>
+        <>
+          <NotificationBell />
+          <Dropdown menu={{ items: menuItems }}>
+            <Button>{t('common:nav.profile')}</Button>
+          </Dropdown>
+        </>
       ) : (
         <Space>
           <Link to="/login">

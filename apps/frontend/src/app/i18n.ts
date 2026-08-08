@@ -8,6 +8,7 @@ import {
   catalog as catalogEn,
   common as commonEn,
   marketplace as marketplaceEn,
+  notifications as notificationsEn,
   orders as ordersEn,
   profile as profileEn,
 } from '../locales/en';
@@ -17,6 +18,7 @@ import {
   catalog as catalogUr,
   common as commonUr,
   marketplace as marketplaceUr,
+  notifications as notificationsUr,
   orders as ordersUr,
   profile as profileUr,
 } from '../locales/ur';
@@ -52,6 +54,7 @@ i18n.use(initReactI18next).init({
       marketplace: marketplaceEn,
       cart: cartEn,
       orders: ordersEn,
+      notifications: notificationsEn,
     },
     ur: {
       common: commonUr,
@@ -61,11 +64,12 @@ i18n.use(initReactI18next).init({
       marketplace: marketplaceUr,
       cart: cartUr,
       orders: ordersUr,
+      notifications: notificationsUr,
     },
   },
   lng: getStoredLanguage().toLowerCase(),
   fallbackLng: 'en',
-  ns: ['common', 'auth', 'profile', 'catalog', 'marketplace', 'cart', 'orders'],
+  ns: ['common', 'auth', 'profile', 'catalog', 'marketplace', 'cart', 'orders', 'notifications'],
   defaultNS: 'common',
   interpolation: { escapeValue: false },
 });

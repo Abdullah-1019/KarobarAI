@@ -9,6 +9,7 @@ import { CategoryPage, HomePage, ProductDetailPage, SearchPage, StorefrontLayout
 import { NotificationCenterPage } from '../features/notifications';
 import { BuyerOrderDetailPage, BuyerOrdersPage, SellerOrderDetailPage, SellerOrdersPage } from '../features/orders';
 import { ChangePasswordPage, ProfilePage, SettingsPage } from '../features/profile';
+import { ReturnStatusPage, ReturnWizardPage, SellerReturnDetailPage, SellerReturnsPage } from '../features/returns';
 import { RequireStore, SellerLayout, SellerPlaceholder, StoreSetupWizard } from '../features/seller';
 import { BuyerTrackingPage, PublicTrackingPage, SellerTrackingPage } from '../features/tracking';
 import { ProtectedRoute } from './ProtectedRoute';
@@ -46,6 +47,8 @@ export const router = createBrowserRouter([
           { path: '/orders', element: <BuyerOrdersPage /> },
           { path: '/orders/:id', element: <BuyerOrderDetailPage /> },
           { path: '/orders/:id/track', element: <BuyerTrackingPage /> },
+          { path: '/orders/:id/return', element: <ReturnWizardPage /> },
+          { path: '/orders/:id/return/status', element: <ReturnStatusPage /> },
           { path: '/buyer/profile', element: <ProfilePage /> },
           { path: '/buyer/profile/settings', element: <SettingsPage /> },
           { path: '/buyer/profile/change-password', element: <ChangePasswordPage /> },
@@ -71,6 +74,8 @@ export const router = createBrowserRouter([
               { path: '/seller/orders', element: <SellerOrdersPage /> },
               { path: '/seller/orders/:id', element: <SellerOrderDetailPage /> },
               { path: '/seller/orders/:id/track', element: <SellerTrackingPage /> },
+              { path: '/seller/returns', element: <SellerReturnsPage /> },
+              { path: '/seller/returns/:id', element: <SellerReturnDetailPage /> },
               { path: '/seller/profile', element: <ProfilePage /> },
               { path: '/seller/profile/settings', element: <SettingsPage /> },
               { path: '/seller/profile/change-password', element: <ChangePasswordPage /> },

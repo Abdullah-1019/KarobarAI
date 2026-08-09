@@ -11,6 +11,7 @@ import {
   notifications as notificationsEn,
   orders as ordersEn,
   profile as profileEn,
+  returns as returnsEn,
 } from '../locales/en';
 import {
   auth as authUr,
@@ -21,6 +22,7 @@ import {
   notifications as notificationsUr,
   orders as ordersUr,
   profile as profileUr,
+  returns as returnsUr,
 } from '../locales/ur';
 
 export const RTL_LANGUAGES = ['UR'] as const;
@@ -55,6 +57,7 @@ i18n.use(initReactI18next).init({
       cart: cartEn,
       orders: ordersEn,
       notifications: notificationsEn,
+      returns: returnsEn,
     },
     ur: {
       common: commonUr,
@@ -65,11 +68,12 @@ i18n.use(initReactI18next).init({
       cart: cartUr,
       orders: ordersUr,
       notifications: notificationsUr,
+      returns: returnsUr,
     },
   },
   lng: getStoredLanguage().toLowerCase(),
   fallbackLng: 'en',
-  ns: ['common', 'auth', 'profile', 'catalog', 'marketplace', 'cart', 'orders', 'notifications'],
+  ns: ['common', 'auth', 'profile', 'catalog', 'marketplace', 'cart', 'orders', 'notifications', 'returns'],
   defaultNS: 'common',
   interpolation: { escapeValue: false },
 });

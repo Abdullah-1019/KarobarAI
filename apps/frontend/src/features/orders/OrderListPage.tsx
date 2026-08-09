@@ -82,6 +82,23 @@ export function OrderListPage({ scope }: OrderListPageProps) {
       key: 'placedAt',
       render: (placedAt: string) => new Date(placedAt).toLocaleDateString(),
     },
+    // Buyer-only — returnEligible is a "Buyer-list-only gate check" (packages/shared's
+    // OrderListItemDTO comment); it doesn't exist on OrderDetailDTO, so this list is the only
+    // place a Return action can be shown without inventing an eligibility check.
+    ...(scope === 'buyer'
+      ? [
+          {
+            title: t('list.columnActions'),
+            key: 'actions',
+            render: (_: unknown, record: OrderListItemDTO) =>
+              record.returnEligible ? (
+                <Link to={`/orders/${record.id}/return`}>
+                  <Button size="small">{t('list.returnAction')}</Button>
+                </Link>
+              ) : null,
+          },
+        ]
+      : []),
   ];
 
   return (

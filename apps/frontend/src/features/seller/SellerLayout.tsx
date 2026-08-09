@@ -46,8 +46,8 @@ export function SellerLayout() {
           alignItems: 'center',
           gap: 16,
           padding: '0 24px',
-          background: 'var(--bg-primary, #fff)',
-          borderBottom: '1px solid var(--border-color, #f0f0f0)',
+          background: 'var(--bg-surface, #fff)',
+          borderBottom: '1px solid var(--border, #f0f0f0)',
           height: 64,
         }}
       >
@@ -63,6 +63,9 @@ export function SellerLayout() {
           </Link>
           <Link to="/seller/orders">
             <Button type="text">{t('nav.orders')}</Button>
+          </Link>
+          <Link to="/seller/returns">
+            <Button type="text">{t('nav.returns')}</Button>
           </Link>
         </Space>
 

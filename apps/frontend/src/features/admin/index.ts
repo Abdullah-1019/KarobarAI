@@ -1,2 +1,10 @@
-// Admin console screens (Dashboard, User Management, Config, ...) land here starting F12.
+// Admin console screens (Feature 12).
 export { AdminPlaceholder } from './AdminPlaceholder';
+export { AdminLayout } from './AdminLayout';
+export { AdminDashboardPage } from './AdminDashboardPage';
+export { UserManagementPage } from './UserManagementPage';
+export { ProductModerationPage } from './ProductModerationPage';
+export { ConfigPanelPage } from './ConfigPanelPage';
+export { ReportsPage } from './ReportsPage';
+export { AdminReturnsPage } from './AdminReturnsPage';
+export { AdminReturnDetailPage } from './AdminReturnDetailPage';

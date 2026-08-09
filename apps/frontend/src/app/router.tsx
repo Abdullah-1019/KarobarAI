@@ -1,7 +1,17 @@
 import { createBrowserRouter } from 'react-router-dom';
 
 import { EmptyState } from '../components';
-import { AdminPlaceholder } from '../features/admin';
+import {
+  AdminDashboardPage,
+  AdminLayout,
+  AdminPlaceholder,
+  AdminReturnDetailPage,
+  AdminReturnsPage,
+  ConfigPanelPage,
+  ProductModerationPage,
+  ReportsPage,
+  UserManagementPage,
+} from '../features/admin';
 import { AnalyticsDashboardPage } from '../features/analytics';
 import { ForgotPasswordPage, LoginPage, OtpVerifyPage, RegisterPage, ResetPasswordPage } from '../features/auth';
 import { AddProductPage, EditProductPage, SellerProductsPage } from '../features/catalog';
@@ -89,13 +99,30 @@ export const router = createBrowserRouter([
     ],
   },
   {
-    element: <ProtectedRoute allowedRoles={['ADMIN']} />,
-    children: [{ path: '/admin/*', element: <AdminPlaceholder /> }],
+    // Every /admin/* read endpoint is Admin+Support (F12-admin-panel-backend.md); Support only
+    // loses write access, gated per-page (isAdmin checks), not at the route level.
+    element: <ProtectedRoute allowedRoles={['ADMIN', 'SUPPORT']} />,
+    children: [
+      {
+        element: <AdminLayout />,
+        children: [
+          { path: '/admin', element: <AdminDashboardPage /> },
+          { path: '/admin/users', element: <UserManagementPage /> },
+          { path: '/admin/moderation', element: <ProductModerationPage /> },
+          { path: '/admin/reports', element: <ReportsPage /> },
+          { path: '/admin/returns', element: <AdminReturnsPage /> },
+          { path: '/admin/returns/:id', element: <AdminReturnDetailPage /> },
+          { path: '/admin/config', element: <ConfigPanelPage /> },
+          { path: '/admin/*', element: <AdminPlaceholder /> },
+        ],
+      },
+    ],
   },
   // Feature 9 — personal to any authenticated role, not nested under either layout (same
-  // bare-page convention as features/tracking's detail-style pages).
+  // bare-page convention as features/tracking's detail-style pages). SUPPORT added alongside
+  // Feature 12 — AdminLayout renders the same NotificationBell for Support as for Admin.
   {
-    element: <ProtectedRoute allowedRoles={['BUYER', 'SELLER', 'ADMIN']} />,
+    element: <ProtectedRoute allowedRoles={['BUYER', 'SELLER', 'ADMIN', 'SUPPORT']} />,
     children: [{ path: '/notifications', element: <NotificationCenterPage /> }],
   },
   { path: '*', element: <EmptyState title="Page not found" description="We couldn't find that." /> },

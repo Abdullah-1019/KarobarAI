@@ -3,6 +3,7 @@ import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 
 import {
+  analytics as analyticsEn,
   auth as authEn,
   cart as cartEn,
   catalog as catalogEn,
@@ -14,6 +15,7 @@ import {
   returns as returnsEn,
 } from '../locales/en';
 import {
+  analytics as analyticsUr,
   auth as authUr,
   cart as cartUr,
   catalog as catalogUr,
@@ -58,6 +60,7 @@ i18n.use(initReactI18next).init({
       orders: ordersEn,
       notifications: notificationsEn,
       returns: returnsEn,
+      analytics: analyticsEn,
     },
     ur: {
       common: commonUr,
@@ -69,11 +72,12 @@ i18n.use(initReactI18next).init({
       orders: ordersUr,
       notifications: notificationsUr,
       returns: returnsUr,
+      analytics: analyticsUr,
     },
   },
   lng: getStoredLanguage().toLowerCase(),
   fallbackLng: 'en',
-  ns: ['common', 'auth', 'profile', 'catalog', 'marketplace', 'cart', 'orders', 'notifications', 'returns'],
+  ns: ['common', 'auth', 'profile', 'catalog', 'marketplace', 'cart', 'orders', 'notifications', 'returns', 'analytics'],
   defaultNS: 'common',
   interpolation: { escapeValue: false },
 });

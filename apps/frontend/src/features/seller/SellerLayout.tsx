@@ -67,6 +67,9 @@ export function SellerLayout() {
           <Link to="/seller/returns">
             <Button type="text">{t('nav.returns')}</Button>
           </Link>
+          <Link to="/seller/analytics">
+            <Button type="text">{t('nav.analytics')}</Button>
+          </Link>
         </Space>
 
         <Segmented

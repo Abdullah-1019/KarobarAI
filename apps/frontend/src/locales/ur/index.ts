@@ -511,6 +511,62 @@ export const notifications = {
   },
 };
 
+// Feature 11 — SCR-S08 (سیلر اینالیٹکس ڈیش بورڈ)۔ AI سفارشی کارڈ [R1.1] اور ایکسپورٹ [Future]
+// اس دائرہ کار سے باہر ہیں — ان کے لیے کوئی متن شامل نہیں کیا گیا۔
+export const analytics = {
+  dashboard: {
+    title: 'تجزیات',
+    emptyTitle: 'ابھی تک کوئی تجزیات نہیں',
+    emptyDescription: 'آپ کی پہلی آرڈر موصول ہونے کے بعد آپ کے تجزیات یہاں دکھائے جائیں گے۔',
+  },
+  rangeFilter: {
+    preset7d: '7 دن',
+    preset30d: '30 دن',
+    preset3m: '3 ماہ',
+    presetCustom: 'حسب ضرورت',
+  },
+  revenue: {
+    current: 'اس مہینے',
+    previous: 'پچھلے مہینے',
+    ytd: 'سال بہ تاریخ',
+  },
+  salesTrend: {
+    title: 'روزانہ فروخت کا رجحان',
+    revenueLabel: 'آمدنی',
+  },
+  categoryBreakdown: {
+    title: 'زمرہ کے لحاظ سے آمدنی',
+    revenueLabel: 'آمدنی',
+    empty: 'اس مدت میں ابھی تک کوئی زمرہ آمدنی نہیں۔',
+  },
+  orderAnalytics: {
+    title: 'آرڈرز',
+    totalOrders: 'کل آرڈرز',
+    cancelledRate: 'منسوخی کی شرح',
+    avgOrderValue: 'اوسط آرڈر مالیت',
+  },
+  customerAnalytics: {
+    title: 'خریدار',
+    uniqueBuyers: 'منفرد خریدار',
+    newBuyers: 'نئے خریدار',
+    repeatBuyers: 'دہرانے والے خریدار',
+    repeatRate: 'دہرانے کی شرح',
+  },
+  topProducts: {
+    title: 'سرفہرست مصنوعات',
+    columnProduct: 'پروڈکٹ',
+    columnUnitsSold: 'فروخت شدہ یونٹس',
+    columnRevenue: 'آمدنی',
+    empty: 'اس مدت میں ابھی تک کوئی پروڈکٹ فروخت نہیں ہوئی۔',
+  },
+  errors: {
+    INVALID_DATE_RANGE: 'یہ تاریخ کی حد درست نہیں ہے — آغاز اور اختتام کی تاریخیں چیک کریں۔',
+    ANALYTICS_RANGE_TOO_LARGE: 'یہ تاریخ کی حد بہت بڑی ہے — ایک مختصر حد منتخب کریں۔',
+    NETWORK_ERROR: 'سرور تک رسائی نہیں ہو سکی۔ اپنا کنکشن چیک کریں اور دوبارہ کوشش کریں۔',
+    GENERIC: 'کچھ غلط ہو گیا۔ براہ کرم دوبارہ کوشش کریں۔',
+  },
+};
+
 // Feature 10 — واپسی اور رقم کی واپسی۔ بیک اینڈ اسکیما میں کوئی مقررہ وجوہات کی فہرست موجود نہیں
 // (createReturnSchema صرف عام متن لیتا ہے) — یہ صرف فرنٹ اینڈ کی ایک مقررہ فہرست ہے، جو نیچے سادہ
 // متن کے طور پر جمع کروائی جاتی ہے۔

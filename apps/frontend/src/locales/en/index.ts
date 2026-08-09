@@ -511,6 +511,62 @@ export const notifications = {
   },
 };
 
+// Feature 11 — SCR-S08 (Seller Analytics Dashboard). AI Recommendation card [R1.1] and Export
+// [Future] are explicitly out of scope (module doc's Feature Overview) — no strings for either.
+export const analytics = {
+  dashboard: {
+    title: 'Analytics',
+    emptyTitle: 'No analytics yet',
+    emptyDescription: 'Your analytics will appear here once your first order is placed.',
+  },
+  rangeFilter: {
+    preset7d: '7 days',
+    preset30d: '30 days',
+    preset3m: '3 months',
+    presetCustom: 'Custom',
+  },
+  revenue: {
+    current: 'This month',
+    previous: 'Last month',
+    ytd: 'Year to date',
+  },
+  salesTrend: {
+    title: 'Daily sales trend',
+    revenueLabel: 'Revenue',
+  },
+  categoryBreakdown: {
+    title: 'Revenue by category',
+    revenueLabel: 'Revenue',
+    empty: 'No category revenue in this range yet.',
+  },
+  orderAnalytics: {
+    title: 'Orders',
+    totalOrders: 'Total orders',
+    cancelledRate: 'Cancelled rate',
+    avgOrderValue: 'Avg. order value',
+  },
+  customerAnalytics: {
+    title: 'Customers',
+    uniqueBuyers: 'Unique buyers',
+    newBuyers: 'New buyers',
+    repeatBuyers: 'Repeat buyers',
+    repeatRate: 'Repeat rate',
+  },
+  topProducts: {
+    title: 'Top products',
+    columnProduct: 'Product',
+    columnUnitsSold: 'Units sold',
+    columnRevenue: 'Revenue',
+    empty: 'No product sales in this range yet.',
+  },
+  errors: {
+    INVALID_DATE_RANGE: 'That date range is not valid — check start and end dates.',
+    ANALYTICS_RANGE_TOO_LARGE: 'That date range is too large — pick a shorter range.',
+    NETWORK_ERROR: 'Could not reach the server. Check your connection and try again.',
+    GENERIC: 'Something went wrong. Please try again.',
+  },
+};
+
 // Feature 10 — Returns & Refunds. No canonical reason list exists in the backend schema
 // (createReturnSchema takes free text) — this is a frontend-only fixed set, submitted as plain
 // text underneath.

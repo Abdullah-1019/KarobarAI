@@ -2,6 +2,7 @@ import { createBrowserRouter } from 'react-router-dom';
 
 import { EmptyState } from '../components';
 import { AdminPlaceholder } from '../features/admin';
+import { AnalyticsDashboardPage } from '../features/analytics';
 import { ForgotPasswordPage, LoginPage, OtpVerifyPage, RegisterPage, ResetPasswordPage } from '../features/auth';
 import { AddProductPage, EditProductPage, SellerProductsPage } from '../features/catalog';
 import { CartPage, CheckoutConfirmationPage, CheckoutPage } from '../features/cart';
@@ -71,6 +72,7 @@ export const router = createBrowserRouter([
               { path: '/seller', element: <SellerProductsPage /> },
               { path: '/seller/products/new', element: <AddProductPage /> },
               { path: '/seller/products/:productId/edit', element: <EditProductPage /> },
+              { path: '/seller/analytics', element: <AnalyticsDashboardPage /> },
               { path: '/seller/orders', element: <SellerOrdersPage /> },
               { path: '/seller/orders/:id', element: <SellerOrderDetailPage /> },
               { path: '/seller/orders/:id/track', element: <SellerTrackingPage /> },

@@ -207,13 +207,20 @@ export const catalog = {
     empty: "You haven't added any products yet.",
     loadMore: 'Load more',
   },
-  addProduct: {
+  // Feature 13 — SCR-S02 (flagship): photo(s) -> AI-generated bilingual listing -> review/edit ->
+  // Publish/Save Draft. Field labels below reuse `editProduct.*` (same fields, same names) rather
+  // than duplicating a parallel label set.
+  aiWizard: {
     title: 'Add product',
-    titleLabel: 'Title',
-    priceLabel: 'Price (PKR)',
-    categoryLabel: 'Category',
-    categoryPlaceholder: 'Select a category',
-    submit: 'Create draft',
+    dropzoneHelp: 'Drag and drop product photos here, or upload — the first image becomes primary.',
+    uploadButton: 'Upload photos',
+    generating: 'AI is generating your product listing…',
+    generateSuccess: 'Listing generated.',
+    generateFailedHint: 'You can still fill in the details yourself and save.',
+    retry: 'Retry',
+    categoryGuessHint: 'AI suggested "{{guess}}" but couldn’t match it to an existing category — pick one manually.',
+    saveDraft: 'Save as draft',
+    publish: 'Publish',
   },
   editProduct: {
     title: 'Edit product',
@@ -258,6 +265,9 @@ export const catalog = {
     PRODUCT_IMAGE_REQUIRED: 'Upload at least one image first.',
     PRODUCT_NOT_DRAFT: 'This action is only available for draft products.',
     AI_GENERATION_FAILED: 'AI generation is unavailable right now — try again shortly.',
+    AI_GENERATION_TIMEOUT: 'AI generation took too long — try again, or fill in the details yourself.',
+    AI_SERVICE_UNAVAILABLE: 'AI generation is temporarily unavailable — try again, or fill in the details yourself.',
+    AI_STAGING_NOT_FOUND: 'Your uploaded photos expired — please upload again.',
     PUBLISH_REQUIREMENTS_NOT_MET: 'Add a title, at least one image, and a category before publishing.',
     ALREADY_UNPUBLISHED: 'This product is not currently live.',
     PRODUCT_IMAGE_TOO_LARGE: 'That image is too large — max 10MB.',

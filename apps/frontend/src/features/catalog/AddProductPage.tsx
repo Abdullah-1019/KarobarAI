@@ -1,23 +1,48 @@
-import { useState } from 'react';
-import { Alert, Button, Input, InputNumber, Select, Typography } from 'antd';
+import { useRef, useState } from 'react';
+import { Alert, Button, Input, InputNumber, Select, Spin, Typography } from 'antd';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import imageCompression from 'browser-image-compression';
 import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 
-import { createProductSchema, type CategoryDTO } from '@karobarai/shared';
-import { SkeletonLoader } from '../../components';
-import { CATEGORIES_QUERY_KEY, createProduct, getCategories } from './catalogApi';
+import { aiSaveProductSchema, type AiStagedImageDTO, type CategoryDTO, type ProductCondition } from '@karobarai/shared';
+import { toast } from '../../components';
+import { ApiError } from '../../api';
+import { CATEGORIES_QUERY_KEY, getCategories } from './catalogApi';
 import { formatCatalogError } from './catalogErrors';
+import { generateDraft, saveAiProduct, uploadStagingImages } from './aiStoreBuilderApi';
 
 interface FormValues {
   titleEn: string;
+  titleUr: string;
+  descriptionEn: string;
+  descriptionUr: string;
   price: number | null;
+  stock: number | null;
+  condition: ProductCondition;
   categoryId: string | undefined;
+  tags: string[];
 }
 
-// Flattens the category tree into a single-level picker — currently flat anyway (no parent
-// categories seeded yet per F4-catalog-backend.md) but tree-ready regardless.
+const CONDITIONS: ProductCondition[] = ['NEW', 'LIKE_NEW', 'USED', 'REFURBISHED'];
+const EMPTY_VALUES: FormValues = {
+  titleEn: '',
+  titleUr: '',
+  descriptionEn: '',
+  descriptionUr: '',
+  price: null,
+  stock: null,
+  condition: 'NEW',
+  categoryId: undefined,
+  tags: [],
+};
+
+// Client-side compression before upload (REQ-F-Store007, <200KB target) — first real use of the
+// browser-image-compression dependency anywhere in this app; every prior image-upload screen
+// (avatar, store logo/banner, product images) uploads the original file as-is.
+const COMPRESSION_OPTIONS = { maxSizeMB: 0.2, maxWidthOrHeight: 1920, useWebWorker: true };
+
 function flattenCategories(categories: CategoryDTO[], depth = 0): { id: string; label: string }[] {
   return categories.flatMap((c) => [
     { id: c.id, label: `${'— '.repeat(depth)}${c.nameEn}` },
@@ -25,117 +50,370 @@ function flattenCategories(categories: CategoryDTO[], depth = 0): { id: string; 
   ]);
 }
 
-// SCR-S02's manual "Add Product" path. Task 3.3's NOT NULL constraint (titleEn + price both
-// required, no DB default) means a Draft can't be created with zero fields despite App Flow's
-// "upload photo first" framing — this form collects the minimum, then the Edit screen (images,
-// AI generation, publish) takes over.
+// SCR-S02 (flagship) — photo(s) -> AI-generated bilingual listing -> review/edit -> Publish/Save
+// Draft. Three-step backend flow (F13-ai-store-builder.md): upload stages image(s) under a Redis-
+// keyed stagingId (no product row yet) -> generate calls the AI Service against that staging ->
+// save creates the product, promotes the staged images, and optionally publishes. AI failure
+// never blocks the flow (REQ-F-Store005): the form still works for full manual entry through the
+// same save endpoint, `aiGenerated` explicit rather than inferred from stagingId's mere presence.
 export function AddProductPage() {
   const { t } = useTranslation(['catalog', 'common']);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const { data: categories, isPending: categoriesPending } = useQuery({
-    queryKey: CATEGORIES_QUERY_KEY,
-    queryFn: getCategories,
-  });
+  const { data: categories } = useQuery({ queryKey: CATEGORIES_QUERY_KEY, queryFn: getCategories });
+
+  const [stagingId, setStagingId] = useState<string | null>(null);
+  const [stagedImages, setStagedImages] = useState<AiStagedImageDTO[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState(false);
+
+  const [generating, setGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState<string | null>(null);
+  const [aiGenerated, setAiGenerated] = useState(false);
+  const [categoryGuess, setCategoryGuess] = useState<string | null>(null);
 
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
+  const [savingStatus, setSavingStatus] = useState<'DRAFT' | 'LIVE' | null>(null);
 
   const {
     control,
     handleSubmit,
+    reset,
     setError,
     formState: { errors },
-  } = useForm<FormValues>({ defaultValues: { titleEn: '', price: null, categoryId: undefined } });
+  } = useForm<FormValues>({ defaultValues: EMPTY_VALUES });
 
-  const onSubmit = handleSubmit(async (values) => {
-    setSubmitError(null);
-
-    const payload = {
-      titleEn: values.titleEn,
-      price: values.price ?? 0,
-      categoryId: values.categoryId,
-    };
-
-    const parsed = createProductSchema.safeParse(payload);
-    if (!parsed.success) {
-      for (const issue of parsed.error.issues) {
-        const field = issue.path[0] as keyof FormValues;
-        setError(field, { message: issue.message });
-      }
-      return;
-    }
-
-    setSubmitting(true);
+  async function handleFiles(files: File[]) {
+    if (files.length === 0) return;
+    setUploadError(null);
+    setUploading(true);
     try {
-      const product = await createProduct(parsed.data);
-      await queryClient.invalidateQueries({ queryKey: ['catalog', 'seller-products'] });
-      navigate(`/seller/products/${product.id}/edit`);
+      const compressed = await Promise.all(
+        files.map(async (file) => {
+          try {
+            return await imageCompression(file, COMPRESSION_OPTIONS);
+          } catch {
+            // Compression is a best-effort optimization — an unsupported format/corrupt file
+            // still gets a real shot at server-side validation instead of silently dropping it.
+            return file;
+          }
+        }),
+      );
+      const result = await uploadStagingImages(compressed);
+      setStagingId(result.stagingId);
+      setStagedImages(result.images);
+      void handleGenerate(result.stagingId);
     } catch (err) {
-      setSubmitError(formatCatalogError(t, err));
+      setUploadError(formatCatalogError(t, err));
     } finally {
-      setSubmitting(false);
+      setUploading(false);
     }
-  });
+  }
+
+  async function handleGenerate(id: string) {
+    setGenerateError(null);
+    setGenerating(true);
+    try {
+      const result = await generateDraft(id);
+      reset({
+        titleEn: result.draft.titleEn,
+        titleUr: result.draft.titleUr,
+        descriptionEn: result.draft.descriptionEn,
+        descriptionUr: result.draft.descriptionUr,
+        price: null,
+        stock: null,
+        condition: 'NEW',
+        categoryId: result.draft.categoryId ?? undefined,
+        tags: result.draft.tags,
+      });
+      setCategoryGuess(result.draft.categoryId ? null : result.draft.categoryGuess);
+      setAiGenerated(true);
+      toast.success(t('catalog:aiWizard.generateSuccess'));
+    } catch (err) {
+      setGenerateError(formatCatalogError(t, err));
+      setAiGenerated(false);
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  function handleDrop(event: React.DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    setDragOver(false);
+    handleFiles(Array.from(event.dataTransfer.files));
+  }
+
+  function handleFileInputChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files ?? []);
+    event.target.value = '';
+    handleFiles(files);
+  }
 
   const categoryOptions = categories ? flattenCategories(categories).map((c) => ({ value: c.id, label: c.label })) : [];
+  const formLocked = generating || savingStatus !== null;
+
+  function saveWith(status: 'DRAFT' | 'LIVE') {
+    return handleSubmit(async (values) => {
+      if (!stagingId) return;
+      setSubmitError(null);
+
+      const payload = {
+        stagingId,
+        titleEn: values.titleEn,
+        titleUr: values.titleUr.trim() === '' ? null : values.titleUr,
+        descriptionEn: values.descriptionEn.trim() === '' ? null : values.descriptionEn,
+        descriptionUr: values.descriptionUr.trim() === '' ? null : values.descriptionUr,
+        price: values.price ?? 0,
+        stock: values.stock ?? 0,
+        condition: values.condition,
+        categoryId: values.categoryId ?? null,
+        tags: values.tags,
+        status,
+        aiGenerated,
+      };
+
+      const parsed = aiSaveProductSchema.safeParse(payload);
+      if (!parsed.success) {
+        for (const issue of parsed.error.issues) {
+          const field = issue.path[0] as keyof FormValues;
+          setError(field, { message: issue.message });
+        }
+        return;
+      }
+
+      setSavingStatus(status);
+      try {
+        const product = await saveAiProduct(parsed.data);
+        await queryClient.invalidateQueries({ queryKey: ['catalog', 'seller-products'] });
+        if (status === 'LIVE') {
+          navigate(`/product/${product.id}`);
+        } else {
+          navigate('/seller');
+        }
+      } catch (err) {
+        if (err instanceof ApiError && err.code === 'PUBLISH_REQUIREMENTS_NOT_MET') {
+          const missing = (err.details as { missing?: string[] } | undefined)?.missing ?? [];
+          setSubmitError(`${formatCatalogError(t, err)}${missing.length ? ` (${missing.join(', ')})` : ''}`);
+        } else {
+          setSubmitError(formatCatalogError(t, err));
+        }
+      } finally {
+        setSavingStatus(null);
+      }
+    });
+  }
 
   return (
-    <div style={{ maxWidth: 480, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
+    <div style={{ maxWidth: 640, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
       <Link to="/seller">← {t('catalog:productsList.title')}</Link>
-      <Typography.Title level={3}>{t('catalog:addProduct.title')}</Typography.Title>
+      <Typography.Title level={3}>{t('catalog:aiWizard.title')}</Typography.Title>
 
-      {submitError && <Alert type="error" message={submitError} showIcon style={{ marginBottom: 16 }} />}
-
-      {categoriesPending ? (
-        <SkeletonLoader rows={3} />
-      ) : (
-        <form onSubmit={onSubmit}>
-          <div style={{ marginBottom: 16 }}>
-            <label>{t('catalog:addProduct.titleLabel')}</label>
-            <Controller
-              name="titleEn"
-              control={control}
-              render={({ field }) => <Input {...field} size="large" />}
+      <div
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragOver(true);
+        }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={handleDrop}
+        style={{
+          border: `2px dashed ${dragOver ? 'var(--color-primary, #2f8f5b)' : 'var(--border-color, #d9d9d9)'}`,
+          borderRadius: 8,
+          padding: 24,
+          textAlign: 'center',
+          marginBottom: 16,
+          background: dragOver ? 'var(--bg-secondary, #f5f5f5)' : undefined,
+        }}
+      >
+        {stagedImages.length === 0 ? (
+          <>
+            <Typography.Text type="secondary">{t('catalog:aiWizard.dropzoneHelp')}</Typography.Text>
+            <div style={{ marginTop: 12 }}>
+              <Button loading={uploading} onClick={() => fileInputRef.current?.click()}>
+                {t('catalog:aiWizard.uploadButton')}
+              </Button>
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept="image/jpeg,image/png,image/webp"
+              style={{ display: 'none' }}
+              onChange={handleFileInputChange}
             />
+          </>
+        ) : (
+          // One-shot upload: the backend mints a fresh stagingId per /upload call with no way to
+          // append to an existing one (ai-store-builder.service.ts's uploadStagingImages() always
+          // does `randomUUID()`), so there is no "add more images" affordance here once staged —
+          // select every image together in the step above. Further image management happens on
+          // the product's own edit screen (ProductImageManager) after this wizard saves it.
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, justifyContent: 'center' }}>
+            {stagedImages.map((img) => (
+              <div key={img.position} style={{ position: 'relative' }}>
+                <img
+                  src={img.cdnUrl}
+                  alt=""
+                  style={{
+                    width: 100,
+                    height: 100,
+                    objectFit: 'cover',
+                    borderRadius: 4,
+                    border: img.position === 0 ? '2px solid var(--color-primary, #2f8f5b)' : undefined,
+                  }}
+                />
+                {img.position === 0 && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: 2,
+                      left: 2,
+                      background: 'rgba(0,0,0,0.6)',
+                      color: '#fff',
+                      fontSize: 10,
+                      padding: '1px 4px',
+                      borderRadius: 2,
+                    }}
+                  >
+                    {t('catalog:editProduct.primaryBadge')}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      {uploadError && <Alert type="error" message={uploadError} showIcon style={{ marginBottom: 16 }} />}
+
+      {generating && (
+        <Alert
+          type="info"
+          showIcon
+          icon={<Spin size="small" />}
+          message={t('catalog:aiWizard.generating')}
+          style={{ marginBottom: 16 }}
+        />
+      )}
+
+      {generateError && !generating && (
+        <Alert
+          type="warning"
+          showIcon
+          message={generateError}
+          description={t('catalog:aiWizard.generateFailedHint')}
+          action={
+            stagingId && (
+              <Button size="small" onClick={() => handleGenerate(stagingId)}>
+                {t('catalog:aiWizard.retry')}
+              </Button>
+            )
+          }
+          style={{ marginBottom: 16 }}
+        />
+      )}
+
+      {stagingId && (
+        <fieldset disabled={formLocked} style={{ border: 'none', padding: 0, margin: 0, opacity: formLocked ? 0.6 : 1 }}>
+          {submitError && <Alert type="error" message={submitError} showIcon style={{ marginBottom: 16 }} />}
+
+          <div style={{ marginBottom: 16 }}>
+            <label>{t('catalog:editProduct.titleEnLabel')}</label>
+            <Controller name="titleEn" control={control} render={({ field }) => <Input {...field} size="large" />} />
             {errors.titleEn && <Typography.Text type="danger">{errors.titleEn.message}</Typography.Text>}
           </div>
 
           <div style={{ marginBottom: 16 }}>
-            <label>{t('catalog:addProduct.priceLabel')}</label>
-            <Controller
-              name="price"
-              control={control}
-              render={({ field }) => (
-                <InputNumber {...field} size="large" min={0} style={{ width: '100%' }} />
-              )}
-            />
-            {errors.price && <Typography.Text type="danger">{errors.price.message}</Typography.Text>}
+            <label>{t('catalog:editProduct.titleUrLabel')}</label>
+            <Controller name="titleUr" control={control} render={({ field }) => <Input {...field} size="large" dir="rtl" />} />
           </div>
 
-          <div style={{ marginBottom: 24 }}>
-            <label>{t('catalog:addProduct.categoryLabel')}</label>
+          <div style={{ marginBottom: 16 }}>
+            <label>{t('catalog:editProduct.descriptionEnLabel')}</label>
+            <Controller name="descriptionEn" control={control} render={({ field }) => <Input.TextArea {...field} rows={3} />} />
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <label>{t('catalog:editProduct.descriptionUrLabel')}</label>
             <Controller
-              name="categoryId"
+              name="descriptionUr"
+              control={control}
+              render={({ field }) => <Input.TextArea {...field} rows={3} dir="rtl" />}
+            />
+          </div>
+
+          <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
+            <div style={{ flex: 1 }}>
+              <label>{t('catalog:editProduct.priceLabel')}</label>
+              <Controller
+                name="price"
+                control={control}
+                render={({ field }) => <InputNumber {...field} size="large" min={0} style={{ width: '100%' }} />}
+              />
+              {errors.price && <Typography.Text type="danger">{errors.price.message}</Typography.Text>}
+            </div>
+            <div style={{ flex: 1 }}>
+              <label>{t('catalog:editProduct.stockLabel')}</label>
+              <Controller
+                name="stock"
+                control={control}
+                render={({ field }) => <InputNumber {...field} size="large" min={0} style={{ width: '100%' }} />}
+              />
+              {errors.stock && <Typography.Text type="danger">{errors.stock.message}</Typography.Text>}
+            </div>
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <label>{t('catalog:editProduct.conditionLabel')}</label>
+            <Controller
+              name="condition"
               control={control}
               render={({ field }) => (
                 <Select
                   {...field}
                   size="large"
                   style={{ width: '100%' }}
-                  allowClear
-                  options={categoryOptions}
-                  placeholder={t('catalog:addProduct.categoryPlaceholder')}
+                  options={CONDITIONS.map((c) => ({ value: c, label: t(`catalog:condition.${c}`) }))}
                 />
               )}
             />
           </div>
 
-          <Button type="primary" htmlType="submit" size="large" block loading={submitting}>
-            {t('catalog:addProduct.submit')}
-          </Button>
-        </form>
+          <div style={{ marginBottom: 8 }}>
+            <label>{t('catalog:editProduct.categoryLabel')}</label>
+            <Controller
+              name="categoryId"
+              control={control}
+              render={({ field }) => (
+                <Select {...field} size="large" style={{ width: '100%' }} allowClear options={categoryOptions} />
+              )}
+            />
+          </div>
+          {categoryGuess && (
+            <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+              {t('catalog:aiWizard.categoryGuessHint', { guess: categoryGuess })}
+            </Typography.Text>
+          )}
+
+          <div style={{ marginBottom: 24 }}>
+            <label>{t('catalog:editProduct.tagsLabel')}</label>
+            <Controller
+              name="tags"
+              control={control}
+              render={({ field }) => <Select {...field} mode="tags" size="large" style={{ width: '100%' }} open={false} />}
+            />
+          </div>
+
+          <div style={{ display: 'flex', gap: 12 }}>
+            <Button size="large" loading={savingStatus === 'DRAFT'} onClick={saveWith('DRAFT')} style={{ flex: 1 }}>
+              {t('catalog:aiWizard.saveDraft')}
+            </Button>
+            <Button type="primary" size="large" loading={savingStatus === 'LIVE'} onClick={saveWith('LIVE')} style={{ flex: 1 }}>
+              {t('catalog:aiWizard.publish')}
+            </Button>
+          </div>
+        </fieldset>
       )}
     </div>
   );

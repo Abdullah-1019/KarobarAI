@@ -68,7 +68,17 @@ export class LiveStorageAdapter implements StorageAdapter {
           // upload over a policy call that may simply not apply there.
           logger.warn({ err }, 'Could not set public-read bucket policy (continuing anyway)');
         }
-      })();
+      })().catch((err) => {
+        // Never cache a FAILED bucket-readiness check. `this.bucketReady` is truthy the instant
+        // it's assigned a Promise, whether that promise later resolves or rejects — without this
+        // reset, a transient MinIO outage on the very first upload would permanently wedge every
+        // future upload for the lifetime of this process (LiveStorageAdapter is a process-wide
+        // singleton via getStorageAdapter()), fixable only by restarting the process. Resetting
+        // to null here means the next upload() call retries ensureBucket() from scratch instead
+        // of instantly replaying the same stale rejection.
+        this.bucketReady = null;
+        throw err;
+      });
     }
     return this.bucketReady;
   }

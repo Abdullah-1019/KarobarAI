@@ -13,6 +13,7 @@ import { getRawCart, removeCartItems, type RawSellerGroup } from '../cart/cart.s
 import { decrementStock } from '../catalog/catalog.service';
 import { enqueueNotification } from '../notification';
 import type { CheckoutInput } from './checkout.dto';
+import { confirmPayment } from './order.service';
 
 // Feature 6 Task 7 — the checkout-creation slice of the order/ module (TRD §12's folder note:
 // lifecycle/state-machine transitions past this point are Feature 7's scope). No
@@ -126,6 +127,10 @@ export async function processCheckout(
 
   const createdOrders: CreatedOrderDTO[] = [];
   const purchasedCartItemIds: bigint[] = [];
+  // Parallel to createdOrders (same index) — carries the internal bigint orderId + payment
+  // method the post-commit confirmPayment step below needs; CreatedOrderDTO itself only exposes
+  // the public order id.
+  const createdOrderRefs: Array<{ orderId: bigint; paymentMethod: CheckoutInput['paymentMethod'] }> = [];
 
   // One transaction, N orders, all-or-nothing (Task 7.3/7.4) — a partial failure (order created,
   // stock not decremented, or vice versa) would violate Schema §0's ACID guarantee.
@@ -205,10 +210,52 @@ export async function processCheckout(
         })),
         placedAt: order.placedAt.toISOString(),
       });
+      createdOrderRefs.push({ orderId: order.orderId, paymentMethod: input.paymentMethod });
 
       purchasedCartItemIds.push(...group.items.map((item) => item.cartItemId));
     }
   });
+
+  // Interim mock-mode fix (same "mock stub for now" pattern used throughout this codebase):
+  // confirmPayment() (order.service.ts) exists and correctly transitions PAYMENT_PENDING ->
+  // PAYMENT_CONFIRMED (+ courier hand-off enqueue, + payments.status -> CONFIRMED for non-COD),
+  // but nothing ever called it — MockPaymentAdapter.charge() always returns payments.status=
+  // PENDING by design (real confirmation is meant to be webhook-driven), so every order was
+  // silently stuck at PAYMENT_PENDING forever, breaking the courier-recommendation card (which
+  // gates on PAYMENT_CONFIRMED, Feature 8's courier-selection-eligibility guard) for every
+  // order regardless of payment method.
+  //
+  // Called for COD too, not just online payments: PAYMENT_CONFIRMED is a real precondition for
+  // courier scoring/booking (there is no PAYMENT_PENDING -> PROCESSING edge in the state
+  // machine), so without this a COD order could never be shipped at all. The payments row itself
+  // stays PENDING for COD (transitionOrderStatus's entry action explicitly excludes COD — cash
+  // is collected at delivery, not checkout; that path already sets payments.status=CONFIRMED
+  // separately when DELIVERED fires). The real fix for the online-payment side is an HMAC-
+  // verified payment-gateway webhook handler (App Flow §6.7) — Feature 12/16's job; this is not
+  // that.
+  //
+  // Awaited (not fire-and-forget) so the response's status/paymentStatus fields are accurate for
+  // the frontend's "wait for confirmation" UX — but a failure here must never fail an already-
+  // committed order+payment, so each order's confirmation is independently caught and logged,
+  // same defensive shape as the notification enqueues below.
+  await Promise.all(
+    createdOrderRefs.map(async (ref, index) => {
+      try {
+        await confirmPayment(ref.orderId);
+        const createdOrder = createdOrders[index];
+        if (createdOrder) {
+          createdOrder.status = 'PAYMENT_CONFIRMED';
+          // COD's payments row deliberately stays PENDING — see the entry-action comment in
+          // transitionOrderStatus. Only online-payment methods reflect CONFIRMED here.
+          if (ref.paymentMethod !== 'COD') {
+            createdOrder.paymentStatus = 'CONFIRMED';
+          }
+        }
+      } catch (err) {
+        logger.error({ err, orderId: ref.orderId.toString() }, 'Interim confirmPayment() call failed after checkout — order remains PAYMENT_PENDING');
+      }
+    }),
+  );
 
   // Only the purchased groups' items are removed — any other seller's still-ineligible or
   // newly-added items remain in the cart untouched.

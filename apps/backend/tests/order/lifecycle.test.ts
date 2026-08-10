@@ -117,11 +117,11 @@ describe('transitionOrderStatus (Task 6 — the single write-path, adversarial)'
 });
 
 describe('confirmPayment (Gap #1 — this feature owns the transition, not the trigger)', () => {
-  it('transitions to PAYMENT_CONFIRMED and enqueues the generic courier hand-off job', async () => {
+  it('transitions to PAYMENT_CONFIRMED and enqueues the generic courier hand-off job, regardless of payment method', async () => {
     const seller = await createTestUser('SELLER', { onboarded: true });
     const buyer = await createTestUser('BUYER');
     const product = await createTestProduct(seller.userId);
-    const order = await createTestOrder(buyer.userId, seller.userId, product, { status: 'PAYMENT_PENDING' });
+    const order = await createTestOrder(buyer.userId, seller.userId, product, { status: 'PAYMENT_PENDING', paymentMethod: 'JAZZCASH' });
 
     await orderService.confirmPayment(order.orderId);
 
@@ -135,6 +135,27 @@ describe('confirmPayment (Gap #1 — this feature owns the transition, not the t
       (call) => call[1] && (call[1] as { type?: string }).type === 'ORDER_PAYMENT_CONFIRMED',
     );
     expect(notificationCalls).toHaveLength(1);
+  });
+
+  it('also unlocks courier eligibility for COD (the only way a COD order can ever reach courier scoring/booking, since there is no PAYMENT_PENDING -> PROCESSING edge), while suppressing the misleading payment-confirmed notification', async () => {
+    const seller = await createTestUser('SELLER', { onboarded: true });
+    const buyer = await createTestUser('BUYER');
+    const product = await createTestProduct(seller.userId);
+    const order = await createTestOrder(buyer.userId, seller.userId, product, { status: 'PAYMENT_PENDING', paymentMethod: 'COD' });
+
+    await orderService.confirmPayment(order.orderId);
+
+    const row = await prisma.order.findUniqueOrThrow({ where: { orderId: order.orderId } });
+    expect(row.status).toBe('PAYMENT_CONFIRMED');
+    expect(queueAddSpy).toHaveBeenCalledWith('assign', { orderId: order.orderId.toString() });
+
+    const payment = await prisma.payment.findUniqueOrThrow({ where: { orderId: order.orderId } });
+    expect(payment.status).toBe('PENDING');
+
+    const notificationCalls = queueAddSpy.mock.calls.filter(
+      (call) => call[1] && (call[1] as { type?: string }).type === 'ORDER_PAYMENT_CONFIRMED',
+    );
+    expect(notificationCalls).toHaveLength(0);
   });
 });
 
@@ -211,17 +232,39 @@ describe('transitionOrderStatus — order-lifecycle notifications (Feature 9 gap
     return queueAddSpy.mock.calls.filter((call) => call[1] && (call[1] as { type?: string }).type === type);
   }
 
-  it('a PAYMENT_CONFIRMED transition enqueues ORDER_PAYMENT_CONFIRMED to the buyer', async () => {
+  it('a PAYMENT_CONFIRMED transition on a non-COD order enqueues ORDER_PAYMENT_CONFIRMED to the buyer', async () => {
     const seller = await createTestUser('SELLER', { onboarded: true });
     const buyer = await createTestUser('BUYER');
     const product = await createTestProduct(seller.userId);
-    const order = await createTestOrder(buyer.userId, seller.userId, product, { status: 'PAYMENT_PENDING' });
+    const order = await createTestOrder(buyer.userId, seller.userId, product, { status: 'PAYMENT_PENDING', paymentMethod: 'JAZZCASH' });
 
     await orderService.transitionOrderStatus(order.orderId, 'PAYMENT_CONFIRMED', 'system');
 
     const calls = notificationCallsOfType('ORDER_PAYMENT_CONFIRMED');
     expect(calls).toHaveLength(1);
     expect(calls[0]?.[1]).toMatchObject({ userId: buyer.userId.toString(), orderId: order.publicId });
+
+    const payment = await prisma.payment.findUniqueOrThrow({ where: { orderId: order.orderId } });
+    expect(payment.status).toBe('CONFIRMED');
+  });
+
+  it('a PAYMENT_CONFIRMED transition on a COD order does NOT enqueue ORDER_PAYMENT_CONFIRMED (its "Payment confirmed" text would be false — cash isn\'t collected until delivery) and leaves the payments row PENDING', async () => {
+    const seller = await createTestUser('SELLER', { onboarded: true });
+    const buyer = await createTestUser('BUYER');
+    const product = await createTestProduct(seller.userId);
+    const order = await createTestOrder(buyer.userId, seller.userId, product, { status: 'PAYMENT_PENDING', paymentMethod: 'COD' });
+
+    await orderService.transitionOrderStatus(order.orderId, 'PAYMENT_CONFIRMED', 'system');
+
+    const row = await prisma.order.findUniqueOrThrow({ where: { orderId: order.orderId } });
+    expect(row.status).toBe('PAYMENT_CONFIRMED'); // order-level: still unlocks courier eligibility
+
+    const payment = await prisma.payment.findUniqueOrThrow({ where: { orderId: order.orderId } });
+    expect(payment.status).toBe('PENDING');
+    expect(payment.confirmedAt).toBeNull();
+
+    const calls = notificationCallsOfType('ORDER_PAYMENT_CONFIRMED');
+    expect(calls).toHaveLength(0);
   });
 
   it('a CANCELLED transition enqueues ORDER_CANCELLED to the buyer', async () => {

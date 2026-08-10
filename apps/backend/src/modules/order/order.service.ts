@@ -290,6 +290,26 @@ export async function transitionOrderStatus(
       });
     }
 
+    // Entry action — mirrors the COD case above for the online-payment (JAZZCASH/EASYPAISA)
+    // side of the same gap: reaching PAYMENT_CONFIRMED is the payments-row confirmation event
+    // for those methods too. Interim mock-mode wiring (checkout.service.ts calls confirmPayment()
+    // right after the mock PaymentAdapter.charge() call succeeds, since charge() always returns
+    // payments.status=PENDING by design — real confirmation is webhook-driven). The real fix is
+    // an HMAC-verified payment-gateway webhook handler (App Flow §6.7) — Feature 12/16's job.
+    //
+    // Deliberately excludes COD: for COD, reaching PAYMENT_CONFIRMED means "order accepted for
+    // fulfillment" (unlocks courier scoring/booking, both of which gate on this exact status —
+    // see Feature 8's courier-selection-eligibility guard), never "cash received." COD's
+    // actual payment-confirmation event stays the DELIVERED entry action above; the payments row
+    // must stay PENDING here or a COD buyer's payment would show CONFIRMED before the courier
+    // has even been booked.
+    if (targetStatus === 'PAYMENT_CONFIRMED' && order.paymentMethod !== 'COD') {
+      await tx.payment.updateMany({
+        where: { orderId },
+        data: { status: 'CONFIRMED', confirmedAt: new Date() },
+      });
+    }
+
     logger.info({ orderId: orderId.toString(), from: order.status, to: targetStatus, actor }, 'Order status transitioned');
     return order;
   });
@@ -301,8 +321,16 @@ export async function transitionOrderStatus(
   // scattered across every caller (cancelOrder, confirmPayment, Feature 8's bookCourier/poll job).
   // Enqueued only after the transaction commits — a side effect that must never fire for a
   // rolled-back transition, and a failure to enqueue must never fail the transition itself.
+  // COD reaching PAYMENT_CONFIRMED is the fulfillment-eligibility transition (see the entry
+  // action above), not an actual payment event — ORDER_PAYMENT_CONFIRMED's template text
+  // ("Payment confirmed for order #...") would be factually wrong for a COD buyer whose cash
+  // hasn't been collected yet, so this one specific combination is suppressed rather than
+  // sending a misleading notification. No replacement notification is invented for it — ORDER_
+  // PLACED (already sent at checkout) and the courier-tracking notifications that follow cover
+  // the buyer's visibility into what's actually happening.
+  const suppressPaymentConfirmedForCod = targetStatus === 'PAYMENT_CONFIRMED' && committedOrder.paymentMethod === 'COD';
   const eventType = STATUS_NOTIFICATION_EVENTS[targetStatus];
-  if (eventType) {
+  if (eventType && !suppressPaymentConfirmedForCod) {
     await enqueueNotification({
       userId: committedOrder.buyerId.toString(),
       type: eventType,

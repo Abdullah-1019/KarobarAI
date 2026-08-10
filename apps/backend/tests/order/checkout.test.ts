@@ -65,7 +65,12 @@ describe('POST /api/v1/checkout (Task 7 — happy path)', () => {
     expect(order.items).toHaveLength(1);
     expect(order.items[0].titleSnapshot).toBe('Widget');
     expect(order.items[0].quantity).toBe(2);
-    expect(order.paymentStatus).toBe('PENDING');
+    // Interim confirmPayment() gap-closure — a JazzCash/Easypaisa order's payment is confirmed
+    // synchronously within the checkout call itself (mock-mode fix; real confirmation is
+    // webhook-driven, Feature 12/16's job), so the response already reflects CONFIRMED, not the
+    // adapter's raw PENDING charge result.
+    expect(order.paymentStatus).toBe('CONFIRMED');
+    expect(order.status).toBe('PAYMENT_CONFIRMED');
     expect(chargeSpy).toHaveBeenCalledTimes(1);
 
     const productRow = await prisma.product.findUniqueOrThrow({ where: { productId: product.productId } });
@@ -74,8 +79,12 @@ describe('POST /api/v1/checkout (Task 7 — happy path)', () => {
     const orderRow = await prisma.order.findUniqueOrThrow({ where: { publicId: order.id } });
     expect(orderRow.buyerId).toBe(buyer.userId);
     expect(orderRow.sellerId).toBe(seller.userId);
-    expect(orderRow.status).toBe('PAYMENT_PENDING');
+    expect(orderRow.status).toBe('PAYMENT_CONFIRMED');
     expect(Number(orderRow.commissionRateSnapshot)).toBeCloseTo(0.05);
+
+    const paymentRow = await prisma.payment.findUniqueOrThrow({ where: { orderId: orderRow.orderId } });
+    expect(paymentRow.status).toBe('CONFIRMED');
+    expect(paymentRow.confirmedAt).not.toBeNull();
 
     // Cart is cleared of purchased items.
     const cartRes = await request(app).get('/api/v1/cart').set('Authorization', `Bearer ${buyer.accessToken}`);
@@ -87,6 +96,17 @@ describe('POST /api/v1/checkout (Task 7 — happy path)', () => {
     );
     expect(placedCalls).toHaveLength(1);
     expect(placedCalls[0]?.[1]).toMatchObject({ userId: buyer.userId.toString(), orderId: order.id });
+
+    // confirmPayment()'s own two side effects, previously unreachable from any caller: the
+    // courier hand-off enqueue (fixes the courier-recommendation-card gap) and the
+    // ORDER_PAYMENT_CONFIRMED notification.
+    const courierCalls = queueAddSpy.mock.calls.filter((call) => call[0] === 'assign');
+    expect(courierCalls).toHaveLength(1);
+    expect(courierCalls[0]?.[1]).toMatchObject({ orderId: orderRow.orderId.toString() });
+    const paymentConfirmedCalls = queueAddSpy.mock.calls.filter(
+      (call) => call[1] && (call[1] as { type?: string }).type === 'ORDER_PAYMENT_CONFIRMED',
+    );
+    expect(paymentConfirmedCalls).toHaveLength(1);
   });
 
   it('multi-seller checkout: a 2-seller cart splits into exactly 2 orders, each with its own shipping line', async () => {
@@ -108,18 +128,26 @@ describe('POST /api/v1/checkout (Task 7 — happy path)', () => {
     expect(res.body.data.orders).toHaveLength(2);
     for (const order of res.body.data.orders) {
       expect(Number(order.shippingFee)).toBeGreaterThan(0);
+      // Both orders in the batch independently reach PAYMENT_CONFIRMED, not just the first.
+      expect(order.status).toBe('PAYMENT_CONFIRMED');
+      expect(order.paymentStatus).toBe('CONFIRMED');
     }
     expect(chargeSpy).toHaveBeenCalledTimes(2);
 
     const orderRows = await prisma.order.findMany({ where: { buyerId: buyer.userId } });
     expect(orderRows).toHaveLength(2);
     expect(new Set(orderRows.map((o) => o.sellerId))).toEqual(new Set([sellerA.userId, sellerB.userId]));
+    expect(orderRows.every((o) => o.status === 'PAYMENT_CONFIRMED')).toBe(true);
 
     // One ORDER_PLACED per created order, not one per checkout call.
     const placedCalls = queueAddSpy.mock.calls.filter(
       (call) => call[1] && (call[1] as { type?: string }).type === 'ORDER_PLACED',
     );
     expect(placedCalls).toHaveLength(2);
+
+    // Both orders independently trigger the courier hand-off enqueue.
+    const courierCalls = queueAddSpy.mock.calls.filter((call) => call[0] === 'assign');
+    expect(courierCalls).toHaveLength(2);
   });
 
   it('COD checkout: payment row has method=COD, no gateway call made', async () => {
@@ -136,14 +164,33 @@ describe('POST /api/v1/checkout (Task 7 — happy path)', () => {
 
     expect(res.status).toBe(201);
     expect(chargeSpy).not.toHaveBeenCalled();
+    // Option 1 (courier-eligibility gap closure): COD orders now also reach PAYMENT_CONFIRMED at
+    // checkout — courier scoring/booking gates on that status, and there is no PAYMENT_PENDING ->
+    // PROCESSING edge in the state machine, so without this a COD order could never be shipped.
+    // But the *payments row* stays PENDING — cash is only collected at delivery.
+    expect(res.body.data.orders[0].status).toBe('PAYMENT_CONFIRMED');
+    expect(res.body.data.orders[0].paymentStatus).toBe('PENDING');
 
-    const payment = await prisma.payment.findUniqueOrThrow({
-      where: { orderId: (await prisma.order.findFirstOrThrow({ where: { buyerId: buyer.userId } })).orderId },
-    });
+    const orderRow = await prisma.order.findFirstOrThrow({ where: { buyerId: buyer.userId } });
+    expect(orderRow.status).toBe('PAYMENT_CONFIRMED');
+
+    const payment = await prisma.payment.findUniqueOrThrow({ where: { orderId: orderRow.orderId } });
     expect(payment.method).toBe('COD');
     expect(payment.gateway).toBeNull();
     expect(payment.transactionRef).toBeNull();
     expect(payment.status).toBe('PENDING');
+    expect(payment.confirmedAt).toBeNull();
+
+    // The courier hand-off enqueue DOES fire for COD now (that's the whole point) — but the
+    // ORDER_PAYMENT_CONFIRMED notification is suppressed, since "Payment confirmed" would be
+    // false for a COD buyer whose cash hasn't been collected yet.
+    const courierCalls = queueAddSpy.mock.calls.filter((call) => call[0] === 'assign');
+    expect(courierCalls).toHaveLength(1);
+    expect(courierCalls[0]?.[1]).toMatchObject({ orderId: orderRow.orderId.toString() });
+    const paymentConfirmedCalls = queueAddSpy.mock.calls.filter(
+      (call) => call[1] && (call[1] as { type?: string }).type === 'ORDER_PAYMENT_CONFIRMED',
+    );
+    expect(paymentConfirmedCalls).toHaveLength(0);
   });
 
   it('only eligible seller groups become orders — a below-minimum group is excluded, others proceed', async () => {

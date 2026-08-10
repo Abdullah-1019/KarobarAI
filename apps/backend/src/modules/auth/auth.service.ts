@@ -75,6 +75,16 @@ interface ActivatingUser {
   publicId: string;
 }
 
+// Bug fix — platform_config.commission_rate_default (Admin Config Panel, Feature 12) had zero
+// live consumers: SellerProfile.commissionRate's Prisma schema default (0.0500) was always what
+// new sellers actually got, regardless of what the config said. Same duplicated-read pattern
+// already used independently by returns.service.ts/order.service.ts/settlement.service.ts for
+// their own platform_config keys, not a new shared helper.
+async function getDefaultCommissionRate(): Promise<number> {
+  const row = await prisma.platformConfig.findUnique({ where: { configKey: 'commission_rate_default' } });
+  return row ? Number(row.value) : 0.05;
+}
+
 // Flips a PENDING_VERIFICATION account to ACTIVE and creates the role-appropriate profile row.
 //
 // SellerProfile is created here — NOT deferred to the (out-of-scope) store-setup wizard — with a
@@ -83,6 +93,10 @@ interface ActivatingUser {
 // `sellerProfile.onboardingCompletedAt === null` and redirect into the setup wizard rather than
 // the dashboard. Do not treat a placeholder storeName as a "real" store.
 async function activateUser(user: ActivatingUser, role: UserRole): Promise<void> {
+  // Read outside the transaction — this is a rarely-changing admin setting, not something that
+  // needs snapshot-consistent isolation with the user/profile writes below.
+  const commissionRate = role === 'SELLER' ? await getDefaultCommissionRate() : undefined;
+
   await prisma.$transaction(async (tx) => {
     await tx.user.update({ where: { userId: user.userId }, data: { status: 'ACTIVE' } });
 
@@ -100,6 +114,11 @@ async function activateUser(user: ActivatingUser, role: UserRole): Promise<void>
           userId: user.userId,
           storeName: `Seller-${user.publicId.slice(0, 8)}`,
           onboardingStep: 0,
+          // Reads platform_config.commission_rate_default at signup time, not the schema's own
+          // hardcoded 0.0500 — an existing seller's rate is never retroactively changed by a
+          // later config edit (same snapshot-at-creation-time semantics as
+          // orders.commissionRateSnapshot elsewhere in this codebase).
+          commissionRate,
         },
       });
     }

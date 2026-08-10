@@ -17,6 +17,13 @@ beforeEach(async () => {
   (getSmsAdapter as jest.Mock).mockReturnValue({ sendSms: mockSendSms });
 });
 
+afterEach(async () => {
+  // A test below overrides platform_config.commission_rate_default directly (no Admin Config
+  // Panel UI to go through in a test) — restore the seeded default so other test files' own
+  // 0.05-assuming assertions aren't affected (same precedent as tests/admin/config.test.ts).
+  await prisma.platformConfig.update({ where: { configKey: 'commission_rate_default' }, data: { value: 0.05 } });
+});
+
 afterAll(async () => {
   await prisma.$disconnect();
   await redis.quit();
@@ -107,6 +114,25 @@ describe('POST /api/v1/auth/register', () => {
     expect(seller?.onboardingStep).toBe(0);
     expect(seller?.onboardingCompletedAt).toBeNull();
     expect(seller?.storeName).toMatch(/^Seller-/);
+    // Bug fix regression: previously always the Prisma schema's hardcoded 0.0500, regardless of
+    // platform_config.commission_rate_default (matches the seeded default here, so this alone
+    // wouldn't have caught the bug — see the next test for the actual regression check).
+    expect(Number(seller?.commissionRate)).toBeCloseTo(0.05);
+  });
+
+  it("a new seller's commissionRate is sourced from platform_config.commission_rate_default at signup, not the schema's hardcoded default (bug fix)", async () => {
+    await prisma.platformConfig.update({ where: { configKey: 'commission_rate_default' }, data: { value: 0.08 } });
+
+    const res = await request(app).post('/api/v1/auth/register').send({
+      method: 'email',
+      role: 'SELLER',
+      email: 'ratecheck@example.com',
+      password: 'Sup3r$ecret!',
+    });
+    expect(res.status).toBe(201);
+
+    const seller = await prisma.sellerProfile.findFirst();
+    expect(Number(seller?.commissionRate)).toBeCloseTo(0.08);
   });
 
   it('rejects a weak password with 400', async () => {

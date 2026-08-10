@@ -96,6 +96,26 @@ describe('POST /api/v1/seller/products/:id/images (Task 4.2)', () => {
     expect(res.status).toBe(403);
     expect(mockUpload).not.toHaveBeenCalled();
   });
+
+  // Bug fix regression: multer's own fileSize limit (10MB) always rejects a >10MB file before
+  // validateImageFile()'s own Sec-012 check ever runs — core/upload/imageValidation.ts's
+  // arrayImageUpload() now attaches the correct per-route code to that multer-level rejection
+  // directly, rather than falling through to the global errorHandler's old hardcoded
+  // 'AVATAR_TOO_LARGE' (wrong for every route except the avatar one).
+  it('rejects an oversized file with 400 PRODUCT_IMAGE_TOO_LARGE before any storage call is made', async () => {
+    const seller = await createTestUser('SELLER', { onboarded: true });
+    const product = await createTestProduct(seller.userId);
+    const oversized = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(11 * 1024 * 1024, 0)]);
+
+    const res = await request(app)
+      .post(`/api/v1/seller/products/${product.publicId}/images`)
+      .set('Authorization', `Bearer ${seller.accessToken}`)
+      .attach('images', oversized, 'huge.jpg');
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('PRODUCT_IMAGE_TOO_LARGE');
+    expect(mockUpload).not.toHaveBeenCalled();
+  });
 });
 
 describe('DELETE /api/v1/seller/products/:id/images/:imageId (Task 4.3 — re-sequencing)', () => {

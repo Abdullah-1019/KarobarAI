@@ -1,11 +1,11 @@
 import { Router } from 'express';
-import multer from 'multer';
 
 import { authenticate } from '../../core/middleware/authenticate';
 import { authorize } from '../../core/middleware/authorize';
 import { optionalAuthenticate } from '../../core/middleware/optionalAuthenticate';
 import { requireActiveSeller } from '../../core/middleware/requireActiveSeller';
 import { validateBody, validateQuery } from '../../core/middleware/validate';
+import { arrayImageUpload } from '../../core/upload/imageValidation';
 import {
   autocompleteHandler,
   createProductHandler,
@@ -31,8 +31,6 @@ import {
   updateProductSchema,
 } from './catalog.dto';
 import { getCategoryBySlugHandler, getHomeFeedHandler } from './marketplace.controller';
-
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024, files: 10 } });
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Public router — no authenticate requirement. Dual-visibility model (Task 1): Guest/Buyer/
@@ -289,7 +287,7 @@ sellerProductRouter.delete('/:productId', deleteProductHandler);
  *       200:
  *         description: Updated ProductDetailDTO with the new image(s)
  */
-sellerProductRouter.post('/:productId/images', upload.array('images', 10), uploadProductImagesHandler);
+sellerProductRouter.post('/:productId/images', arrayImageUpload('images', 10, 'PRODUCT_IMAGE_TOO_LARGE'), uploadProductImagesHandler);
 
 /**
  * @swagger

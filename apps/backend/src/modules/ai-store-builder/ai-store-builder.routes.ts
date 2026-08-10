@@ -1,14 +1,12 @@
 import { Router } from 'express';
-import multer from 'multer';
 
 import { authenticate } from '../../core/middleware/authenticate';
 import { authorize } from '../../core/middleware/authorize';
 import { requireActiveSeller } from '../../core/middleware/requireActiveSeller';
 import { validateBody } from '../../core/middleware/validate';
+import { arrayImageUpload } from '../../core/upload/imageValidation';
 import { aiGenerateRequestSchema, aiSaveProductSchema } from './ai-store-builder.dto';
 import { generateDraftHandler, saveProductHandler, uploadStagingImagesHandler } from './ai-store-builder.controller';
-
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024, files: 10 } });
 
 // Task 1.6/3.4 — authenticate -> authorize(SELLER) -> requireActiveSeller (Feature 3's Store-
 // Setup-Wizard-completion guard, reused verbatim from catalog.routes.ts's identical chain) —
@@ -27,7 +25,7 @@ aiStoreBuilderRouter.use(authenticate, authorize('SELLER'), requireActiveSeller)
  *       201:
  *         description: "AiStagingUploadDTO — {stagingId, images: [{cdnUrl, position}]}"
  */
-aiStoreBuilderRouter.post('/upload', upload.array('images', 10), uploadStagingImagesHandler);
+aiStoreBuilderRouter.post('/upload', arrayImageUpload('images', 10, 'PRODUCT_IMAGE_TOO_LARGE'), uploadStagingImagesHandler);
 
 /**
  * @swagger

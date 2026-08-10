@@ -69,6 +69,25 @@ describe('POST /api/v1/returns/:id/images (Task 3.1/3.2)', () => {
     expect(res.body.error.code).toBe('RETURN_IMAGE_INVALID_FILE');
   });
 
+  // Bug fix regression: multer's own fileSize limit (10MB) always rejects a >10MB file before
+  // validateImageFile()'s own Sec-012 check ever runs — core/upload/imageValidation.ts's
+  // arrayImageUpload() now attaches the correct per-route code to that multer-level rejection
+  // directly, rather than falling through to the global errorHandler's old hardcoded
+  // 'AVATAR_TOO_LARGE' (wrong for every route except the avatar one).
+  it('rejects an oversized file with 400 RETURN_IMAGE_TOO_LARGE before any storage call is made', async () => {
+    const { buyer, ret } = await createReturnFixture();
+    const oversized = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(11 * 1024 * 1024, 0)]);
+
+    const res = await request(app)
+      .post(`/api/v1/returns/${ret.returnId}/images`)
+      .set('Authorization', `Bearer ${buyer.accessToken}`)
+      .attach('images', oversized, 'huge.jpg');
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('RETURN_IMAGE_TOO_LARGE');
+    expect(mockUpload).not.toHaveBeenCalled();
+  });
+
   it('rejects uploads once the return is no longer INITIATED with 422 RETURN_INVALID_STATE', async () => {
     const { buyer, ret } = await createReturnFixture();
     await prisma.return.update({ where: { returnId: ret.returnId }, data: { status: 'MANUAL_REVIEW' } });

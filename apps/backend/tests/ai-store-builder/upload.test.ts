@@ -69,14 +69,11 @@ describe('POST /api/v1/products/ai-generate/upload (Task 2)', () => {
   });
 
   // multer's own configured limits.fileSize (10MB, matching IMAGE_MAX_BYTES exactly) always
-  // rejects a >10MB multipart file before it reaches our validateImageFile() Sec-012 check —
-  // it never gets the chance to return PRODUCT_IMAGE_TOO_LARGE. The resulting MulterError is
-  // caught by core/middleware/errorHandler.ts's generic LIMIT_FILE_SIZE branch, which hardcodes
-  // 'AVATAR_TOO_LARGE' regardless of which route triggered it — a pre-existing, cross-feature
-  // imprecision (catalog's own product-image upload tests never exercise this path either, for
-  // the same reason), not something introduced or fixed by this feature. What still matters and
-  // is asserted here: the file never reaches storage.
-  it('rejects an oversized file before any storage call is made', async () => {
+  // rejects a >10MB multipart file before it reaches our validateImageFile() Sec-012 check — but
+  // core/upload/imageValidation.ts's arrayImageUpload() now attaches the correct per-route code
+  // to multer's own LIMIT_FILE_SIZE rejection (bug fix: this used to fall through to the global
+  // errorHandler's hardcoded 'AVATAR_TOO_LARGE', wrong for every route except the avatar one).
+  it('rejects an oversized file with 400 PRODUCT_IMAGE_TOO_LARGE before any storage call is made', async () => {
     const seller = await createTestUser('SELLER', { onboarded: true });
     const oversized = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(11 * 1024 * 1024, 0)]);
 
@@ -86,6 +83,7 @@ describe('POST /api/v1/products/ai-generate/upload (Task 2)', () => {
       .attach('images', oversized, 'huge.jpg');
 
     expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('PRODUCT_IMAGE_TOO_LARGE');
     expect(mockUpload).not.toHaveBeenCalled();
   });
 

@@ -1,9 +1,9 @@
 import { Router } from 'express';
-import multer from 'multer';
 
 import { authenticate } from '../../core/middleware/authenticate';
 import { authorize } from '../../core/middleware/authorize';
 import { validateBody } from '../../core/middleware/validate';
+import { singleImageUpload } from '../../core/upload/imageValidation';
 import {
   changePasswordHandler,
   createStoreHandler,
@@ -27,13 +27,6 @@ import {
   updateSellerProfileSchema,
   updateSettingsSchema,
 } from './profile.dto';
-
-// 10MB ceiling (profile.service.ts's AVATAR_MAX_BYTES) — rejected here by multer before the
-// buffer is even fully read, not just re-checked in the service.
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 },
-});
 
 export const profileRouter = Router();
 
@@ -174,7 +167,7 @@ profileRouter.post('/me/store', authorize('SELLER'), validateBody(createStoreSch
 profileRouter.post(
   '/me/store/logo',
   authorize('SELLER'),
-  upload.single('logo'),
+  singleImageUpload('logo', 'STORE_IMAGE_TOO_LARGE'),
   uploadStoreLogoHandler,
 );
 
@@ -214,7 +207,7 @@ profileRouter.delete('/me/store/logo', authorize('SELLER'), removeStoreLogoHandl
 profileRouter.post(
   '/me/store/banner',
   authorize('SELLER'),
-  upload.single('banner'),
+  singleImageUpload('banner', 'STORE_IMAGE_TOO_LARGE'),
   uploadStoreBannerHandler,
 );
 
@@ -265,7 +258,7 @@ profileRouter.get('/me/store/status', authorize('SELLER'), getStoreStatusHandler
  *       400:
  *         description: File too large (AVATAR_TOO_LARGE) or not a valid JPEG/PNG/WEBP (AVATAR_INVALID_FILE)
  */
-profileRouter.post('/me/avatar', upload.single('avatar'), uploadAvatarHandler);
+profileRouter.post('/me/avatar', singleImageUpload('avatar', 'AVATAR_TOO_LARGE'), uploadAvatarHandler);
 
 /**
  * @swagger

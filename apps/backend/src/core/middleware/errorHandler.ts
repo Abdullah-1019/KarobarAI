@@ -34,13 +34,14 @@ export function errorHandler(err: unknown, req: Request, res: Response, _next: N
 
   // multer throws its own error class (not an AppError) when a multipart upload violates its
   // configured limits — same class of gap as the body-parser JSON case above: a client mistake,
-  // not a server fault.
+  // not a server fault. Every real upload route now goes through core/upload/imageValidation.ts's
+  // singleImageUpload()/arrayImageUpload() factories, which already translate LIMIT_FILE_SIZE
+  // into the correct per-route AppError (e.g. PRODUCT_IMAGE_TOO_LARGE) before it ever reaches
+  // here — this branch is a defensive fallback only (bug fix: it used to hardcode
+  // 'AVATAR_TOO_LARGE' for every route's oversized-file error, which was wrong everywhere except
+  // the one route actually about avatars; see imageValidation.ts's comment for the full story).
   if (err instanceof MulterError) {
     logger.warn({ code: err.code, path: req.path }, err.message);
-    if (err.code === 'LIMIT_FILE_SIZE') {
-      res.status(400).json(fail('AVATAR_TOO_LARGE', 'File is too large (max 10MB)'));
-      return;
-    }
     res.status(400).json(fail('VALIDATION_ERROR', err.message));
     return;
   }

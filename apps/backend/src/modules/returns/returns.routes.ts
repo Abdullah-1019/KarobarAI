@@ -1,9 +1,9 @@
 import { Router } from 'express';
-import multer from 'multer';
 
 import { authenticate } from '../../core/middleware/authenticate';
 import { authorize } from '../../core/middleware/authorize';
 import { validateBody, validateQuery } from '../../core/middleware/validate';
+import { arrayImageUpload } from '../../core/upload/imageValidation';
 import { createReturnSchema, listReturnsQuerySchema } from './returns.dto';
 import {
   appealReturnHandler,
@@ -14,8 +14,6 @@ import {
   submitReturnHandler,
   uploadReturnImagesHandler,
 } from './returns.controller';
-
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024, files: 10 } });
 
 // Task 1.4 — always authenticated (no guest access); GET /:id is reachable by any authenticated
 // role (tri-mode ownership checked inside the service, mirroring Feature 7's Order Detail
@@ -95,7 +93,7 @@ returnsRouter.get('/:id', getReturnDetailHandler);
  *       422:
  *         description: Return is no longer INITIATED (RETURN_INVALID_STATE)
  */
-returnsRouter.post('/:id/images', authorize('BUYER'), upload.array('images', 10), uploadReturnImagesHandler);
+returnsRouter.post('/:id/images', authorize('BUYER'), arrayImageUpload('images', 10, 'RETURN_IMAGE_TOO_LARGE'), uploadReturnImagesHandler);
 
 /**
  * @swagger

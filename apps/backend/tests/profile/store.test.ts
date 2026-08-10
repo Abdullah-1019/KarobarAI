@@ -191,6 +191,25 @@ describe('POST/DELETE /api/v1/profile/me/store/logo', () => {
     expect(mockUpload).not.toHaveBeenCalled();
   });
 
+  // Bug fix regression: multer's own fileSize limit (10MB) always rejects a >10MB file before
+  // validateImageFile()'s own Sec-012 check ever runs — core/upload/imageValidation.ts's
+  // singleImageUpload() now attaches the correct per-route code to that multer-level rejection
+  // directly, rather than falling through to the global errorHandler's old hardcoded
+  // 'AVATAR_TOO_LARGE' (wrong for every route except the avatar one).
+  it('rejects an oversized logo with 400 STORE_IMAGE_TOO_LARGE before any storage call is made', async () => {
+    const seller = await createTestUser('SELLER', { onboarded: true });
+    const oversized = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(11 * 1024 * 1024, 0)]);
+
+    const res = await request(app)
+      .post('/api/v1/profile/me/store/logo')
+      .set('Authorization', `Bearer ${seller.accessToken}`)
+      .attach('logo', oversized, 'huge.jpg');
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('STORE_IMAGE_TOO_LARGE');
+    expect(mockUpload).not.toHaveBeenCalled();
+  });
+
   it('removes the logo and best-effort deletes the previously stored object', async () => {
     const seller = await createTestUser('SELLER', { onboarded: true });
     const previousUrl = `${config.storage.publicBaseUrl}/${config.storage.bucket}/store-logos/x/old.jpg`;

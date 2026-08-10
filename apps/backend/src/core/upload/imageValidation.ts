@@ -1,3 +1,6 @@
+import type { NextFunction, Request, RequestHandler, Response } from 'express';
+import multer, { MulterError } from 'multer';
+
 import { config } from '../config';
 import { ValidationError } from '../errors/AppError';
 
@@ -46,4 +49,44 @@ export function validateImageFile(
 export function extractStorageKey(url: string): string | null {
   const prefix = `${config.storage.publicBaseUrl}/${config.storage.bucket}/`;
   return url.startsWith(prefix) ? url.slice(prefix.length) : null;
+}
+
+// Bug fix (flagged twice, never fixed): every multer instance in the codebase capped `fileSize`
+// at this exact same IMAGE_MAX_BYTES value that validateImageFile() above also checks — so
+// multer's own limit always rejected an oversized file first, before the request body ever
+// reached a route handler and validateImageFile() got a chance to throw the correct per-feature
+// code. The MulterError landed in the global errorHandler instead, which had no way to know
+// which feature's route triggered it and hardcoded 'AVATAR_TOO_LARGE' for every case (correct
+// only for the one route that's actually about avatars). Every other route's oversized-file
+// error carried the wrong code — cosmetic (the 400 status was always correct), but misleading.
+//
+// Fixed by attaching the correct code to multer itself, at the exact call site that already
+// knows it (every route already passes the right code to validateImageFile() a few lines below
+// where it mounts multer — this reuses that same code, not a new one). The errorHandler's
+// generic MulterError branch (core/middleware/errorHandler.ts) is now a pure defensive fallback
+// for anything that isn't routed through these two factories, not the primary path.
+const baseImageUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: IMAGE_MAX_BYTES, files: 10 } });
+
+// Multer's returned middleware is a plain (req, res, next) function — calling it directly
+// (instead of handing it to Express's own dispatch) lets us supply our own `next`-shaped
+// callback and intercept the LIMIT_FILE_SIZE case before Express's error-handling chain ever
+// sees it.
+function withTooLargeCode(middleware: RequestHandler, tooLargeCode: string): RequestHandler {
+  return (req: Request, res: Response, next: NextFunction) => {
+    middleware(req, res, (err?: unknown) => {
+      if (err instanceof MulterError && err.code === 'LIMIT_FILE_SIZE') {
+        next(new ValidationError('Image file is too large (max 10MB)', undefined, tooLargeCode));
+        return;
+      }
+      next(err);
+    });
+  };
+}
+
+export function singleImageUpload(field: string, tooLargeCode: string): RequestHandler {
+  return withTooLargeCode(baseImageUpload.single(field), tooLargeCode);
+}
+
+export function arrayImageUpload(field: string, maxCount: number, tooLargeCode: string): RequestHandler {
+  return withTooLargeCode(baseImageUpload.array(field, maxCount), tooLargeCode);
 }

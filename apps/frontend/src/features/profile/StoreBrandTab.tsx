@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, Button, Input, Typography } from 'antd';
+import { Alert, Button, Card, Input, Typography } from 'antd';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
@@ -51,10 +51,10 @@ export function StoreBrandTab({ profile }: StoreBrandTabProps) {
   }
 
   return (
-    <div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-6)' }}>
       <BusinessInfoSection profile={profile} />
-      <div style={{ marginTop: 32 }}>
-        <Typography.Title level={5}>{t('profile:storeBrand.logoLabel')}</Typography.Title>
+
+      <Card title={t('profile:storeBrand.logoLabel')}>
         <ImageUploader
           shape="circle"
           value={profile.logoUrl}
@@ -65,10 +65,9 @@ export function StoreBrandTab({ profile }: StoreBrandTabProps) {
           onSuccess={(result: ProfileDTO) => queryClient.setQueryData<ProfileDTO>(PROFILE_QUERY_KEY, result)}
           formatError={(err) => formatProfileError(t, err)}
         />
-      </div>
+      </Card>
 
-      <div style={{ marginTop: 24 }}>
-        <Typography.Title level={5}>{t('profile:storeBrand.bannerLabel')}</Typography.Title>
+      <Card title={t('profile:storeBrand.bannerLabel')}>
         <ImageUploader
           shape="rect"
           value={profile.bannerUrl}
@@ -79,7 +78,7 @@ export function StoreBrandTab({ profile }: StoreBrandTabProps) {
           onSuccess={(result: ProfileDTO) => queryClient.setQueryData<ProfileDTO>(PROFILE_QUERY_KEY, result)}
           formatError={(err) => formatProfileError(t, err)}
         />
-      </div>
+      </Card>
 
       <StoreStatusSection />
     </div>
@@ -136,31 +135,51 @@ function BusinessInfoSection({ profile }: StoreBrandTabProps) {
   });
 
   return (
-    <div>
-      <Typography.Title level={5}>{t('profile:storeBrand.businessInfoTitle')}</Typography.Title>
-
-      {submitError && <Alert type="error" message={submitError} showIcon style={{ marginBottom: 16 }} />}
+    <Card title={t('profile:storeBrand.businessInfoTitle')}>
+      {submitError && <Alert type="error" message={submitError} showIcon style={{ marginBottom: 'var(--sp-4)' }} />}
 
       <form onSubmit={onSubmit}>
-        <div style={{ marginBottom: 16, maxWidth: 480 }}>
-          <label>{t('profile:view.storeName')}</label>
+        <div style={{ marginBottom: 'var(--sp-4)', maxWidth: 480 }}>
+          <label htmlFor="store-brand-name">{t('profile:view.storeName')}</label>
           <Controller
             name="storeName"
             control={control}
-            render={({ field }) => <Input {...field} size="large" />}
+            render={({ field }) => (
+              <Input
+                {...field}
+                id="store-brand-name"
+                size="large"
+                aria-invalid={!!errors.storeName}
+                aria-describedby={errors.storeName ? 'store-brand-name-error' : undefined}
+              />
+            )}
           />
-          {errors.storeName && <Typography.Text type="danger">{errors.storeName.message}</Typography.Text>}
+          {errors.storeName && (
+            <Typography.Text id="store-brand-name-error" type="danger">
+              {errors.storeName.message}
+            </Typography.Text>
+          )}
         </div>
 
-        <div style={{ marginBottom: 16, maxWidth: 480 }}>
-          <label>{t('profile:view.storeDescription')}</label>
+        <div style={{ marginBottom: 'var(--sp-4)', maxWidth: 480 }}>
+          <label htmlFor="store-brand-description">{t('profile:view.storeDescription')}</label>
           <Controller
             name="storeDescription"
             control={control}
-            render={({ field }) => <Input.TextArea {...field} rows={4} />}
+            render={({ field }) => (
+              <Input.TextArea
+                {...field}
+                id="store-brand-description"
+                rows={4}
+                aria-invalid={!!errors.storeDescription}
+                aria-describedby={errors.storeDescription ? 'store-brand-description-error' : undefined}
+              />
+            )}
           />
           {errors.storeDescription && (
-            <Typography.Text type="danger">{errors.storeDescription.message}</Typography.Text>
+            <Typography.Text id="store-brand-description-error" type="danger">
+              {errors.storeDescription.message}
+            </Typography.Text>
           )}
         </div>
 
@@ -168,7 +187,7 @@ function BusinessInfoSection({ profile }: StoreBrandTabProps) {
           {t('profile:storeBrand.saveBusinessInfo')}
         </Button>
       </form>
-    </div>
+    </Card>
   );
 }
 
@@ -180,19 +199,18 @@ function StoreStatusSection() {
   });
 
   return (
-    <div style={{ marginTop: 32 }}>
-      <Typography.Title level={5}>{t('profile:storeBrand.statusTitle')}</Typography.Title>
+    <Card title={t('profile:storeBrand.statusTitle')}>
       {isPending && <Typography.Text type="secondary">…</Typography.Text>}
       {isError && <Typography.Text type="danger">{t('profile:errors.GENERIC')}</Typography.Text>}
       {status && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
           <StatusChip status={status.status} />
           <Typography.Text type="secondary">
             {t('profile:storeBrand.statusSince', { date: new Date(status.since).toLocaleDateString() })}
           </Typography.Text>
         </div>
       )}
-    </div>
+    </Card>
   );
 }
 

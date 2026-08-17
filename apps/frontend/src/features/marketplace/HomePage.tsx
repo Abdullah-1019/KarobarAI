@@ -1,62 +1,48 @@
-import { Alert, Button, Typography } from 'antd';
+import { Alert } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router-dom';
 
-import { SkeletonLoader } from '../../components';
-import { useAuthStore } from '../../lib/authStore';
+import { SectionHeader } from '../../components';
+import { ProductGridSkeleton } from './ProductGridSkeleton';
 import { CategoryGrid } from './CategoryGrid';
-import { ProductCard } from './ProductCard';
+import { ProductGrid } from './ProductGrid';
 import { HOME_FEED_QUERY_KEY, getHomeFeed } from './marketplaceApi';
 import { formatMarketplaceError } from './marketplaceErrors';
 
 // SCR-B01 — entry + discovery. Identical content for Guest and authenticated Buyer (no
-// personalization in MVP scope, per F5-marketplace-backend.md's Known limitations).
+// personalization in MVP scope, per F5-marketplace-backend.md's Known limitations). No outer
+// max-width/padding wrapper — AppShell's shared content area (Phase C) already provides both, so
+// this page uses the full width it's given rather than a second, narrower, redundant container.
+//
+// The guest login/register CTA previously duplicated here (a second pair of buttons stacked
+// directly under the header) was removed — AppHeader's own `guestActions` slot (StorefrontLayout)
+// already renders the identical pair; this page doesn't need its own copy.
 export function HomePage() {
   const { t } = useTranslation(['marketplace']);
-  const user = useAuthStore((s) => s.user);
 
   const { data, isPending, isError, error } = useQuery({ queryKey: HOME_FEED_QUERY_KEY, queryFn: getHomeFeed });
 
   return (
-    <div style={{ maxWidth: 1080, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
-      {!user && (
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 16 }}>
-          <Link to="/login">
-            <Button>{t('home.loginCta')}</Button>
-          </Link>
-          <Link to="/register">
-            <Button type="primary">{t('home.registerCta')}</Button>
-          </Link>
-        </div>
+    <div>
+      {isPending && (
+        <>
+          <ProductGridSkeleton count={8} variant="category" />
+          <ProductGridSkeleton count={6} style={{ marginTop: 'var(--sp-8)' }} />
+        </>
       )}
-
-      {isPending && <SkeletonLoader rows={6} />}
 
       {isError && <Alert type="error" showIcon message={formatMarketplaceError(t, error)} />}
 
       {data && (
         <>
-          <Typography.Title level={4}>{t('home.browseCategories')}</Typography.Title>
+          <SectionHeader title={t('home.browseCategories')} />
           <CategoryGrid categories={data.categories} />
 
-          <Typography.Title level={4} style={{ marginTop: 32 }}>
-            {t('home.featuredTitle')}
-          </Typography.Title>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 16 }}>
-            {data.featured.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
+          <SectionHeader title={t('home.featuredTitle')} style={{ marginTop: 'var(--sp-10)' }} />
+          <ProductGrid products={data.featured} />
 
-          <Typography.Title level={4} style={{ marginTop: 32 }}>
-            {t('home.newArrivalsTitle')}
-          </Typography.Title>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 16 }}>
-            {data.newArrivals.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
+          <SectionHeader title={t('home.newArrivalsTitle')} style={{ marginTop: 'var(--sp-10)' }} />
+          <ProductGrid products={data.newArrivals} />
         </>
       )}
     </div>

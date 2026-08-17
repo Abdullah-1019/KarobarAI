@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { Alert, Button, Drawer, Empty, Input, Select, Space, Table, Tag, Typography } from 'antd';
+import { Alert, Button, Drawer, Input, Select, Space, Table, Typography } from 'antd';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
-import type { AdminUserListItemDTO } from '@karobarai/shared';
-import { Modal, SkeletonLoader, toast } from '../../components';
+import type { AdminUserListItemDTO, UserStatus } from '@karobarai/shared';
+import { EmptyState, Modal, SkeletonLoader, StatusTag, type StatusVariant, toast } from '../../components';
 import { useAuthStore } from '../../lib/authStore';
 import {
   adminUserDetailQueryKey,
@@ -18,12 +18,17 @@ import {
 } from './adminApi';
 import { formatAdminError } from './adminErrors';
 
-const STATUS_COLOR: Record<string, string> = {
-  PENDING_VERIFICATION: 'default',
-  ACTIVE: 'green',
-  SUSPENDED: 'gold',
-  BANNED: 'red',
-  DEACTIVATED: 'default',
+// Mirrors components/StatusChip.tsx's variant mapping for the same UserStatus enum — but this
+// screen uses admin:userDetail.status.* labels (e.g. plain "Suspended"), not StatusChip's
+// profile:status.* wording ("Suspended — contact support", written for the account owner, not an
+// admin reviewing someone else's account) — so it renders StatusTag directly with the correct
+// label instead of reusing StatusChip verbatim.
+const USER_STATUS_VARIANT: Record<UserStatus, StatusVariant> = {
+  PENDING_VERIFICATION: 'warning',
+  ACTIVE: 'success',
+  SUSPENDED: 'error',
+  BANNED: 'error',
+  DEACTIVATED: 'neutral',
 };
 
 type PendingAction = { type: 'suspend' | 'ban' | 'reactivate'; userId: string } | null;
@@ -83,7 +88,7 @@ export function UserManagementPage() {
       title: t('userDetail.columnStatus'),
       dataIndex: 'status',
       key: 'status',
-      render: (s: string) => <Tag color={STATUS_COLOR[s]}>{t(`userDetail.status.${s}`)}</Tag>,
+      render: (s: UserStatus) => <StatusTag variant={USER_STATUS_VARIANT[s]} label={t(`userDetail.status.${s}`)} />,
     },
     { title: t('userDetail.columnEmail'), dataIndex: 'email', key: 'email', render: (v: string | null) => v ?? '—' },
     { title: t('userDetail.columnPhone'), dataIndex: 'phone', key: 'phone', render: (v: string | null) => v ?? '—' },
@@ -108,10 +113,12 @@ export function UserManagementPage() {
   const isPlaceholder = reason.trim().length === 0 && pendingAction?.type !== 'reactivate';
 
   return (
-    <div style={{ maxWidth: 1100, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
-      <Typography.Title level={3}>{t('userDetail.title')}</Typography.Title>
+    <div>
+      <Typography.Title level={3} style={{ marginBottom: 'var(--sp-4)' }}>
+        {t('userDetail.title')}
+      </Typography.Title>
 
-      <Space style={{ marginBottom: 16 }} wrap>
+      <Space style={{ marginBottom: 'var(--sp-4)' }} wrap>
         <Select
           allowClear
           placeholder={t('userDetail.filterRole')}
@@ -141,12 +148,12 @@ export function UserManagementPage() {
 
       {isPending && <SkeletonLoader rows={4} />}
       {isError && <Alert type="error" showIcon message={formatAdminError(t, error)} />}
-      {!isPending && !isError && items.length === 0 && <Empty description={t('userDetail.empty')} />}
+      {!isPending && !isError && items.length === 0 && <EmptyState title={t('userDetail.empty')} />}
       {!isPending && !isError && items.length > 0 && (
         <>
           <Table rowKey="id" columns={columns} dataSource={items} pagination={false} size="middle" />
           {hasNextPage && (
-            <div style={{ textAlign: 'center', marginTop: 16 }}>
+            <div style={{ textAlign: 'center', marginTop: 'var(--sp-4)' }}>
               <Button loading={isFetchingNextPage} onClick={() => fetchNextPage()}>
                 {t('userDetail.loadMore')}
               </Button>
@@ -167,7 +174,10 @@ export function UserManagementPage() {
             <div>
               <Typography.Text type="secondary">{t('userDetail.columnStatus')}</Typography.Text>
               <div>
-                <Tag color={STATUS_COLOR[detail.data.status]}>{t(`userDetail.status.${detail.data.status}`)}</Tag>
+                <StatusTag
+                  variant={USER_STATUS_VARIANT[detail.data.status as UserStatus]}
+                  label={t(`userDetail.status.${detail.data.status}`)}
+                />
               </div>
             </div>
             {detail.data.email && (
@@ -212,7 +222,7 @@ export function UserManagementPage() {
             </div>
 
             {isAdmin ? (
-              <Space style={{ marginTop: 16 }} wrap>
+              <Space style={{ marginTop: 'var(--sp-4)' }} wrap>
                 {detail.data.status !== 'SUSPENDED' && detail.data.status !== 'BANNED' && (
                   <Button onClick={() => setPendingAction({ type: 'suspend', userId: detail.data.id })}>
                     {t('userDetail.suspend')}
@@ -230,7 +240,7 @@ export function UserManagementPage() {
                 )}
               </Space>
             ) : (
-              <Alert style={{ marginTop: 16 }} type="info" message={t('supportReadOnly')} />
+              <Alert style={{ marginTop: 'var(--sp-4)' }} type="info" message={t('supportReadOnly')} />
             )}
           </Space>
         )}

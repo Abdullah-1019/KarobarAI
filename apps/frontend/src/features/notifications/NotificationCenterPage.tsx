@@ -1,18 +1,24 @@
-import { Alert, Button, Empty, List, Typography } from 'antd';
+import { Alert, Button, List, Typography } from 'antd';
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
 import type { NotificationDTO } from '@karobarai/shared';
-import { SkeletonLoader } from '../../components';
+import { BackLink, EmptyState, SkeletonLoader } from '../../components';
 import { useAuthStore } from '../../lib/authStore';
 import { listNotifications, markAsRead, notificationsQueryKey, unreadCountQueryKey } from './notificationsApi';
 import { formatNotificationsError } from './notificationsErrors';
 
+const ROLE_HOME: Record<string, string> = { SELLER: '/seller', ADMIN: '/admin', SUPPORT: '/admin' };
+
 // Personal, ownership-scoped list (no guest access, no role branching in the API) — same
-// useInfiniteQuery + "Load more" pattern as features/orders/OrderListPage.tsx.
+// useInfiniteQuery + "Load more" pattern as features/orders/OrderListPage.tsx. Not nested under
+// any of the three role AppShells (Phase C) — reachable by any authenticated role from the bell
+// icon, so there's no single natural shell to put it in. That's a Phase C-level navigation
+// question, out of scope here; the BackLink below is the minimum fix so this page isn't a dead
+// end with literally no way back except the browser's own back button.
 export function NotificationCenterPage() {
-  const { t } = useTranslation(['notifications']);
+  const { t } = useTranslation(['notifications', 'common']);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const user = useAuthStore((s) => s.user);
@@ -58,14 +64,17 @@ export function NotificationCenterPage() {
   }
 
   return (
-    <div style={{ maxWidth: 720, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
-      <Typography.Title level={3}>{t('center.title')}</Typography.Title>
+    <div style={{ maxWidth: 720, margin: '0 auto', padding: 'var(--sp-6)' }}>
+      <BackLink to={user ? (ROLE_HOME[user.role] ?? '/') : '/'} label={t('common:nav.home')} />
+      <Typography.Title level={3} style={{ marginTop: 'var(--sp-2)', marginBottom: 'var(--sp-4)' }}>
+        {t('center.title')}
+      </Typography.Title>
 
       {isPending && <SkeletonLoader rows={4} />}
 
       {isError && <Alert type="error" showIcon message={formatNotificationsError(t, error)} />}
 
-      {!isPending && !isError && items.length === 0 && <Empty description={t('center.empty')} />}
+      {!isPending && !isError && items.length === 0 && <EmptyState title={t('center.empty')} />}
 
       {!isPending && !isError && items.length > 0 && (
         <>
@@ -74,7 +83,7 @@ export function NotificationCenterPage() {
             renderItem={(item) => (
               <List.Item
                 onClick={() => handleItemClick(item)}
-                style={{ cursor: 'pointer', padding: '12px 8px' }}
+                style={{ cursor: 'pointer', padding: 'var(--sp-3) var(--sp-2)' }}
               >
                 <List.Item.Meta
                   title={
@@ -86,7 +95,7 @@ export function NotificationCenterPage() {
             )}
           />
           {hasNextPage && (
-            <div style={{ textAlign: 'center', marginTop: 16 }}>
+            <div style={{ textAlign: 'center', marginTop: 'var(--sp-4)' }}>
               <Button loading={isFetchingNextPage} onClick={() => fetchNextPage()}>
                 {t('center.loadMore')}
               </Button>

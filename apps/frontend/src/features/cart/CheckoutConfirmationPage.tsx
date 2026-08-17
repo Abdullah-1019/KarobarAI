@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import type { CreatedOrderDTO } from '@karobarai/shared';
+import { PriceDisplay } from '../../components';
 
 interface ConfirmationState {
   orders: CreatedOrderDTO[];
@@ -29,20 +30,22 @@ export function CheckoutConfirmationPage() {
   }
 
   return (
-    <div style={{ maxWidth: 640, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
-      <Typography.Title level={3}>{t('confirmation.title')}</Typography.Title>
+    <div style={{ maxWidth: 640, margin: '0 auto' }}>
+      <Typography.Title level={3} style={{ marginBottom: 'var(--sp-5)' }}>
+        {t('confirmation.title')}
+      </Typography.Title>
 
       {state.orders.map((order) => (
-        <Card key={order.id} style={{ marginBottom: 16 }} title={t('confirmation.orderNumber', { id: order.id })}>
+        <Card key={order.id} style={{ marginBottom: 'var(--sp-4)' }} title={t('confirmation.orderNumber', { id: order.id })}>
           <Typography.Text>{order.storeName}</Typography.Text>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
-            <span>{order.items.length} item(s)</span>
-            <span>Rs. {Number(order.totalAmount).toLocaleString()}</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 'var(--sp-2)' }}>
+            <Typography.Text type="secondary">{order.items.length} item(s)</Typography.Text>
+            <PriceDisplay amount={order.totalAmount} />
           </div>
         </Card>
       ))}
 
-      <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
+      <div style={{ display: 'flex', gap: 'var(--sp-3)', marginTop: 'var(--sp-6)' }}>
         <Link to="/orders">
           <Button type="primary">{t('confirmation.viewOrders')}</Button>
         </Link>

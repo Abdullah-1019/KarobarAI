@@ -51,12 +51,12 @@ export function AvatarUpload({ avatarUrl }: AvatarUploadProps) {
   }
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-4)' }}>
       <Avatar size={72} src={avatarUrl ?? undefined}>
         {!avatarUrl && t('profile:avatar.initialsFallback')}
       </Avatar>
       <div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 'var(--sp-2)' }}>
           <Button size="small" loading={busy} onClick={() => fileInputRef.current?.click()}>
             {t('profile:avatar.upload')}
           </Button>
@@ -74,7 +74,7 @@ export function AvatarUpload({ avatarUrl }: AvatarUploadProps) {
           onChange={handleFileChange}
         />
         {error && (
-          <Alert type="error" message={error} showIcon style={{ marginTop: 8, maxWidth: 320 }} />
+          <Alert type="error" message={error} showIcon style={{ marginTop: 'var(--sp-2)', maxWidth: 320 }} />
         )}
       </div>
     </div>

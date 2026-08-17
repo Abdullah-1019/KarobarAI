@@ -28,7 +28,7 @@ export function SalesTrendChart({ rangeParams }: { rangeParams: AnalyticsRangePa
             <XAxis dataKey="date" />
             <YAxis />
             <Tooltip formatter={(value: number) => [`Rs. ${value.toLocaleString()}`, t('salesTrend.revenueLabel')]} />
-            <Line type="monotone" dataKey="revenue" stroke="var(--chart-1, #1677ff)" strokeWidth={2} dot={false} />
+            <Line type="monotone" dataKey="revenue" stroke="var(--chart-1)" strokeWidth={2} dot={false} />
           </LineChart>
         </ResponsiveContainer>
       )}

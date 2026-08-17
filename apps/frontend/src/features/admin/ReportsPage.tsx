@@ -1,19 +1,19 @@
 import { useState } from 'react';
-import { Alert, Card, Segmented, Space, Table, Tag, Typography } from 'antd';
+import { Alert, Card, Segmented, Space, Table, Typography } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 import type { SellerFraudFlag, SellerPerformanceItemDTO } from '@karobarai/shared';
-import { SkeletonLoader } from '../../components';
+import { PriceDisplay, SkeletonLoader, StatusTag, type StatusVariant } from '../../components';
 import { DateRangeFilter, toRangeParams, type RangePreset } from '../analytics/DateRangeFilter';
 import { getGmvTrend, getOrderReturnTrend, getSellerPerformance, gmvTrendQueryKey, orderReturnTrendQueryKey, sellerPerformanceQueryKey } from './adminApi';
 import { formatAdminError } from './adminErrors';
 
-const FRAUD_FLAG_COLOR: Record<SellerFraudFlag, string> = {
-  NONE: 'default',
-  WARNING: 'gold',
-  AUTO_SUSPEND: 'red',
+const FRAUD_FLAG_VARIANT: Record<SellerFraudFlag, StatusVariant> = {
+  NONE: 'neutral',
+  WARNING: 'warning',
+  AUTO_SUSPEND: 'error',
 };
 
 type GmvGroupBy = 'none' | 'seller' | 'category';
@@ -42,7 +42,7 @@ export function ReportsPage() {
 
   const columns = [
     { title: t('reports.columnStore'), dataIndex: 'storeName', key: 'storeName' },
-    { title: t('reports.columnGmv'), dataIndex: 'gmv', key: 'gmv', render: (v: string) => `Rs. ${Number(v).toLocaleString()}` },
+    { title: t('reports.columnGmv'), dataIndex: 'gmv', key: 'gmv', render: (v: string) => <PriceDisplay amount={v} size="sm" /> },
     {
       title: t('reports.columnFraudRate'),
       dataIndex: 'fraudRate30d',
@@ -53,7 +53,7 @@ export function ReportsPage() {
       title: t('reports.columnFraudFlag'),
       dataIndex: 'fraudFlag',
       key: 'fraudFlag',
-      render: (flag: SellerFraudFlag) => <Tag color={FRAUD_FLAG_COLOR[flag]}>{t(`reports.fraudFlag.${flag}`)}</Tag>,
+      render: (flag: SellerFraudFlag) => <StatusTag variant={FRAUD_FLAG_VARIANT[flag]} label={t(`reports.fraudFlag.${flag}`)} />,
     },
     {
       title: t('reports.columnFulfilmentRate'),
@@ -64,8 +64,10 @@ export function ReportsPage() {
   ];
 
   return (
-    <div style={{ maxWidth: 1200, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
-      <Typography.Title level={3}>{t('reports.title')}</Typography.Title>
+    <div>
+      <Typography.Title level={3} style={{ marginBottom: 'var(--sp-4)' }}>
+        {t('reports.title')}
+      </Typography.Title>
 
       <Space direction="vertical" size={24} style={{ width: '100%' }}>
         <DateRangeFilter preset={preset} customRange={customRange} onPresetChange={setPreset} onCustomRangeChange={setCustomRange} />
@@ -90,7 +92,7 @@ export function ReportsPage() {
           {gmvTrend.isSuccess && (
             <>
               {gmvTrend.data.basisNote && (
-                <Alert style={{ marginBottom: 12 }} type="warning" showIcon message={gmvTrend.data.basisNote} />
+                <Alert style={{ marginBottom: 'var(--sp-3)' }} type="warning" showIcon message={gmvTrend.data.basisNote} />
               )}
               <ResponsiveContainer width="100%" height={280}>
                 <BarChart data={gmvTrend.data.points.map((p) => ({ key: p.key, gmv: Number(p.gmv) }))}>
@@ -98,7 +100,7 @@ export function ReportsPage() {
                   <XAxis dataKey="key" />
                   <YAxis />
                   <Tooltip formatter={(value: number) => [`Rs. ${value.toLocaleString()}`, t('reports.gmvLabel')]} />
-                  <Bar dataKey="gmv" fill="var(--chart-1, #1677ff)" />
+                  <Bar dataKey="gmv" fill="var(--chart-1)" />
                 </BarChart>
               </ResponsiveContainer>
             </>
@@ -115,8 +117,12 @@ export function ReportsPage() {
                 <XAxis dataKey="date" />
                 <YAxis />
                 <Tooltip />
-                <Line type="monotone" dataKey="orderCount" name={t('reports.orders')} stroke="var(--chart-1, #1677ff)" dot={false} />
-                <Line type="monotone" dataKey="returnCount" name={t('reports.returns')} stroke="var(--chart-2, #cf1322)" dot={false} />
+                {/* orders = chart-1 (green, the primary metric); returns = chart-3 (neutral),
+                    not chart-2/marigold — marigold means celebration/highlight (UIUX §5.1,
+                    §12), and a returns count isn't that. Neutral reads as "the comparison
+                    line" per §18, which is exactly its role here. */}
+                <Line type="monotone" dataKey="orderCount" name={t('reports.orders')} stroke="var(--chart-1)" dot={false} />
+                <Line type="monotone" dataKey="returnCount" name={t('reports.returns')} stroke="var(--chart-3)" dot={false} />
               </LineChart>
             </ResponsiveContainer>
           )}

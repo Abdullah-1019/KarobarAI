@@ -3,6 +3,7 @@ import { Alert, Button, Input, Typography } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 
+import { AuthLayout } from './AuthLayout';
 import { otpResend, otpVerify } from './authApi';
 import { formatAuthError } from './authErrors';
 
@@ -35,12 +36,12 @@ export function OtpVerifyPage() {
 
   if (!phone) {
     return (
-      <div style={{ maxWidth: 420, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
-        <Alert type="warning" showIcon message="No phone number to verify — start from Register." />
-        <Button style={{ marginTop: 16 }} onClick={() => navigate('/register')}>
+      <AuthLayout>
+        <Alert type="warning" showIcon message={t('auth:otp.noPhoneToVerify')} />
+        <Button style={{ marginTop: 'var(--sp-4)' }} onClick={() => navigate('/register')}>
           {t('auth:register.title')}
         </Button>
-      </div>
+      </AuthLayout>
     );
   }
 
@@ -74,14 +75,17 @@ export function OtpVerifyPage() {
   }
 
   return (
-    <div style={{ maxWidth: 420, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
-      <Typography.Title level={3}>{t('auth:otp.title')}</Typography.Title>
-      <Typography.Paragraph>{t('auth:otp.subtitle', { phone })}</Typography.Paragraph>
+    <AuthLayout title={t('auth:otp.title')} subtitle={t('auth:otp.subtitle', { phone })}>
+      {error && <Alert type="error" message={error} showIcon style={{ marginBottom: 'var(--sp-4)' }} />}
 
-      {error && <Alert type="error" message={error} showIcon style={{ marginBottom: 16 }} />}
-
-      <Input.OTP length={6} value={code} onChange={setCode} style={{ marginBottom: 8 }} />
-      <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+      <Input.OTP
+        length={6}
+        value={code}
+        onChange={setCode}
+        aria-label={t('auth:otp.title')}
+        style={{ marginBottom: 'var(--sp-2)' }}
+      />
+      <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 'var(--sp-4)' }}>
         {t('auth:otp.expiresIn', {
           minutes: Math.floor(expirySeconds / 60),
           seconds: (expirySeconds % 60).toString().padStart(2, '0'),
@@ -105,10 +109,10 @@ export function OtpVerifyPage() {
         disabled={resendCooldown > 0}
         loading={resending}
         onClick={handleResend}
-        style={{ marginTop: 8 }}
+        style={{ marginTop: 'var(--sp-2)' }}
       >
         {resendCooldown > 0 ? t('auth:otp.resendIn', { seconds: resendCooldown }) : t('auth:otp.resend')}
       </Button>
-    </div>
+    </AuthLayout>
   );
 }

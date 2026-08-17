@@ -1,13 +1,13 @@
 import { useState } from 'react';
-import { Alert, Button, Card, Divider, Timeline, Typography } from 'antd';
+import { Alert, Button, Card, Divider, Typography } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router-dom';
 
-import { Modal, SkeletonLoader, toast } from '../../components';
-import { CourierRecommendationCard } from '../tracking';
+import { Modal, PriceDisplay, STATUS_VARIANT_COLOR, SkeletonLoader, toast } from '../../components';
+import { CourierRecommendationCard, TrackingTimeline } from '../tracking';
 import { getAuthenticatedTracking, trackingQueryKey } from '../tracking/trackingApi';
-import { OrderStatusTag } from './OrderStatusTag';
+import { ORDER_STATUS_VARIANT, OrderStatusTag } from './OrderStatusTag';
 import { cancelOrder, getOrder, orderQueryKey, viewInvoice } from './ordersApi';
 import { formatOrdersError } from './ordersErrors';
 
@@ -52,7 +52,7 @@ export function OrderDetailPage({ scope }: OrderDetailPageProps) {
 
   if (isPending) {
     return (
-      <div style={{ maxWidth: 720, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
+      <div style={{ maxWidth: 720, margin: '0 auto' }}>
         <SkeletonLoader rows={6} />
       </div>
     );
@@ -60,14 +60,14 @@ export function OrderDetailPage({ scope }: OrderDetailPageProps) {
 
   if (isError || !order) {
     return (
-      <div style={{ maxWidth: 720, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
+      <div style={{ maxWidth: 720, margin: '0 auto' }}>
         <Alert type="error" showIcon message={formatOrdersError(t, error)} />
       </div>
     );
   }
 
   return (
-    <div style={{ maxWidth: 720, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
+    <div style={{ maxWidth: 720, margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Typography.Title level={3} style={{ margin: 0 }}>
           {t('detail.title', { id: order.id })}
@@ -75,47 +75,47 @@ export function OrderDetailPage({ scope }: OrderDetailPageProps) {
         <OrderStatusTag status={order.status} />
       </div>
 
-      <Card title={t('detail.shipping')} style={{ marginTop: 16 }}>
+      <Card title={t('detail.shipping')} style={{ marginTop: 'var(--sp-4)' }}>
         <Typography.Text strong>{order.shipping.recipientName}</Typography.Text>
         <div>
           {order.shipping.line1}
           {order.shipping.line2 ? `, ${order.shipping.line2}` : ''}, {order.shipping.city}, {order.shipping.province}
         </div>
-        <div>{order.shipping.phone}</div>
+        <Typography.Text type="secondary">{order.shipping.phone}</Typography.Text>
       </Card>
 
-      <Card title={t('detail.items')} style={{ marginTop: 16 }}>
+      <Card title={t('detail.items')} style={{ marginTop: 'var(--sp-4)' }}>
         {order.items.map((item) => (
-          <div key={item.productId} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0' }}>
+          <div key={item.productId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: 'var(--sp-2) 0' }}>
             <span>
               {item.titleSnapshot} × {item.quantity}
             </span>
-            <span>Rs. {(Number(item.unitPrice) * item.quantity).toLocaleString()}</span>
+            <PriceDisplay amount={Number(item.unitPrice) * item.quantity} size="sm" />
           </div>
         ))}
       </Card>
 
-      <Card title={t('detail.payment')} style={{ marginTop: 16 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <span>{t('detail.subtotal')}</span>
-          <span>Rs. {Number(order.subtotal).toLocaleString()}</span>
+      <Card title={t('detail.payment')} style={{ marginTop: 'var(--sp-4)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+          <Typography.Text type="secondary">{t('detail.subtotal')}</Typography.Text>
+          <PriceDisplay amount={order.subtotal} size="sm" muted />
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <span>{t('detail.shippingFee')}</span>
-          <span>Rs. {Number(order.shippingFee).toLocaleString()}</span>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 'var(--sp-1)' }}>
+          <Typography.Text type="secondary">{t('detail.shippingFee')}</Typography.Text>
+          <PriceDisplay amount={order.shippingFee} size="sm" muted />
         </div>
         {order.commission && (
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span>{t('detail.commission')}</span>
-            <span>Rs. {Number(order.commission.amount).toLocaleString()}</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 'var(--sp-1)' }}>
+            <Typography.Text type="secondary">{t('detail.commission')}</Typography.Text>
+            <PriceDisplay amount={order.commission.amount} size="sm" muted />
           </div>
         )}
-        <Divider style={{ margin: '8px 0' }} />
-        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+        <Divider style={{ margin: 'var(--sp-2) 0' }} />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
           <Typography.Text strong>{t('detail.totalAmount')}</Typography.Text>
-          <Typography.Text strong>Rs. {Number(order.totalAmount).toLocaleString()}</Typography.Text>
+          <PriceDisplay amount={order.totalAmount} size="lg" />
         </div>
-        <Typography.Text type="secondary">
+        <Typography.Text type="secondary" style={{ display: 'block', marginTop: 'var(--sp-2)' }}>
           {t('detail.courier')}:{' '}
           {tracking?.courier
             ? `${t(`courierNames.${tracking.courier}`)}${tracking.trackingNo ? ` (${tracking.trackingNo})` : ''}`
@@ -124,28 +124,19 @@ export function OrderDetailPage({ scope }: OrderDetailPageProps) {
       </Card>
 
       {scope === 'seller' && order.status === 'PAYMENT_CONFIRMED' && !tracking?.courier && (
-        <div style={{ marginTop: 16 }}>
+        <div style={{ marginTop: 'var(--sp-4)' }}>
           <CourierRecommendationCard orderId={id} />
         </div>
       )}
 
-      <Card title={t('detail.timeline')} style={{ marginTop: 16 }}>
-        <Timeline
-          items={order.timeline.map((event) => ({
-            children: (
-              <>
-                <div>{t(`status.${event.status}`)}</div>
-                {event.description && <Typography.Text type="secondary">{event.description}</Typography.Text>}
-                <div>
-                  <Typography.Text type="secondary">{new Date(event.eventTime).toLocaleString()}</Typography.Text>
-                </div>
-              </>
-            ),
-          }))}
+      <Card title={t('detail.timeline')} style={{ marginTop: 'var(--sp-4)' }}>
+        <TrackingTimeline
+          timeline={order.timeline}
+          colorForStatus={(status) => STATUS_VARIANT_COLOR[ORDER_STATUS_VARIANT[status as keyof typeof ORDER_STATUS_VARIANT]]}
         />
       </Card>
 
-      <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
+      <div style={{ display: 'flex', gap: 'var(--sp-3)', marginTop: 'var(--sp-6)' }}>
         <Button onClick={() => viewInvoice(order.id)}>{t('detail.viewInvoice')}</Button>
         {tracking?.courier && (
           <Link to={scope === 'buyer' ? `/orders/${id}/track` : `/seller/orders/${id}/track`}>

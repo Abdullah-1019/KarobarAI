@@ -1,16 +1,63 @@
 import { useState } from 'react';
-import { Alert, Button, Carousel, Tag, Typography } from 'antd';
+import { Alert, Button, Carousel, Typography } from 'antd';
+import { ImageOff } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 
-import { QuantityStepper, SkeletonLoader, toast } from '../../components';
+import { PriceDisplay, ProductThumbnail, QuantityStepper, SkeletonLoader, StatusTag, toast } from '../../components';
+import type { ProductImageDTO } from '@karobarai/shared';
 import { useLanguage } from '../../hooks';
 import { useAuthStore } from '../../lib/authStore';
 import { getProduct, productQueryKey } from '../catalog/catalogApi';
 import { formatCatalogError } from '../catalog/catalogErrors';
 import { CART_QUERY_KEY, addCartItem } from '../cart/cartApi';
 import { useGuestCartStore } from '../cart/guestCartStore';
+
+// E2: previously a raw <img> with no background/fallback — when a URL fails to load (any
+// storage/network hiccup, e.g. this environment's object storage being unreachable), the entire
+// hero image column rendered as a blank void with no visual boundary at all. Now matches
+// ProductThumbnail's own placeholder treatment (warm-neutral box + icon) so a failed load reads
+// as an intentional "no photo" state, not a broken page. Also switches the fixed height:360 crop
+// to the same 1:1 aspect ratio ProductCard/ProductThumbnail already use everywhere else (UIUX
+// §13: "product card image 1:1" — this was the one place in the app not following it).
+function CarouselSlideImage({ image }: { image: ProductImageDTO }) {
+  const [loaded, setLoaded] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  return (
+    <div
+      style={{
+        position: 'relative',
+        width: '100%',
+        aspectRatio: '1 / 1',
+        background: 'var(--bg-sunken)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <ImageOff size={32} strokeWidth={1.5} color="var(--text-disabled)" aria-hidden="true" />
+      {!failed && (
+        <img
+          src={image.url}
+          alt=""
+          onLoad={() => setLoaded(true)}
+          onError={() => setFailed(true)}
+          style={{
+            position: 'absolute',
+            inset: 0,
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            opacity: loaded ? 1 : 0,
+            transition: 'opacity var(--dur-base) var(--ease)',
+          }}
+        />
+      )}
+    </div>
+  );
+}
 
 // SCR-B03 — evaluate + buy. Wishlist is Future (F17) — no affordance for it anywhere here.
 export function ProductDetailPage() {
@@ -43,7 +90,7 @@ export function ProductDetailPage() {
 
   if (isPending) {
     return (
-      <div style={{ maxWidth: 960, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
+      <div style={{ maxWidth: 960, margin: '0 auto' }}>
         <SkeletonLoader rows={6} />
       </div>
     );
@@ -51,7 +98,7 @@ export function ProductDetailPage() {
 
   if (isError || !product) {
     return (
-      <div style={{ maxWidth: 960, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
+      <div style={{ maxWidth: 960, margin: '0 auto' }}>
         <Alert type="error" showIcon message={formatCatalogError(t, error)} />
       </div>
     );
@@ -59,7 +106,8 @@ export function ProductDetailPage() {
 
   const title = language === 'UR' && product.titleUr ? product.titleUr : product.titleEn;
   const description = language === 'UR' && product.descriptionUr ? product.descriptionUr : product.descriptionEn;
-  const canBuy = (!user || user.role === 'BUYER') && product.stock > 0 && product.status === 'LIVE';
+  const outOfStock = product.stock <= 0 || product.status !== 'LIVE';
+  const canBuy = (!user || user.role === 'BUYER') && !outOfStock;
 
   function addToCart() {
     if (user?.role === 'BUYER') {
@@ -104,50 +152,55 @@ export function ProductDetailPage() {
   }
 
   return (
-    <div style={{ maxWidth: 960, margin: '0 auto', padding: 'var(--sp-6, 24px)', display: 'flex', gap: 32, flexWrap: 'wrap' }}>
+    <div style={{ maxWidth: 960, margin: '0 auto', display: 'flex', gap: 'var(--sp-8)', flexWrap: 'wrap' }}>
       <div style={{ flex: '1 1 360px', maxWidth: 420 }}>
         {product.images.length > 0 ? (
-          <Carousel>
+          <Carousel style={{ borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
             {product.images.map((image) => (
               <div key={image.id}>
-                <img src={image.url} alt="" style={{ width: '100%', height: 360, objectFit: 'cover' }} />
+                <CarouselSlideImage image={image} />
               </div>
             ))}
           </Carousel>
         ) : (
-          <div style={{ width: '100%', height: 360, background: 'var(--bg-secondary, #f5f5f5)' }} />
+          <ProductThumbnail src={null} fill radius="md" />
         )}
       </div>
 
       <div style={{ flex: '1 1 320px' }}>
-        <Typography.Title level={3}>{title}</Typography.Title>
-        <Tag>{t(`catalog:condition.${product.condition}`)}</Tag>
-        <Typography.Title level={4} style={{ marginTop: 12 }}>
-          Rs. {Number(product.price).toLocaleString()}
+        <Typography.Title level={3} style={{ marginBottom: 'var(--sp-2)' }}>
+          {title}
         </Typography.Title>
+        <StatusTag variant="neutral" label={t(`catalog:condition.${product.condition}`)} />
 
-        {product.stock > 0 ? (
-          <Typography.Text type="secondary">{t('product.stockAvailable', { count: product.stock })}</Typography.Text>
-        ) : (
-          <Typography.Text type="danger">{t('product.outOfStock')}</Typography.Text>
-        )}
+        <div style={{ marginTop: 'var(--sp-3)' }}>
+          <PriceDisplay amount={product.price} size="lg" />
+        </div>
+
+        <div style={{ marginTop: 'var(--sp-2)' }}>
+          {outOfStock ? (
+            <StatusTag variant="error" label={t('product.outOfStock')} />
+          ) : (
+            <Typography.Text type="secondary">{t('product.stockAvailable', { count: product.stock })}</Typography.Text>
+          )}
+        </div>
 
         {description && (
-          <div style={{ marginTop: 16 }}>
+          <div style={{ marginTop: 'var(--sp-4)' }}>
             <Typography.Text strong>{t('product.description')}</Typography.Text>
-            <Typography.Paragraph>{description}</Typography.Paragraph>
+            <Typography.Paragraph style={{ marginTop: 'var(--sp-1)' }}>{description}</Typography.Paragraph>
           </div>
         )}
 
         {canBuy && (
-          <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'flex-start' }}>
+          <div style={{ marginTop: 'var(--sp-6)', display: 'flex', flexDirection: 'column', gap: 'var(--sp-3)', alignItems: 'flex-start' }}>
             <div>
               <Typography.Text>{t('product.quantity')}</Typography.Text>
-              <div style={{ marginTop: 4 }}>
+              <div style={{ marginTop: 'var(--sp-1)' }}>
                 <QuantityStepper value={quantity} min={1} max={product.stock} onChange={setQuantity} />
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 12 }}>
+            <div style={{ display: 'flex', gap: 'var(--sp-3)' }}>
               <Button size="large" loading={addToCartMutation.isPending} onClick={addToCart}>
                 {t('product.addToCart')}
               </Button>

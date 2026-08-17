@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 
 import type { CartItemDTO, SellerCartGroupDTO } from '@karobarai/shared';
-import { EmptyState, QuantityStepper, SkeletonLoader, toast } from '../../components';
+import { EmptyState, PriceDisplay, ProductThumbnail, QuantityStepper, SkeletonLoader, StatusTag, toast } from '../../components';
 import { useAuthStore } from '../../lib/authStore';
 import { CART_QUERY_KEY, getCart, removeCartItem, updateCartItem } from './cartApi';
 import { formatCartError } from './cartErrors';
@@ -44,7 +44,7 @@ export function CartPage() {
 
   if (isBuyer && isPending) {
     return (
-      <div style={{ maxWidth: 720, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
+      <div style={{ maxWidth: 720, margin: '0 auto' }}>
         <SkeletonLoader rows={4} />
       </div>
     );
@@ -52,7 +52,7 @@ export function CartPage() {
 
   if (isBuyer && isError) {
     return (
-      <div style={{ maxWidth: 720, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
+      <div style={{ maxWidth: 720, margin: '0 auto' }}>
         <Alert type="error" showIcon message={formatCartError(t, error)} />
       </div>
     );
@@ -68,21 +68,28 @@ export function CartPage() {
 
   function renderBuyerGroup(group: SellerCartGroupDTO) {
     return (
-      <Card key={group.sellerId} title={group.storeName} style={{ marginBottom: 16 }}>
-        {group.items.map((item: CartItemDTO) => (
-          <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '12px 0' }}>
-            {item.primaryImageUrl ? (
-              <img src={item.primaryImageUrl} alt="" style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 4 }} />
-            ) : (
-              <div style={{ width: 56, height: 56, borderRadius: 4, background: 'var(--bg-secondary, #f5f5f5)' }} />
-            )}
-            <div style={{ flex: 1 }}>
-              <Typography.Text>{item.titleEn}</Typography.Text>
-              <div>Rs. {Number(item.price).toLocaleString()}</div>
+      <Card key={group.sellerId} title={group.storeName} style={{ marginBottom: 'var(--sp-4)' }}>
+        {group.items.map((item: CartItemDTO, index) => (
+          <div
+            key={item.id}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 'var(--sp-4)',
+              padding: 'var(--sp-3) 0',
+              borderBottom: index === group.items.length - 1 ? 'none' : '1px solid var(--border)',
+            }}
+          >
+            <ProductThumbnail src={item.primaryImageUrl} size={64} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <Typography.Text ellipsis style={{ display: 'block' }}>
+                {item.titleEn}
+              </Typography.Text>
+              <PriceDisplay amount={item.price} size="sm" muted />
               {item.stockConflict && (
-                <Typography.Text type="danger">
-                  {t('item.stockConflict', { count: item.stockConflict.available })}
-                </Typography.Text>
+                <div style={{ marginTop: 'var(--sp-1)' }}>
+                  <StatusTag variant="warning" label={t('item.stockConflict', { count: item.stockConflict.available })} />
+                </div>
               )}
             </div>
             <QuantityStepper
@@ -97,31 +104,41 @@ export function CartPage() {
             </Button>
           </div>
         ))}
-        <Divider style={{ margin: '8px 0' }} />
-        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+        <Divider style={{ margin: 'var(--sp-2) 0' }} />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
           <Typography.Text strong>{t('sellerGroup.subtotal')}</Typography.Text>
-          <Typography.Text strong>Rs. {Number(group.subtotal).toLocaleString()}</Typography.Text>
+          <PriceDisplay amount={group.subtotal} />
         </div>
         {!group.eligibleForCheckout && (
-          <Typography.Text type="warning">
-            {t('sellerGroup.belowMinimum', { amount: `Rs. ${Number(group.minOrderValuePkr).toLocaleString()}` })}
-          </Typography.Text>
+          <Alert
+            type="warning"
+            showIcon
+            style={{ marginTop: 'var(--sp-3)' }}
+            message={t('sellerGroup.belowMinimum', { amount: `Rs. ${Number(group.minOrderValuePkr).toLocaleString()}` })}
+          />
         )}
       </Card>
     );
   }
 
-  function renderGuestItem(item: GuestCartItem) {
+  function renderGuestItem(item: GuestCartItem, isLast: boolean) {
     return (
-      <div key={item.productId} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '12px 0' }}>
-        {item.primaryImageUrl ? (
-          <img src={item.primaryImageUrl} alt="" style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 4 }} />
-        ) : (
-          <div style={{ width: 56, height: 56, borderRadius: 4, background: 'var(--bg-secondary, #f5f5f5)' }} />
-        )}
-        <div style={{ flex: 1 }}>
-          <Typography.Text>{item.titleEn}</Typography.Text>
-          <div>Rs. {Number(item.price).toLocaleString()}</div>
+      <div
+        key={item.productId}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 'var(--sp-4)',
+          padding: 'var(--sp-3) 0',
+          borderBottom: isLast ? 'none' : '1px solid var(--border)',
+        }}
+      >
+        <ProductThumbnail src={item.primaryImageUrl} size={64} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <Typography.Text ellipsis style={{ display: 'block' }}>
+            {item.titleEn}
+          </Typography.Text>
+          <PriceDisplay amount={item.price} size="sm" muted />
         </div>
         <QuantityStepper value={item.quantity} min={1} onChange={(quantity) => updateGuestQuantity(item.productId, quantity)} />
         <Button type="link" danger onClick={() => removeGuestItem(item.productId)}>
@@ -134,24 +151,29 @@ export function CartPage() {
   const guestTotal = guestItems.reduce((sum, item) => sum + Number(item.price) * item.quantity, 0);
 
   return (
-    <div style={{ maxWidth: 720, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
-      <Typography.Title level={3}>{t('page.title')}</Typography.Title>
+    <div style={{ maxWidth: 720, margin: '0 auto' }}>
+      <Typography.Title level={3} style={{ marginBottom: 'var(--sp-1)' }}>
+        {t('page.title')}
+      </Typography.Title>
       <Typography.Text type="secondary">{t('page.shippingNote')}</Typography.Text>
 
-      <div style={{ marginTop: 16 }}>
+      <div style={{ marginTop: 'var(--sp-4)' }}>
         {isBuyer
           ? cart?.sellerGroups.map(renderBuyerGroup)
           : (
               <Card>
-                {guestItems.map(renderGuestItem)}
+                {guestItems.map((item, index) => renderGuestItem(item, index === guestItems.length - 1))}
               </Card>
             )}
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 16 }}>
-        <Typography.Title level={4} style={{ margin: 0 }}>
-          {t('page.grandTotal')}: Rs. {Number(isBuyer ? cart?.grandSubtotal ?? 0 : guestTotal).toLocaleString()}
-        </Typography.Title>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'var(--sp-4)' }}>
+        <div>
+          <Typography.Text type="secondary" style={{ display: 'block' }}>
+            {t('page.grandTotal')}
+          </Typography.Text>
+          <PriceDisplay amount={isBuyer ? cart?.grandSubtotal ?? 0 : guestTotal} size="lg" />
+        </div>
         {isBuyer ? (
           <Button
             type="primary"

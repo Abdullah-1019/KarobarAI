@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Alert, Button, Empty, Segmented, Table, Typography } from 'antd';
+import { Alert, Button, Segmented, Table, Typography } from 'antd';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 import type { ProductStatus, SellerProductListItemDTO } from '@karobarai/shared';
-import { SkeletonLoader } from '../../components';
+import { EmptyState, PriceDisplay, ProductThumbnail, SkeletonLoader } from '../../components';
 import { listSellerProducts, sellerProductsQueryKey } from './catalogApi';
 import { formatCatalogError } from './catalogErrors';
 import { ProductStatusTag } from './ProductStatusTag';
@@ -17,6 +17,7 @@ type StatusFilter = ProductStatus | 'ALL';
 // implicit from the auth token).
 export function SellerProductsPage() {
   const { t } = useTranslation(['catalog', 'common']);
+  const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
 
   const backendStatus = statusFilter === 'ALL' ? undefined : statusFilter;
@@ -36,12 +37,7 @@ export function SellerProductsPage() {
       dataIndex: 'primaryImageUrl',
       key: 'image',
       width: 56,
-      render: (url: string | null) =>
-        url ? (
-          <img src={url} alt="" style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 4 }} />
-        ) : (
-          <div style={{ width: 40, height: 40, borderRadius: 4, background: 'var(--bg-secondary, #f5f5f5)' }} />
-        ),
+      render: (url: string | null) => <ProductThumbnail src={url} size={40} />,
     },
     {
       title: t('catalog:productsList.columnTitle'),
@@ -55,7 +51,7 @@ export function SellerProductsPage() {
       title: t('catalog:productsList.columnPrice'),
       dataIndex: 'price',
       key: 'price',
-      render: (price: string) => `Rs. ${Number(price).toLocaleString()}`,
+      render: (price: string) => <PriceDisplay amount={price} size="sm" />,
     },
     {
       title: t('catalog:productsList.columnStock'),
@@ -81,8 +77,8 @@ export function SellerProductsPage() {
   ];
 
   return (
-    <div style={{ maxWidth: 960, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+    <div style={{ maxWidth: 960, margin: '0 auto' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--sp-4)' }}>
         <Typography.Title level={3} style={{ margin: 0 }}>
           {t('catalog:productsList.title')}
         </Typography.Title>
@@ -92,7 +88,7 @@ export function SellerProductsPage() {
       </div>
 
       <Segmented
-        style={{ marginBottom: 16 }}
+        style={{ marginBottom: 'var(--sp-4)' }}
         value={statusFilter}
         onChange={(value) => setStatusFilter(value as StatusFilter)}
         options={[
@@ -109,7 +105,11 @@ export function SellerProductsPage() {
       {isError && <Alert type="error" showIcon message={formatCatalogError(t, error)} />}
 
       {!isPending && !isError && items.length === 0 && (
-        <Empty description={t('catalog:productsList.empty')} />
+        <EmptyState
+          title={t('catalog:productsList.empty')}
+          actionLabel={t('catalog:productsList.addProduct')}
+          onAction={() => navigate('/seller/products/new')}
+        />
       )}
 
       {!isPending && !isError && items.length > 0 && (
@@ -122,7 +122,7 @@ export function SellerProductsPage() {
             size="middle"
           />
           {hasNextPage && (
-            <div style={{ textAlign: 'center', marginTop: 16 }}>
+            <div style={{ textAlign: 'center', marginTop: 'var(--sp-4)' }}>
               <Button loading={isFetchingNextPage} onClick={() => fetchNextPage()}>
                 {t('catalog:productsList.loadMore')}
               </Button>

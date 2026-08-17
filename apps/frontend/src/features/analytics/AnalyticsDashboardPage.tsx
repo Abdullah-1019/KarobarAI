@@ -38,18 +38,16 @@ export function AnalyticsDashboardPage() {
   });
 
   if (lifetimeCheckPending) {
-    return (
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
-        <SkeletonLoader rows={6} />
-      </div>
-    );
+    return <SkeletonLoader rows={6} />;
   }
 
   const isNewSeller = lifetimeCheck?.totalOrders === 0;
 
   return (
-    <div style={{ maxWidth: 1200, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
-      <Typography.Title level={3}>{t('dashboard.title')}</Typography.Title>
+    <div>
+      <Typography.Title level={3} style={{ marginBottom: 'var(--sp-4)' }}>
+        {t('dashboard.title')}
+      </Typography.Title>
 
       {isNewSeller ? (
         <EmptyState title={t('dashboard.emptyTitle')} description={t('dashboard.emptyDescription')} />

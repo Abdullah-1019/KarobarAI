@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 
-import { Modal, SkeletonLoader, toast } from '../../components';
+import { Modal, ProductThumbnail, SkeletonLoader, toast } from '../../components';
 import { useAuthStore } from '../../lib/authStore';
 import { ReturnStatusTag } from '../returns/ReturnStatusTag';
 import { adminDecideReturn, adminReturnDetailQueryKey, getAdminReturnDetail } from './adminApi';
@@ -42,7 +42,7 @@ export function AdminReturnDetailPage() {
 
   if (isPending) {
     return (
-      <div style={{ maxWidth: 640, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
+      <div style={{ maxWidth: 640, margin: '0 auto' }}>
         <SkeletonLoader rows={6} />
       </div>
     );
@@ -50,7 +50,7 @@ export function AdminReturnDetailPage() {
 
   if (isError || !ret) {
     return (
-      <div style={{ maxWidth: 640, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
+      <div style={{ maxWidth: 640, margin: '0 auto' }}>
         <Alert type="error" showIcon message={formatAdminError(t, error)} />
       </div>
     );
@@ -59,7 +59,7 @@ export function AdminReturnDetailPage() {
   const canDecide = ret.status === 'MANUAL_REVIEW' || ret.status === 'UNDER_DISPUTE';
 
   return (
-    <div style={{ maxWidth: 640, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
+    <div style={{ maxWidth: 640, margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Typography.Title level={3} style={{ margin: 0 }}>
           {t('returnDetail.title', { id: ret.orderId })}
@@ -67,29 +67,29 @@ export function AdminReturnDetailPage() {
         <ReturnStatusTag status={ret.status} />
       </div>
 
-      <Card title={t('returnDetail.reason')} style={{ marginTop: 16 }}>
+      <Card title={t('returnDetail.reason')} style={{ marginTop: 'var(--sp-4)' }}>
         {ret.reason}
       </Card>
 
-      <Card title={t('returnDetail.photos')} style={{ marginTop: 16 }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+      <Card title={t('returnDetail.photos')} style={{ marginTop: 'var(--sp-4)' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--sp-3)' }}>
           {ret.images.map((img) => (
-            <img key={img.id} src={img.cdnUrl} alt="" style={{ width: 120, height: 120, objectFit: 'cover', borderRadius: 4 }} />
+            <ProductThumbnail key={img.id} src={img.cdnUrl} size={120} />
           ))}
         </div>
       </Card>
 
       {ret.dispute && (
-        <Card title={t('returnDetail.dispute')} style={{ marginTop: 16 }}>
+        <Card title={t('returnDetail.dispute')} style={{ marginTop: 'var(--sp-4)' }}>
           <Typography.Text>{t(`returnDetail.disputeStatus.${ret.dispute.status}`)}</Typography.Text>
           {ret.dispute.adminReason && <div>{ret.dispute.adminReason}</div>}
         </Card>
       )}
 
       {ret.auditTrail && ret.auditTrail.length > 0 && (
-        <Card title={t('returnDetail.auditTrail')} style={{ marginTop: 16 }}>
+        <Card title={t('returnDetail.auditTrail')} style={{ marginTop: 'var(--sp-4)' }}>
           {ret.auditTrail.map((entry, i) => (
-            <div key={i} style={{ marginBottom: 8 }}>
+            <div key={i} style={{ marginBottom: 'var(--sp-2)' }}>
               <Typography.Text strong>{entry.action}</Typography.Text>
               {entry.reason && <Typography.Text> — {entry.reason}</Typography.Text>}
               <div>
@@ -101,7 +101,7 @@ export function AdminReturnDetailPage() {
       )}
 
       {canDecide && isAdmin && (
-        <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
+        <div style={{ display: 'flex', gap: 'var(--sp-3)', marginTop: 'var(--sp-6)' }}>
           <Button type="primary" onClick={() => setPendingDecision('APPROVED')}>
             {t('returnDetail.approve')}
           </Button>
@@ -111,7 +111,7 @@ export function AdminReturnDetailPage() {
         </div>
       )}
 
-      {canDecide && !isAdmin && <Alert style={{ marginTop: 24 }} type="info" message={t('supportReadOnly')} />}
+      {canDecide && !isAdmin && <Alert style={{ marginTop: 'var(--sp-6)' }} type="info" message={t('supportReadOnly')} />}
 
       <Modal
         open={!!pendingDecision}

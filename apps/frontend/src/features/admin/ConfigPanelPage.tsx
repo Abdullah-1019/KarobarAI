@@ -56,7 +56,7 @@ export function ConfigPanelPage() {
 
   if (isPending) {
     return (
-      <div style={{ maxWidth: 720, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
+      <div style={{ maxWidth: 720, margin: '0 auto' }}>
         <SkeletonLoader rows={6} />
       </div>
     );
@@ -64,7 +64,7 @@ export function ConfigPanelPage() {
 
   if (isError || !data) {
     return (
-      <div style={{ maxWidth: 720, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
+      <div style={{ maxWidth: 720, margin: '0 auto' }}>
         <Alert type="error" showIcon message={formatAdminError(t, error)} />
       </div>
     );
@@ -86,21 +86,21 @@ export function ConfigPanelPage() {
         value={reasons[key] ?? ''}
         onChange={(e) => setReasons((prev) => ({ ...prev, [key]: e.target.value }))}
         maxLength={500}
-        style={{ marginTop: 8 }}
+        style={{ marginTop: 'var(--sp-2)' }}
       />
     );
   }
 
   return (
-    <div style={{ maxWidth: 720, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
+    <div style={{ maxWidth: 720, margin: '0 auto' }}>
       <Typography.Title level={3}>{t('config.title')}</Typography.Title>
 
-      {!isAdmin && <Alert style={{ marginBottom: 16 }} type="info" message={t('supportReadOnly')} />}
+      {!isAdmin && <Alert style={{ marginBottom: 'var(--sp-4)' }} type="info" message={t('supportReadOnly')} />}
 
       <Space direction="vertical" size={16} style={{ width: '100%' }}>
         <Card title={t('config.commissionRateTitle')}>
           <Typography.Text type="secondary">{t('config.commissionRateHelp')}</Typography.Text>
-          <div style={{ marginTop: 8 }}>
+          <div style={{ marginTop: 'var(--sp-2)' }}>
             <InputNumber
               disabled={!isAdmin}
               min={0}
@@ -116,7 +116,7 @@ export function ConfigPanelPage() {
           {isAdmin && reasonField('commission_rate_default')}
           {isAdmin && (
             <Button
-              style={{ marginTop: 8 }}
+              style={{ marginTop: 'var(--sp-2)' }}
               type="primary"
               loading={patchMutation.isPending}
               disabled={commissionRate === null || !(reasons.commission_rate_default ?? '').trim()}
@@ -129,7 +129,7 @@ export function ConfigPanelPage() {
 
         <Card title={t('config.courierWeightsTitle')}>
           <Typography.Text type="secondary">{t('config.courierWeightsHelp')}</Typography.Text>
-          <Row gutter={12} style={{ marginTop: 8 }}>
+          <Row gutter={12} style={{ marginTop: 'var(--sp-2)' }}>
             {COURIER_WEIGHT_KEYS.map((k) => (
               <Col key={k} span={6}>
                 <Typography.Text>{t(`config.weight.${k}`)}</Typography.Text>
@@ -145,13 +145,13 @@ export function ConfigPanelPage() {
               </Col>
             ))}
           </Row>
-          <Typography.Text type={Math.abs(weightsSum - 1) > 0.001 ? 'danger' : 'success'} style={{ display: 'block', marginTop: 8 }}>
+          <Typography.Text type={Math.abs(weightsSum - 1) > 0.001 ? 'danger' : 'success'} style={{ display: 'block', marginTop: 'var(--sp-2)' }}>
             {t('config.weightsSum', { sum: weightsSum.toFixed(2) })}
           </Typography.Text>
           {isAdmin && reasonField('courier_weights')}
           {isAdmin && (
             <Button
-              style={{ marginTop: 8 }}
+              style={{ marginTop: 'var(--sp-2)' }}
               type="primary"
               loading={patchMutation.isPending}
               disabled={Math.abs(weightsSum - 1) > 0.001 || !(reasons.courier_weights ?? '').trim()}
@@ -164,7 +164,7 @@ export function ConfigPanelPage() {
 
         <Card title={t('config.returnWindowTitle')}>
           <Typography.Text type="secondary">{t('config.returnWindowHelp')}</Typography.Text>
-          <div style={{ marginTop: 8 }}>
+          <div style={{ marginTop: 'var(--sp-2)' }}>
             <InputNumber
               disabled={!isAdmin}
               min={1}
@@ -178,7 +178,7 @@ export function ConfigPanelPage() {
           {isAdmin && reasonField('return_window_days')}
           {isAdmin && (
             <Button
-              style={{ marginTop: 8 }}
+              style={{ marginTop: 'var(--sp-2)' }}
               type="primary"
               loading={patchMutation.isPending}
               disabled={returnWindowDays === null || !(reasons.return_window_days ?? '').trim()}
@@ -191,7 +191,7 @@ export function ConfigPanelPage() {
 
         <Card title={t('config.minOrderValueTitle')}>
           <Typography.Text type="secondary">{t('config.minOrderValueHelp')}</Typography.Text>
-          <div style={{ marginTop: 8 }}>
+          <div style={{ marginTop: 'var(--sp-2)' }}>
             <InputNumber
               disabled={!isAdmin}
               min={0}
@@ -205,7 +205,7 @@ export function ConfigPanelPage() {
           {isAdmin && reasonField('min_order_value_pkr')}
           {isAdmin && (
             <Button
-              style={{ marginTop: 8 }}
+              style={{ marginTop: 'var(--sp-2)' }}
               type="primary"
               loading={patchMutation.isPending}
               disabled={minOrderValue === null || !(reasons.min_order_value_pkr ?? '').trim()}

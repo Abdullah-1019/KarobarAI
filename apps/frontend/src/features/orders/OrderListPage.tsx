@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Alert, Button, Empty, Segmented, Table, Tag, Typography } from 'antd';
+import { Alert, Button, Segmented, Table, Typography } from 'antd';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
 import { ORDER_STATUS_TABS, type OrderListItemDTO, type OrderStatusTab } from '@karobarai/shared';
-import { SkeletonLoader } from '../../components';
+import { EmptyState, PriceDisplay, SkeletonLoader, StatusTag } from '../../components';
 import {
   buyerOrdersQueryKey,
   listBuyerOrders,
@@ -48,12 +48,10 @@ export function OrderListPage({ scope }: OrderListPageProps) {
       dataIndex: 'id',
       key: 'id',
       render: (id: string, record: OrderListItemDTO) => (
-        <Link to={`${detailBase}/${id}`}>
+        <Link to={`${detailBase}/${id}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
           {id}
           {record.status === 'PENDING_MANUAL_LOGISTICS' && (
-            <Tag color="orange" style={{ marginLeft: 8 }}>
-              {t('list.pendingLogistics')}
-            </Tag>
+            <StatusTag variant="warning" label={t('list.pendingLogistics')} />
           )}
         </Link>
       ),
@@ -68,7 +66,7 @@ export function OrderListPage({ scope }: OrderListPageProps) {
       title: t('list.columnTotal'),
       dataIndex: 'totalAmount',
       key: 'totalAmount',
-      render: (amount: string) => `Rs. ${Number(amount).toLocaleString()}`,
+      render: (amount: string) => <PriceDisplay amount={amount} size="sm" />,
     },
     {
       title: t('list.columnStatus'),
@@ -102,11 +100,13 @@ export function OrderListPage({ scope }: OrderListPageProps) {
   ];
 
   return (
-    <div style={{ maxWidth: 960, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
-      <Typography.Title level={3}>{t(scope === 'buyer' ? 'list.titleBuyer' : 'list.titleSeller')}</Typography.Title>
+    <div style={{ maxWidth: 960, margin: '0 auto' }}>
+      <Typography.Title level={3} style={{ marginBottom: 'var(--sp-4)' }}>
+        {t(scope === 'buyer' ? 'list.titleBuyer' : 'list.titleSeller')}
+      </Typography.Title>
 
       <Segmented
-        style={{ marginBottom: 16 }}
+        style={{ marginBottom: 'var(--sp-4)' }}
         value={tab}
         onChange={(value) => setTab(value as TabFilter)}
         options={['All', ...Object.keys(ORDER_STATUS_TABS)].map((key) => ({
@@ -120,14 +120,14 @@ export function OrderListPage({ scope }: OrderListPageProps) {
       {isError && <Alert type="error" showIcon message={formatOrdersError(t, error)} />}
 
       {!isPending && !isError && items.length === 0 && (
-        <Empty description={t(scope === 'buyer' ? 'list.emptyBuyer' : 'list.emptySeller')} />
+        <EmptyState title={t(scope === 'buyer' ? 'list.emptyBuyer' : 'list.emptySeller')} />
       )}
 
       {!isPending && !isError && items.length > 0 && (
         <>
           <Table rowKey="id" columns={columns} dataSource={items} pagination={false} size="middle" />
           {hasNextPage && (
-            <div style={{ textAlign: 'center', marginTop: 16 }}>
+            <div style={{ textAlign: 'center', marginTop: 'var(--sp-4)' }}>
               <Button loading={isFetchingNextPage} onClick={() => fetchNextPage()}>
                 {t('list.loadMore')}
               </Button>

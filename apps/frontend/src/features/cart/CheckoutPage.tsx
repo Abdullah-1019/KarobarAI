@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
 import type { AddressDTO, PaymentMethod } from '@karobarai/shared';
-import { SkeletonLoader } from '../../components';
+import { PriceDisplay, SkeletonLoader } from '../../components';
 import { AddressPicker } from './AddressPicker';
 import { ADDRESSES_QUERY_KEY, CART_QUERY_KEY, checkout, getCart, listAddresses } from './cartApi';
 import { formatCartError } from './cartErrors';
@@ -46,6 +46,22 @@ export function CheckoutPage() {
     setSubmitting(true);
     try {
       const result = await checkout({ addressId: effectiveAddressId, paymentMethod }, idempotencyKey.current);
+
+      // F-payment-confirmation-gap-closure.md's exact contract: COD orders correctly come back
+      // with paymentStatus "PENDING" (cash isn't collected until delivery) — that's not an error.
+      // Online-payment orders (JazzCash/Easypaisa) are confirmed synchronously inside the same
+      // checkout request, so by the time this response lands every order should already be
+      // CONFIRMED; the rare case where confirmation itself failed after order creation must not
+      // silently proceed to the confirmation screen.
+      if (paymentMethod !== 'COD') {
+        const unconfirmed = result.orders.some((order) => order.paymentStatus !== 'CONFIRMED');
+        if (unconfirmed) {
+          setSubmitError(t('checkout.paymentNotConfirmed'));
+          setSubmitting(false);
+          return;
+        }
+      }
+
       await queryClient.invalidateQueries({ queryKey: CART_QUERY_KEY });
       navigate('/checkout/confirmation', { state: { orders: result.orders } });
     } catch (err) {
@@ -56,17 +72,19 @@ export function CheckoutPage() {
 
   if (cartPending || addressesPending) {
     return (
-      <div style={{ maxWidth: 640, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
+      <div style={{ maxWidth: 640, margin: '0 auto' }}>
         <SkeletonLoader rows={6} />
       </div>
     );
   }
 
   return (
-    <div style={{ maxWidth: 640, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
-      <Typography.Title level={3}>{t('checkout.title')}</Typography.Title>
+    <div style={{ maxWidth: 640, margin: '0 auto' }}>
+      <Typography.Title level={3} style={{ marginBottom: 'var(--sp-5)' }}>
+        {t('checkout.title')}
+      </Typography.Title>
 
-      {submitError && <Alert type="error" message={submitError} showIcon style={{ marginBottom: 16 }} />}
+      {submitError && <Alert type="error" message={submitError} showIcon style={{ marginBottom: 'var(--sp-4)' }} />}
 
       <AddressPicker
         addresses={addresses ?? []}
@@ -78,12 +96,12 @@ export function CheckoutPage() {
         }}
       />
 
-      <div style={{ marginTop: 24 }}>
+      <div style={{ marginTop: 'var(--sp-6)' }}>
         <Typography.Text strong>{t('checkout.paymentMethod')}</Typography.Text>
         <Radio.Group
           value={paymentMethod}
           onChange={(e) => setPaymentMethod(e.target.value)}
-          style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}
+          style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-2)', marginTop: 'var(--sp-2)' }}
         >
           {PAYMENT_METHODS.map((method) => (
             <Radio key={method} value={method}>
@@ -93,14 +111,14 @@ export function CheckoutPage() {
         </Radio.Group>
       </div>
 
-      <div style={{ marginTop: 24 }}>
+      <div style={{ marginTop: 'var(--sp-6)' }}>
         <Typography.Text strong>{t('checkout.orderSummary')}</Typography.Text>
         {eligibleGroups.map((group) => (
-          <Card key={group.sellerId} size="small" style={{ marginTop: 8 }}>
+          <Card key={group.sellerId} size="small" style={{ marginTop: 'var(--sp-2)' }}>
             <Typography.Text strong>{group.storeName}</Typography.Text>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span>{t('checkout.orderSummary')}</span>
-              <span>Rs. {Number(group.subtotal).toLocaleString()}</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 'var(--sp-1)' }}>
+              <Typography.Text type="secondary">{t('sellerGroup.subtotal')}</Typography.Text>
+              <PriceDisplay amount={group.subtotal} size="sm" />
             </div>
           </Card>
         ))}
@@ -110,12 +128,12 @@ export function CheckoutPage() {
         type="primary"
         size="large"
         block
-        style={{ marginTop: 24 }}
+        style={{ marginTop: 'var(--sp-6)' }}
         disabled={!effectiveAddressId || eligibleGroups.length === 0}
         loading={submitting}
         onClick={handlePlaceOrder}
       >
-        {submitting ? t('checkout.processing') : t('checkout.placeOrder')}
+        {submitting ? t(paymentMethod === 'COD' ? 'checkout.processing' : 'checkout.confirmingPayment') : t('checkout.placeOrder')}
       </Button>
     </div>
   );

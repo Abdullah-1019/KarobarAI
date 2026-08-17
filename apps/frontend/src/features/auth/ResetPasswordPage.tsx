@@ -7,6 +7,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { resetPasswordSchema } from '@karobarai/shared';
 import { PasswordStrengthMeter } from '../../components';
 import { ApiError } from '../../api';
+import { AuthLayout } from './AuthLayout';
 import { resetPassword } from './authApi';
 import { formatAuthError } from './authErrors';
 
@@ -70,64 +71,83 @@ export function ResetPasswordPage() {
 
   if (done) {
     return (
-      <div style={{ maxWidth: 420, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
+      <AuthLayout title={t('auth:resetPassword.successTitle')}>
         <Alert
           type="success"
           showIcon
-          message={t('auth:resetPassword.successTitle')}
           description={t('auth:resetPassword.successSignedOutEverywhere')}
-          style={{ marginBottom: 16 }}
+          style={{ marginBottom: 'var(--sp-4)' }}
         />
         <Link to="/login">{t('auth:login.title')}</Link>
-      </div>
+      </AuthLayout>
     );
   }
 
   if (tokenInvalid) {
     return (
-      <div style={{ maxWidth: 420, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
-        <Alert type="error" showIcon message={t('auth:resetPassword.tokenInvalid')} style={{ marginBottom: 16 }} />
+      <AuthLayout title={t('auth:resetPassword.title')}>
+        <Alert type="error" showIcon message={t('auth:resetPassword.tokenInvalid')} style={{ marginBottom: 'var(--sp-4)' }} />
         <Link to="/forgot-password">{t('auth:resetPassword.requestNewLink')}</Link>
-      </div>
+      </AuthLayout>
     );
   }
 
   if (!token) {
     return (
-      <div style={{ maxWidth: 420, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
-        <Alert type="warning" showIcon message={t('auth:resetPassword.missingToken')} style={{ marginBottom: 16 }} />
+      <AuthLayout title={t('auth:resetPassword.title')}>
+        <Alert type="warning" showIcon message={t('auth:resetPassword.missingToken')} style={{ marginBottom: 'var(--sp-4)' }} />
         <Link to="/forgot-password">{t('auth:resetPassword.requestNewLink')}</Link>
-      </div>
+      </AuthLayout>
     );
   }
 
   return (
-    <div style={{ maxWidth: 420, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
-      <Typography.Title level={3}>{t('auth:resetPassword.title')}</Typography.Title>
-
-      {submitError && <Alert type="error" message={submitError} showIcon style={{ marginBottom: 16 }} />}
+    <AuthLayout title={t('auth:resetPassword.title')}>
+      {submitError && <Alert type="error" message={submitError} showIcon style={{ marginBottom: 'var(--sp-4)' }} />}
 
       <form onSubmit={onSubmit}>
-        <div style={{ marginBottom: 16 }}>
-          <label>{t('auth:resetPassword.newPasswordLabel')}</label>
+        <div style={{ marginBottom: 'var(--sp-4)' }}>
+          <label htmlFor="reset-new-password">{t('auth:resetPassword.newPasswordLabel')}</label>
           <Controller
             name="newPassword"
             control={control}
-            render={({ field }) => <Input.Password {...field} size="large" />}
+            render={({ field }) => (
+              <Input.Password
+                {...field}
+                id="reset-new-password"
+                size="large"
+                aria-invalid={!!errors.newPassword}
+                aria-describedby={errors.newPassword ? 'reset-new-password-error' : undefined}
+              />
+            )}
           />
           <PasswordStrengthMeter password={newPassword ?? ''} />
-          {errors.newPassword && <Typography.Text type="danger">{errors.newPassword.message}</Typography.Text>}
+          {errors.newPassword && (
+            <Typography.Text id="reset-new-password-error" type="danger">
+              {errors.newPassword.message}
+            </Typography.Text>
+          )}
         </div>
 
-        <div style={{ marginBottom: 16 }}>
-          <label>{t('auth:resetPassword.confirmPasswordLabel')}</label>
+        <div style={{ marginBottom: 'var(--sp-4)' }}>
+          <label htmlFor="reset-confirm-password">{t('auth:resetPassword.confirmPasswordLabel')}</label>
           <Controller
             name="confirmPassword"
             control={control}
-            render={({ field }) => <Input.Password {...field} size="large" />}
+            render={({ field }) => (
+              <Input.Password
+                {...field}
+                id="reset-confirm-password"
+                size="large"
+                aria-invalid={!!errors.confirmPassword}
+                aria-describedby={errors.confirmPassword ? 'reset-confirm-password-error' : undefined}
+              />
+            )}
           />
           {errors.confirmPassword && (
-            <Typography.Text type="danger">{errors.confirmPassword.message}</Typography.Text>
+            <Typography.Text id="reset-confirm-password-error" type="danger">
+              {errors.confirmPassword.message}
+            </Typography.Text>
           )}
         </div>
 
@@ -135,6 +155,6 @@ export function ResetPasswordPage() {
           {t('auth:resetPassword.submit')}
         </Button>
       </form>
-    </div>
+    </AuthLayout>
   );
 }

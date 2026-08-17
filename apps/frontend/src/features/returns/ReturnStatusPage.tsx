@@ -49,7 +49,7 @@ export function ReturnStatusPage() {
 
   if (listQuery.isPending || (matchedItem && detailQuery.isPending)) {
     return (
-      <div style={{ maxWidth: 640, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
+      <div style={{ maxWidth: 640, margin: '0 auto' }}>
         <SkeletonLoader rows={6} />
       </div>
     );
@@ -57,7 +57,7 @@ export function ReturnStatusPage() {
 
   if (listQuery.isError) {
     return (
-      <div style={{ maxWidth: 640, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
+      <div style={{ maxWidth: 640, margin: '0 auto' }}>
         <Alert type="error" showIcon message={formatReturnsError(t, listQuery.error)} />
       </div>
     );
@@ -65,7 +65,7 @@ export function ReturnStatusPage() {
 
   if (!matchedItem || !detailQuery.data) {
     return (
-      <div style={{ maxWidth: 640, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
+      <div style={{ maxWidth: 640, margin: '0 auto' }}>
         <EmptyState title={t('statusPage.title')} description={t('statusPage.notFound')} />
       </div>
     );
@@ -74,7 +74,7 @@ export function ReturnStatusPage() {
   const ret = detailQuery.data;
 
   return (
-    <div style={{ maxWidth: 640, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
+    <div style={{ maxWidth: 640, margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Typography.Title level={3} style={{ margin: 0 }}>
           {t('statusPage.title')}
@@ -82,7 +82,7 @@ export function ReturnStatusPage() {
         <ReturnStatusTag status={ret.status} />
       </div>
 
-      <Card style={{ marginTop: 16 }}>
+      <Card style={{ marginTop: 'var(--sp-4)' }}>
         <Typography.Paragraph>
           <Typography.Text strong>{t('statusPage.reason')}: </Typography.Text>
           {ret.reason}
@@ -98,7 +98,7 @@ export function ReturnStatusPage() {
                 <Button size="small">{t('statusPage.viewNotifications')}</Button>
               </Link>
             }
-            style={{ marginBottom: 16 }}
+            style={{ marginBottom: 'var(--sp-4)' }}
           />
         )}
 

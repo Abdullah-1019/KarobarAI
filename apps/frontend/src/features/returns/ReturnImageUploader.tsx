@@ -3,6 +3,7 @@ import { Alert, Button } from 'antd';
 import { useTranslation } from 'react-i18next';
 
 import type { ReturnImageDTO } from '@karobarai/shared';
+import { ProductThumbnail } from '../../components';
 import { removeReturnImage, uploadReturnImages } from './returnsApi';
 import { formatReturnsError } from './returnsErrors';
 
@@ -52,20 +53,16 @@ export function ReturnImageUploader({ returnId, images, onChange }: ReturnImageU
 
   return (
     <div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 12 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--sp-3)', marginBottom: 'var(--sp-3)' }}>
         {images.map((img) => (
           <div key={img.id} style={{ position: 'relative' }}>
-            <img
-              src={img.cdnUrl}
-              alt=""
-              style={{ width: 100, height: 100, objectFit: 'cover', borderRadius: 4 }}
-            />
+            <ProductThumbnail src={img.cdnUrl} size={100} />
             <Button
               size="small"
               danger
               disabled={busy}
               onClick={() => handleRemove(img.id)}
-              style={{ display: 'block', margin: '4px auto 0' }}
+              style={{ display: 'block', margin: 'var(--sp-1) auto 0' }}
             >
               {t('wizard.removeImage')}
             </Button>
@@ -84,12 +81,12 @@ export function ReturnImageUploader({ returnId, images, onChange }: ReturnImageU
         style={{ display: 'none' }}
         onChange={handleFileChange}
       />
-      <div style={{ marginTop: 4 }}>
-        <span style={{ color: images.length >= 3 ? 'var(--color-success, #389e0d)' : 'rgba(0,0,0,0.45)' }}>
+      <div style={{ marginTop: 'var(--sp-1)' }}>
+        <span style={{ color: images.length >= 3 ? 'var(--success)' : 'var(--text-secondary)' }}>
           {t('wizard.imageCount', { count: images.length })}
         </span>
       </div>
-      {error && <Alert type="error" message={error} showIcon style={{ marginTop: 8, maxWidth: 480 }} />}
+      {error && <Alert type="error" message={error} showIcon style={{ marginTop: 'var(--sp-2)', maxWidth: 480 }} />}
     </div>
   );
 }

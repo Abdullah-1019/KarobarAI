@@ -22,6 +22,18 @@
   --error: #b23a2a;
   --info: #2c6a93;
 
+  /* Semantic soft-tint backgrounds — for status chips/badges (UIUX §5.2, §13, §17: "status cells
+     use chips... never color alone"). Not enumerated in the doc's token table; derived the same
+     way --brand-primary-soft/--accent-marigold-soft already were (a light, warm-leaning tint of
+     the base hue). --success-soft aliases --brand-primary-soft since success and brand-primary
+     share the same light/dark values in §5.2's own table. Only defined for light mode, matching
+     the existing precedent of --brand-primary-soft/--accent-marigold-soft (doc doesn't specify
+     dark-mode soft values either). */
+  --success-soft: var(--brand-primary-soft);
+  --warning-soft: #fbefda;
+  --error-soft: #f8e6e2;
+  --info-soft: #e4eef4;
+
   /* Type scale (UIUX §6.1) */
   --fs-xs: 12px;
   --fs-sm: 14px;
@@ -31,6 +43,18 @@
   --fs-2xl: 24px;
   --fs-3xl: 30px;
   --fs-4xl: 36px;
+
+  /* Spacing (UIUX §9) — 4px base unit; components must use these tokens, no arbitrary pixels */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+  --sp-12: 48px;
+  --sp-16: 64px;
 
   /* Radius / shadow / motion (UIUX §11) */
   --radius-sm: 8px;
@@ -47,6 +71,15 @@
   --z-toast: 1000;
   --z-modal: 900;
   --z-sticky: 100;
+
+  /* Chart palette (UIUX §18) — primary green for the main series, marigold for a secondary/
+     highlight series, neutral grey for comparison/baseline, info blue as a 4th categorical
+     color when needed (never more than 4 series). Aliased to existing tokens (not new hex)
+     so charts stay in sync with the brand palette and dark mode automatically. */
+  --chart-1: var(--brand-primary);
+  --chart-2: var(--accent-marigold);
+  --chart-3: var(--text-secondary);
+  --chart-4: var(--info);
 }
 
 [data-theme='dark'] {
@@ -85,6 +118,297 @@ body {
   line-height: 1.95;
 }
 
+/* Every page's top-level heading (AntD Typography.Title level 1-3, which renders literally as
+   h1/h2/h3.ant-typography) is exactly the "headings" case §6 reserves Nastaliq for — applied here
+   once, centrally, rather than adding .font-nastaliq to every Title across 30+ screens. Deliberately
+   stops at h3: level 4/5 titles are card/section sub-headers (closer to UI text than a "heading" in
+   the brand sense) and stay in the functional IBM Plex Sans Arabic. Body text is never touched —
+   this selector only matches heading tags. */
+[dir='rtl'] h1.ant-typography,
+[dir='rtl'] h2.ant-typography,
+[dir='rtl'] h3.ant-typography {
+  font-family: 'Noto Nastaliq Urdu', 'IBM Plex Sans Arabic', serif;
+  line-height: 1.95;
+}
+
 #root {
   min-height: 100vh;
+}
+
+/* Accessibility foundation (UIUX §23) — centralized so every current and future component
+   inherits it automatically; nothing feature-level needs to opt in. */
+
+/* Visible 2px focus ring, brand-primary, with offset, on every focusable element. Uses
+   :focus-visible (not :focus) so it only shows for keyboard/assistive-tech navigation, not
+   every mouse click. */
+:focus-visible {
+  outline: 2px solid var(--brand-primary);
+  outline-offset: 2px;
+}
+
+/* prefers-reduced-motion — strips non-essential animation/transitions app-wide (shimmer,
+   the AI-reveal flourish, hover lifts, etc.) while leaving functional state changes instant
+   rather than broken. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Modal chrome (UIUX §28) — applied globally to AntD's own modal classes since every modal in
+   the app already renders through the one shared components/Modal.tsx wrapper. */
+.ant-modal-mask {
+  /* Warm-toned scrim (text-primary hue) instead of AntD's neutral black default. */
+  background: rgba(33, 29, 23, 0.5);
+}
+.ant-modal .ant-modal-content {
+  box-shadow: var(--shadow-lg);
+}
+@media (max-width: 575px) {
+  /* Bottom sheet on mobile, per §28 ("Centered (desktop) / bottom sheet (mobile)"). */
+  .ant-modal-wrap {
+    align-items: flex-end;
+  }
+  .ant-modal {
+    top: 0;
+    margin: 0;
+    max-width: 100vw;
+    padding-bottom: 0;
+  }
+  .ant-modal .ant-modal-content {
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  }
+}
+
+/* Application shell (Phase C — UIUX §10, §15, §30) — shared by Seller/Admin's Sidebar and all
+   three roles' BottomTabBar/content area. Breakpoints match §30: mobile <768, tablet 768-991,
+   desktop >=992. Pure CSS/media-query driven — no JS viewport state to keep in sync. */
+
+/* Sidebar (Seller/Admin, desktop + tablet) */
+.karobarai-sidebar {
+  flex-shrink: 0;
+  width: 240px;
+  background: var(--bg-surface);
+  border-inline-end: 1px solid var(--border);
+  overflow-y: auto;
+}
+.karobarai-sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: 44px;
+  padding-block: var(--sp-3);
+  padding-inline: var(--sp-5);
+  /* Logical border (§10, §31) — stays on the icon/label's leading edge under RTL mirroring. */
+  border-inline-start: 3px solid transparent;
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: var(--fs-sm);
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.karobarai-sidebar-link:hover {
+  background: var(--bg-sunken);
+  color: var(--text-primary);
+}
+/* Active state (§15: "green text + soft tint + inline-start accent bar, mirrors in RTL") —
+   color+position only, never the sole signal: aria-current="page" carries the same information
+   to assistive tech. */
+.karobarai-sidebar-link[data-active] {
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary);
+  border-inline-start-color: var(--brand-primary);
+  font-weight: 500;
+}
+/* Tablet — icon-only (§10: "collapses to icons on tablet"). The link keeps aria-label, so hiding
+   the visible text here doesn't remove it from the accessibility tree. */
+@media (min-width: 768px) and (max-width: 991px) {
+  .karobarai-sidebar {
+    width: 72px;
+  }
+  .karobarai-sidebar-link {
+    justify-content: center;
+    padding-inline: var(--sp-2);
+  }
+  .karobarai-sidebar-label {
+    display: none;
+  }
+}
+/* Mobile — BottomTabBar takes over navigation entirely. */
+@media (max-width: 767px) {
+  .karobarai-sidebar {
+    display: none;
+  }
+}
+
+/* BottomTabBar (all three roles, mobile only) */
+.karobarai-bottom-tabs {
+  display: none;
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: var(--z-sticky);
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@media (max-width: 767px) {
+  .karobarai-bottom-tabs {
+    display: flex;
+  }
+}
+.karobarai-bottom-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 56px;
+  padding-block: var(--sp-1);
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: var(--fs-xs);
+  text-align: center;
+}
+.karobarai-bottom-tab[data-active] {
+  color: var(--brand-primary);
+  font-weight: 500;
+}
+.karobarai-bottom-tab-icon {
+  position: relative;
+  display: inline-flex;
+}
+.karobarai-bottom-tab-badge {
+  position: absolute;
+  inset-inline-end: -6px;
+  top: -4px;
+  min-width: 14px;
+  height: 14px;
+  padding-inline: 2px;
+  border-radius: var(--radius-pill);
+  background: var(--error);
+  color: #fff;
+  font-size: 9px;
+  line-height: 14px;
+  text-align: center;
+}
+
+/* AppHeader — mobile (<768px, UIUX §30/§10: "top app bar with language switch + bell"). Search
+   and the Buyer cart button are dropped here since the BottomTabBar already covers both
+   destinations with their own icon (Cart keeps its badge there) — this isn't a functionality
+   loss, it's removing a duplicate affordance so the header actually fits a 320px screen instead
+   of overflowing it. Account/notifications stay (logout lives only in the account menu). */
+@media (max-width: 767px) {
+  .karobarai-app-header-search,
+  .karobarai-app-header-actions,
+  .karobarai-app-header-guest-actions {
+    display: none;
+  }
+}
+
+/* Grid-shaped skeletons (ProductGridSkeleton — UIUX §20 "shape-matched to final content").
+   A gentle opacity pulse rather than AntD's moving-gradient shimmer — same visual language, less
+   machinery for a shape this simple. Auto-stripped to static by the prefers-reduced-motion rule
+   above (targets `*`), same as every other animation in the app. */
+@keyframes karobarai-skeleton-pulse {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.karobarai-skeleton-shimmer {
+  animation: karobarai-skeleton-pulse 1.4s ease-in-out infinite;
+}
+
+/* Card baseline depth (UIUX §13: "Surface bg-surface, radius 12, shadow-sm... Hover (desktop):
+   lift to shadow-md, 150ms") — AntD's Card has no shadow at all by default; scoped to the two
+   card classes AntD actually renders so it doesn't touch anything else. */
+.ant-card {
+  box-shadow: var(--shadow-sm);
+}
+.ant-card-hoverable:hover {
+  box-shadow: var(--shadow-md);
+}
+
+/* ProductCard's image interaction (E2, UIUX §26 "micro-interactions... purposeful, brief, calm") —
+   a small, contained zoom on hover, not a decorative flourish: it's the same "this is a real
+   photo you can look closer at" affordance most product photography uses. Scoped to the media
+   wrapper's own <img>, transform-only (no layout thrash), stripped to instant by the
+   prefers-reduced-motion rule above. */
+.karobarai-product-card-media img {
+  transition: transform var(--dur-base) var(--ease);
+}
+.karobarai-product-card:hover .karobarai-product-card-media img {
+  transform: scale(1.05);
+}
+
+/* CategoryGrid tiles (E2) — icon color shifts to brand green on hover/focus, paired with the
+   existing card shadow lift so the tile itself, not just an underline, signals interactivity. */
+.karobarai-category-tile-icon {
+  transition: color var(--dur-fast) var(--ease);
+}
+.karobarai-category-tile:hover .karobarai-category-tile-icon,
+.karobarai-category-tile:focus-visible .karobarai-category-tile-icon {
+  color: var(--brand-primary);
+}
+
+/* AI Store Builder signature moment (UIUX §22, §25) — AIRevealPanel's staggered field entrance
+   and AIStatus's "working" spinner. Both purposeful/functional (indicate real state changes, not
+   decoration), both stripped to instant by Phase B's centralized prefers-reduced-motion rule. */
+@keyframes karobarai-ai-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.karobarai-ai-reveal {
+  animation: karobarai-ai-reveal var(--dur-slow) var(--ease) both;
+}
+@keyframes karobarai-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.karobarai-spin {
+  animation: karobarai-spin 1s linear infinite;
+}
+
+/* BilingualField's EN⇄UR connector icon only makes sense when the pair sits side by side —
+   hidden once they stack (same breakpoint flex-wrap kicks in at, in practice). */
+@media (max-width: 575px) {
+  .karobarai-bilingual-connector {
+    display: none;
+  }
+}
+
+/* Shared content area (§8: max content width 1200px centered; §9 page margins 24 desktop/16
+   mobile) — every role layout renders its pages inside this, so all 36 screens (Phase D/E)
+   inherit consistent width/margins/bottom-safe-area for free rather than each page reinventing
+   its own container. */
+.karobarai-content-area {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  max-width: 1200px;
+  margin-inline: auto;
+  padding: var(--sp-6);
+}
+@media (max-width: 767px) {
+  .karobarai-content-area {
+    padding: var(--sp-4);
+    /* Clears the fixed BottomTabBar so it never covers page content. */
+    padding-bottom: calc(var(--sp-4) + 56px + env(safe-area-inset-bottom, 0px));
+  }
 }

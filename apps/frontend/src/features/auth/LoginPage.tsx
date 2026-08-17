@@ -7,6 +7,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { loginSchema } from '@karobarai/shared';
 import { useAuthStore } from '../../lib/authStore';
 import { useLanguageStore } from '../../lib/languageStore';
+import { AuthLayout } from './AuthLayout';
 import { login } from './authApi';
 import { formatAuthError } from './authErrors';
 import { roleHomePath } from './roleHome';
@@ -65,43 +66,70 @@ export function LoginPage() {
   });
 
   return (
-    <div style={{ maxWidth: 420, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
-      <Typography.Title level={3}>{t('auth:login.title')}</Typography.Title>
-
-      {submitError && <Alert type="error" message={submitError} showIcon style={{ marginBottom: 16 }} />}
+    <AuthLayout
+      title={t('auth:login.title')}
+      footer={
+        <>
+          <Typography.Paragraph style={{ marginBottom: 'var(--sp-2)' }}>
+            <Link to="/forgot-password">{t('auth:login.forgotPassword')}</Link>
+          </Typography.Paragraph>
+          <Typography.Paragraph style={{ margin: 0 }}>
+            {t('auth:login.noAccount')} <Link to="/register">{t('auth:login.registerLink')}</Link>
+          </Typography.Paragraph>
+        </>
+      }
+    >
+      {submitError && <Alert type="error" message={submitError} showIcon style={{ marginBottom: 'var(--sp-4)' }} />}
 
       <form onSubmit={onSubmit}>
-        <div style={{ marginBottom: 16 }}>
-          <label>{t('auth:login.identifierLabel')}</label>
+        <div style={{ marginBottom: 'var(--sp-4)' }}>
+          <label htmlFor="login-identifier">{t('auth:login.identifierLabel')}</label>
           <Controller
             name="identifier"
             control={control}
-            render={({ field }) => <Input {...field} size="large" />}
+            render={({ field }) => (
+              <Input
+                {...field}
+                id="login-identifier"
+                size="large"
+                aria-invalid={!!errors.identifier}
+                aria-describedby={errors.identifier ? 'login-identifier-error' : undefined}
+              />
+            )}
           />
-          {errors.identifier && <Typography.Text type="danger">{errors.identifier.message}</Typography.Text>}
+          {errors.identifier && (
+            <Typography.Text id="login-identifier-error" type="danger">
+              {errors.identifier.message}
+            </Typography.Text>
+          )}
         </div>
 
-        <div style={{ marginBottom: 16 }}>
-          <label>{t('auth:login.passwordLabel')}</label>
+        <div style={{ marginBottom: 'var(--sp-4)' }}>
+          <label htmlFor="login-password">{t('auth:login.passwordLabel')}</label>
           <Controller
             name="password"
             control={control}
-            render={({ field }) => <Input.Password {...field} size="large" />}
+            render={({ field }) => (
+              <Input.Password
+                {...field}
+                id="login-password"
+                size="large"
+                aria-invalid={!!errors.password}
+                aria-describedby={errors.password ? 'login-password-error' : undefined}
+              />
+            )}
           />
-          {errors.password && <Typography.Text type="danger">{errors.password.message}</Typography.Text>}
+          {errors.password && (
+            <Typography.Text id="login-password-error" type="danger">
+              {errors.password.message}
+            </Typography.Text>
+          )}
         </div>
 
         <Button type="primary" htmlType="submit" size="large" block loading={submitting}>
           {t('auth:login.submit')}
         </Button>
       </form>
-
-      <Typography.Paragraph style={{ marginTop: 16, textAlign: 'center' }}>
-        <Link to="/forgot-password">{t('auth:login.forgotPassword')}</Link>
-      </Typography.Paragraph>
-      <Typography.Paragraph style={{ textAlign: 'center' }}>
-        {t('auth:login.noAccount')} <Link to="/register">{t('auth:login.registerLink')}</Link>
-      </Typography.Paragraph>
-    </div>
+    </AuthLayout>
   );
 }

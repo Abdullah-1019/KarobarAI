@@ -7,6 +7,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { registerSchema, type UserRole } from '@karobarai/shared';
 import { PasswordStrengthMeter } from '../../components';
 import { useLanguage } from '../../hooks';
+import { AuthLayout } from './AuthLayout';
 import { register as registerAccount } from './authApi';
 import { formatAuthError } from './authErrors';
 
@@ -18,14 +19,15 @@ interface FormValues {
   password: string;
 }
 
-// SCR-A01 — role toggle, method tabs, phone/email, password + strength meter, language switch.
+// SCR-A01 — role toggle, method tabs, phone/email, password + strength meter. Language switch
+// now lives in the shared AuthLayout (all 5 auth screens get one, not just this one).
 // Fields use RHF's <Controller>, not uncontrolled `register()` — AntD's Input forwards a ref to
 // a wrapper object (focus/blur/input), not the raw DOM node, so uncontrolled register() reads
 // the wrong `.value` on submit.
 export function RegisterPage() {
   const { t } = useTranslation(['auth', 'common']);
   const navigate = useNavigate();
-  const { language, setLanguage } = useLanguage();
+  const { language } = useLanguage();
 
   const [role, setRole] = useState<UserRole>('BUYER');
   const [method, setMethod] = useState<Method>('mobile');
@@ -80,21 +82,14 @@ export function RegisterPage() {
   });
 
   return (
-    <div style={{ maxWidth: 420, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
-        <Segmented
-          size="small"
-          value={language}
-          onChange={(value) => setLanguage(value as 'EN' | 'UR')}
-          options={[
-            { label: 'EN', value: 'EN' },
-            { label: 'اردو', value: 'UR' },
-          ]}
-        />
-      </div>
-
-      <Typography.Title level={3}>{t('auth:register.title')}</Typography.Title>
-
+    <AuthLayout
+      title={t('auth:register.title')}
+      footer={
+        <Typography.Paragraph style={{ margin: 0 }}>
+          {t('auth:register.haveAccount')} <Link to="/login">{t('auth:register.loginLink')}</Link>
+        </Typography.Paragraph>
+      }
+    >
       <Segmented
         block
         value={role}
@@ -103,7 +98,7 @@ export function RegisterPage() {
           { label: t('auth:register.roleBuyer'), value: 'BUYER' },
           { label: t('auth:register.roleSeller'), value: 'SELLER' },
         ]}
-        style={{ marginBottom: 16 }}
+        style={{ marginBottom: 'var(--sp-4)' }}
       />
 
       <Segmented
@@ -114,56 +109,90 @@ export function RegisterPage() {
           { label: t('auth:register.methodMobile'), value: 'mobile' },
           { label: t('auth:register.methodEmail'), value: 'email' },
         ]}
-        style={{ marginBottom: 16 }}
+        style={{ marginBottom: 'var(--sp-4)' }}
       />
 
-      {submitError && <Alert type="error" message={submitError} showIcon style={{ marginBottom: 16 }} />}
+      {submitError && <Alert type="error" message={submitError} showIcon style={{ marginBottom: 'var(--sp-4)' }} />}
 
       <form onSubmit={onSubmit}>
         {method === 'mobile' ? (
-          <div style={{ marginBottom: 16 }}>
-            <label>{t('auth:register.phoneLabel')}</label>
+          <div style={{ marginBottom: 'var(--sp-4)' }}>
+            <label htmlFor="register-phone">{t('auth:register.phoneLabel')}</label>
             <Controller
               name="phone"
               control={control}
-              render={({ field }) => <Input {...field} size="large" placeholder="03001234567" />}
+              render={({ field }) => (
+                <Input
+                  {...field}
+                  id="register-phone"
+                  size="large"
+                  placeholder="03001234567"
+                  aria-invalid={!!errors.phone}
+                  aria-describedby={errors.phone ? 'register-phone-error' : undefined}
+                />
+              )}
             />
-            {errors.phone && <Typography.Text type="danger">{errors.phone.message}</Typography.Text>}
+            {errors.phone && (
+              <Typography.Text id="register-phone-error" type="danger">
+                {errors.phone.message}
+              </Typography.Text>
+            )}
           </div>
         ) : (
-          <div style={{ marginBottom: 16 }}>
-            <label>{t('auth:register.emailLabel')}</label>
+          <div style={{ marginBottom: 'var(--sp-4)' }}>
+            <label htmlFor="register-email">{t('auth:register.emailLabel')}</label>
             <Controller
               name="email"
               control={control}
-              render={({ field }) => <Input {...field} size="large" type="email" />}
+              render={({ field }) => (
+                <Input
+                  {...field}
+                  id="register-email"
+                  size="large"
+                  type="email"
+                  aria-invalid={!!errors.email}
+                  aria-describedby={errors.email ? 'register-email-error' : undefined}
+                />
+              )}
             />
-            {errors.email && <Typography.Text type="danger">{errors.email.message}</Typography.Text>}
+            {errors.email && (
+              <Typography.Text id="register-email-error" type="danger">
+                {errors.email.message}
+              </Typography.Text>
+            )}
           </div>
         )}
 
-        <div style={{ marginBottom: 16 }}>
-          <label>{t('auth:register.passwordLabel')}</label>
+        <div style={{ marginBottom: 'var(--sp-4)' }}>
+          <label htmlFor="register-password">{t('auth:register.passwordLabel')}</label>
           <Controller
             name="password"
             control={control}
-            render={({ field }) => <Input.Password {...field} size="large" />}
+            render={({ field }) => (
+              <Input.Password
+                {...field}
+                id="register-password"
+                size="large"
+                aria-invalid={!!errors.password}
+                aria-describedby={errors.password ? 'register-password-error' : undefined}
+              />
+            )}
           />
           <Typography.Text type="secondary" style={{ fontSize: 'var(--fs-xs)' }}>
             {t('auth:register.passwordHelp')}
           </Typography.Text>
           <PasswordStrengthMeter password={password ?? ''} />
-          {errors.password && <Typography.Text type="danger">{errors.password.message}</Typography.Text>}
+          {errors.password && (
+            <Typography.Text id="register-password-error" type="danger">
+              {errors.password.message}
+            </Typography.Text>
+          )}
         </div>
 
         <Button type="primary" htmlType="submit" size="large" block loading={submitting}>
           {t('auth:register.submit')}
         </Button>
       </form>
-
-      <Typography.Paragraph style={{ marginTop: 16, textAlign: 'center' }}>
-        {t('auth:register.haveAccount')} <Link to="/login">{t('auth:register.loginLink')}</Link>
-      </Typography.Paragraph>
-    </div>
+    </AuthLayout>
   );
 }

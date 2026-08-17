@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { Alert, Button, Drawer, Empty, Segmented, Space, Table, Typography, Input } from 'antd';
+import { Alert, Button, Drawer, Segmented, Space, Table, Typography, Input } from 'antd';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
 import type { AdminProductListItemDTO } from '@karobarai/shared';
-import { Modal, SkeletonLoader, toast } from '../../components';
+import { EmptyState, Modal, PriceDisplay, SkeletonLoader, toast } from '../../components';
 import { useAuthStore } from '../../lib/authStore';
 import {
   adminModerationQueryKey,
@@ -86,11 +86,13 @@ export function ProductModerationPage() {
   ];
 
   return (
-    <div style={{ maxWidth: 1100, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
-      <Typography.Title level={3}>{t('moderation.title')}</Typography.Title>
+    <div>
+      <Typography.Title level={3} style={{ marginBottom: 'var(--sp-4)' }}>
+        {t('moderation.title')}
+      </Typography.Title>
 
       <Segmented
-        style={{ marginBottom: 16 }}
+        style={{ marginBottom: 'var(--sp-4)' }}
         value={statusFilter}
         onChange={(v) => setStatusFilter(v as StatusFilter)}
         options={[
@@ -104,12 +106,12 @@ export function ProductModerationPage() {
 
       {isPending && <SkeletonLoader rows={4} />}
       {isError && <Alert type="error" showIcon message={formatAdminError(t, error)} />}
-      {!isPending && !isError && items.length === 0 && <Empty description={t('moderation.empty')} />}
+      {!isPending && !isError && items.length === 0 && <EmptyState title={t('moderation.empty')} />}
       {!isPending && !isError && items.length > 0 && (
         <>
           <Table rowKey="id" columns={columns} dataSource={items} pagination={false} size="middle" />
           {hasNextPage && (
-            <div style={{ textAlign: 'center', marginTop: 16 }}>
+            <div style={{ textAlign: 'center', marginTop: 'var(--sp-4)' }}>
               <Button loading={isFetchingNextPage} onClick={() => fetchNextPage()}>
                 {t('moderation.loadMore')}
               </Button>
@@ -138,7 +140,9 @@ export function ProductModerationPage() {
             </div>
             <div>
               <Typography.Text type="secondary">{t('moderation.price')}</Typography.Text>
-              <div>Rs. {Number(detail.data.price).toLocaleString()}</div>
+              <div>
+                <PriceDisplay amount={detail.data.price} size="sm" />
+              </div>
             </div>
             <div>
               <Typography.Text type="secondary">{t('moderation.stock')}</Typography.Text>
@@ -152,7 +156,7 @@ export function ProductModerationPage() {
             )}
 
             {isAdmin ? (
-              <Space style={{ marginTop: 16 }}>
+              <Space style={{ marginTop: 'var(--sp-4)' }}>
                 {detail.data.status !== 'REMOVED' ? (
                   <Button danger onClick={() => setPendingAction({ type: 'takedown', productId: detail.data.id })}>
                     {t('moderation.takedown')}
@@ -164,7 +168,7 @@ export function ProductModerationPage() {
                 )}
               </Space>
             ) : (
-              <Alert style={{ marginTop: 16 }} type="info" message={t('supportReadOnly')} />
+              <Alert style={{ marginTop: 'var(--sp-4)' }} type="info" message={t('supportReadOnly')} />
             )}
           </Space>
         )}

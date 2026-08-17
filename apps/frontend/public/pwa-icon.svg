@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="KarobarAI">
+  <!-- Karobar green background, brand-primary (UIUX §5.1 #1A6B49); rounded-square app-icon
+       proportions consistent with the brand's rounded, warm shape language. -->
+  <rect width="512" height="512" rx="104" fill="#1A6B49"/>
+  <!-- A simple bazaar-stall silhouette (awning + counter) in warm paper cream (#FBF8F3) — the
+       "warmth of a Pakistani bazaar" from the design brief's own thesis (UIUX §0), kept as a
+       bold two-shape mark so it reads clearly at small sizes. -->
+  <polygon points="256,150 382,280 130,280" fill="#FBF8F3"/>
+  <rect x="146" y="280" width="220" height="132" rx="14" fill="#FBF8F3"/>
+  <!-- Marigold accent (UIUX §5.1 #F4A024) — a garland/finial detail at the stall peak, echoing
+       "the marigold garlands of celebration" from the same thesis. Used sparingly, as a single
+       accent dot, matching marigold's reserved "celebration only" role (§5.1, §12). -->
+  <circle cx="256" cy="140" r="22" fill="#F4A024"/>
+</svg>

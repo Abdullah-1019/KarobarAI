@@ -39,7 +39,7 @@ export function AuthenticatedTrackingPage({ scope }: AuthenticatedTrackingPagePr
 
   if (isPending) {
     return (
-      <div style={{ maxWidth: 720, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
+      <div style={{ maxWidth: 720, margin: '0 auto' }}>
         <SkeletonLoader rows={6} />
       </div>
     );
@@ -47,7 +47,7 @@ export function AuthenticatedTrackingPage({ scope }: AuthenticatedTrackingPagePr
 
   if (isError || !tracking) {
     return (
-      <div style={{ maxWidth: 720, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
+      <div style={{ maxWidth: 720, margin: '0 auto' }}>
         <Alert type="error" showIcon message={formatOrdersError(t, error)} />
       </div>
     );
@@ -58,7 +58,7 @@ export function AuthenticatedTrackingPage({ scope }: AuthenticatedTrackingPagePr
   }
 
   return (
-    <div style={{ maxWidth: 720, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
+    <div style={{ maxWidth: 720, margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Typography.Title level={3} style={{ margin: 0 }}>
           {t('tracking.trackButton')}
@@ -66,30 +66,30 @@ export function AuthenticatedTrackingPage({ scope }: AuthenticatedTrackingPagePr
         <OrderStatusTag status={tracking.status} />
       </div>
 
-      <Card style={{ marginTop: 16 }}>
+      <Card style={{ marginTop: 'var(--sp-4)' }}>
         <TrackingMap lastLocation={tracking.lastLocation} />
       </Card>
 
-      <Card style={{ marginTop: 16 }}>
+      <Card style={{ marginTop: 'var(--sp-4)' }}>
         <TrackingTimeline deliveryStageLabel={tracking.deliveryStageLabel} timeline={tracking.timeline} />
       </Card>
 
       {tracking.courier && (
-        <Card style={{ marginTop: 16 }}>
+        <Card style={{ marginTop: 'var(--sp-4)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span>{t('tracking.courier')}</span>
+            <Typography.Text type="secondary">{t('tracking.courier')}</Typography.Text>
             <span>{t(`courierNames.${tracking.courier}`)}</span>
           </div>
           {tracking.trackingNo && (
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span>{t('tracking.trackingNo')}</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 'var(--sp-1)' }}>
+              <Typography.Text type="secondary">{t('tracking.trackingNo')}</Typography.Text>
               <span>{tracking.trackingNo}</span>
             </div>
           )}
         </Card>
       )}
 
-      <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
+      <div style={{ display: 'flex', gap: 'var(--sp-3)', marginTop: 'var(--sp-6)' }}>
         <Button onClick={copyLink}>{t('tracking.copyLink')}</Button>
         <Link to={backHref}>
           <Button>{t('tracking.backToOrder')}</Button>

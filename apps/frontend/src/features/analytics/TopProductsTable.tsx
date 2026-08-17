@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
 import type { TopProductItemDTO } from '@karobarai/shared';
+import { PriceDisplay } from '../../components';
 import { useLanguage } from '../../hooks';
 import type { TopProductsParams } from './analyticsApi';
 import { getTopProducts, topProductsQueryKey } from './analyticsApi';
@@ -30,7 +31,7 @@ export function TopProductsTable({ rangeParams }: { rangeParams: TopProductsPara
       render: (_: string, record: TopProductItemDTO) => {
         const title = language === 'UR' && record.titleUr ? record.titleUr : record.titleEn;
         return (
-          <Link to={`/seller/products/${record.productId}/edit`} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Link to={`/seller/products/${record.productId}/edit`} style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
             <Avatar shape="square" src={record.thumbnailUrl ?? undefined}>
               {!record.thumbnailUrl && title.charAt(0)}
             </Avatar>
@@ -44,7 +45,7 @@ export function TopProductsTable({ rangeParams }: { rangeParams: TopProductsPara
       title: t('topProducts.columnRevenue'),
       dataIndex: 'revenue',
       key: 'revenue',
-      render: (revenue: string) => `Rs. ${Number(revenue).toLocaleString()}`,
+      render: (revenue: string) => <PriceDisplay amount={revenue} size="sm" />,
     },
   ];
 

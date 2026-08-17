@@ -21,7 +21,7 @@ export function DateRangeFilter({ preset, customRange, onPresetChange, onCustomR
   const pickerValue: [Dayjs, Dayjs] | null = customRange ? [dayjs(customRange[0]), dayjs(customRange[1])] : null;
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)', flexWrap: 'wrap' }}>
       <Segmented
         value={preset}
         onChange={(value) => onPresetChange(value as RangePreset)}

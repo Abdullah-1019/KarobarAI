@@ -33,7 +33,7 @@ export function RevenueCards({ rangeParams }: { rangeParams: AnalyticsRangeParam
             prefix="Rs."
             suffix={
               pctChange !== null ? (
-                <span style={{ fontSize: 14, color: pctChange >= 0 ? 'var(--success, #3f8600)' : 'var(--error, #cf1322)' }}>
+                <span style={{ fontSize: 'var(--fs-sm)', color: pctChange >= 0 ? 'var(--success)' : 'var(--error)' }}>
                   {pctChange >= 0 ? '+' : ''}
                   {pctChange.toFixed(1)}%
                 </span>

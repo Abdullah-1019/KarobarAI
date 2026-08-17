@@ -37,7 +37,10 @@ export function CategoryBreakdownChart({ rangeParams }: { rangeParams: Analytics
             <XAxis dataKey="name" />
             <YAxis />
             <Tooltip formatter={(value: number) => [`Rs. ${value.toLocaleString()}`, t('categoryBreakdown.revenueLabel')]} />
-            <Bar dataKey="revenue" fill="var(--chart-2, #52c41a)" />
+            {/* chart-1 (green), not chart-2 (marigold) — this is the chart's only series (a
+                revenue metric, not a secondary/highlight one), so it gets the primary token
+                per UIUX §18, same as SalesTrendChart's single revenue line. */}
+            <Bar dataKey="revenue" fill="var(--chart-1)" />
           </BarChart>
         </ResponsiveContainer>
       )}

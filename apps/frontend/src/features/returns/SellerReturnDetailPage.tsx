@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 
-import { Modal, SkeletonLoader, toast } from '../../components';
+import { Modal, ProductThumbnail, SkeletonLoader, toast } from '../../components';
 import { ReturnStatusTag } from './ReturnStatusTag';
 import { getSellerReturn, returnQueryKey, sellerDecideReturn, sellerEscalateReturn } from './returnsApi';
 import { formatReturnsError } from './returnsErrors';
@@ -50,7 +50,7 @@ export function SellerReturnDetailPage() {
 
   if (isPending) {
     return (
-      <div style={{ maxWidth: 640, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
+      <div style={{ maxWidth: 640, margin: '0 auto' }}>
         <SkeletonLoader rows={6} />
       </div>
     );
@@ -58,7 +58,7 @@ export function SellerReturnDetailPage() {
 
   if (isError || !ret) {
     return (
-      <div style={{ maxWidth: 640, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
+      <div style={{ maxWidth: 640, margin: '0 auto' }}>
         <Alert type="error" showIcon message={formatReturnsError(t, error)} />
       </div>
     );
@@ -67,7 +67,7 @@ export function SellerReturnDetailPage() {
   const canDecide = ret.status === 'MANUAL_REVIEW';
 
   return (
-    <div style={{ maxWidth: 640, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
+    <div style={{ maxWidth: 640, margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Typography.Title level={3} style={{ margin: 0 }}>
           {t('sellerDetail.title', { id: ret.orderId })}
@@ -75,25 +75,20 @@ export function SellerReturnDetailPage() {
         <ReturnStatusTag status={ret.status} />
       </div>
 
-      <Card title={t('sellerDetail.reason')} style={{ marginTop: 16 }}>
+      <Card title={t('sellerDetail.reason')} style={{ marginTop: 'var(--sp-4)' }}>
         {ret.reason}
       </Card>
 
-      <Card title={t('sellerDetail.photos')} style={{ marginTop: 16 }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+      <Card title={t('sellerDetail.photos')} style={{ marginTop: 'var(--sp-4)' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--sp-3)' }}>
           {ret.images.map((img) => (
-            <img
-              key={img.id}
-              src={img.cdnUrl}
-              alt=""
-              style={{ width: 120, height: 120, objectFit: 'cover', borderRadius: 4 }}
-            />
+            <ProductThumbnail key={img.id} src={img.cdnUrl} size={120} />
           ))}
         </div>
       </Card>
 
       {canDecide && (
-        <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
+        <div style={{ display: 'flex', gap: 'var(--sp-3)', marginTop: 'var(--sp-6)' }}>
           <Button
             type="primary"
             loading={decisionMutation.isPending}
@@ -124,7 +119,7 @@ export function SellerReturnDetailPage() {
           rows={3}
         />
         {!rejectReason.trim() && (
-          <Typography.Text type="danger" style={{ display: 'block', marginTop: 4 }}>
+          <Typography.Text type="danger" style={{ display: 'block', marginTop: 'var(--sp-1)' }}>
             {t('sellerDetail.rejectReasonRequired')}
           </Typography.Text>
         )}

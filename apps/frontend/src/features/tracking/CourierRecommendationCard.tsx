@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Alert, Button, Card, Radio, Space, Tag, Typography } from 'antd';
+import { Alert, Button, Card, Radio, Space, Typography } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
 import type { CourierCode } from '@karobarai/shared';
 import { ApiError } from '../../api';
-import { Modal, SkeletonLoader, toast } from '../../components';
+import { Modal, PriceDisplay, SkeletonLoader, StatusTag, toast } from '../../components';
 import { orderQueryKey } from '../orders/ordersApi';
 import { formatOrdersError } from '../orders/ordersErrors';
 import {
@@ -128,16 +128,12 @@ export function CourierRecommendationCard({ orderId }: CourierRecommendationCard
           {quotes.map((quote) => (
             <Radio key={quote.courier} value={quote.courier} style={{ width: '100%' }}>
               <Space style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }} wrap>
-                <span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
                   <Typography.Text strong>{t(`courierNames.${quote.courier}`)}</Typography.Text>
-                  {quote.courier === topScored && (
-                    <Tag color="blue" style={{ marginLeft: 8 }}>
-                      {t('courier.recommendedBadge')}
-                    </Tag>
-                  )}
+                  {quote.courier === topScored && <StatusTag variant="info" label={t('courier.recommendedBadge')} />}
                 </span>
                 <Typography.Text type="secondary">
-                  {t('courier.cost')}: Rs. {Number(quote.cost).toLocaleString()} · {t('courier.eta')}:{' '}
+                  {t('courier.cost')}: <PriceDisplay amount={quote.cost} size="sm" muted /> · {t('courier.eta')}:{' '}
                   {t('courier.etaHours', { hours: quote.etaHours })} · {t('courier.score')}: {quote.score}
                 </Typography.Text>
               </Space>
@@ -146,7 +142,7 @@ export function CourierRecommendationCard({ orderId }: CourierRecommendationCard
         </Space>
       </Radio.Group>
 
-      <Space style={{ marginTop: 16 }}>
+      <Space style={{ marginTop: 'var(--sp-4)' }}>
         <Button type="primary" loading={bookMutation.isPending} onClick={handleConfirmClick}>
           {t('courier.confirmBook')}
         </Button>
@@ -155,7 +151,7 @@ export function CourierRecommendationCard({ orderId }: CourierRecommendationCard
         </Button>
       </Space>
 
-      {bookMutation.isPending && <Alert style={{ marginTop: 12 }} type="info" showIcon message={t('courier.booking')} />}
+      {bookMutation.isPending && <Alert style={{ marginTop: 'var(--sp-3)' }} type="info" showIcon message={t('courier.booking')} />}
 
       <Modal
         open={overrideModalOpen}

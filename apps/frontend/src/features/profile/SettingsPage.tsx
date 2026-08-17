@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, Segmented, Switch, Tabs, Typography } from 'antd';
+import { Alert, Card, Segmented, Switch, Tabs, Typography } from 'antd';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
@@ -34,7 +34,7 @@ export function SettingsPage() {
 
   if (isPending || !settings || isProfilePending || !profile) {
     return (
-      <div style={{ maxWidth: 480, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
+      <div style={{ maxWidth: 480, margin: '0 auto' }}>
         <SkeletonLoader rows={4} />
       </div>
     );
@@ -69,16 +69,16 @@ export function SettingsPage() {
   }
 
   const notificationsSection = (
-    <>
-      {error && <Alert type="error" message={error} showIcon style={{ marginBottom: 16 }} />}
+    <Card>
+      {error && <Alert type="error" message={error} showIcon style={{ marginBottom: 'var(--sp-4)' }} />}
 
       <div
         style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          padding: '12px 0',
-          borderBottom: '1px solid var(--border-color, #f0f0f0)',
+          padding: 'var(--sp-3) 0',
+          borderBottom: '1px solid var(--border)',
         }}
       >
         <Typography.Text>{t('profile:settings.language')}</Typography.Text>
@@ -93,8 +93,9 @@ export function SettingsPage() {
         />
       </div>
 
-      {TOGGLE_FIELDS.map((field) => {
+      {TOGGLE_FIELDS.map((field, index) => {
         const locked = (CRITICAL_NOTIFICATION_CHANNELS as readonly string[]).includes(field);
+        const isLast = index === TOGGLE_FIELDS.length - 1;
         return (
           <div
             key={field}
@@ -102,8 +103,8 @@ export function SettingsPage() {
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              padding: '12px 0',
-              borderBottom: '1px solid var(--border-color, #f0f0f0)',
+              padding: 'var(--sp-3) 0',
+              borderBottom: isLast ? 'none' : '1px solid var(--border)',
             }}
           >
             <div>
@@ -123,12 +124,14 @@ export function SettingsPage() {
           </div>
         );
       })}
-    </>
+    </Card>
   );
 
   return (
-    <div style={{ maxWidth: profile.role === 'SELLER' ? 720 : 480, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
-      <Typography.Title level={3}>{t('profile:settings.title')}</Typography.Title>
+    <div style={{ maxWidth: profile.role === 'SELLER' ? 720 : 480, margin: '0 auto' }}>
+      <Typography.Title level={3} style={{ marginBottom: 'var(--sp-5)' }}>
+        {t('profile:settings.title')}
+      </Typography.Title>
 
       {profile.role === 'SELLER' ? (
         <Tabs

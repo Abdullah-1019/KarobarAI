@@ -13,7 +13,8 @@ import { categoryBySlugQueryKey, getCategoryBySlug, type SearchParams } from './
 import { formatMarketplaceError } from './marketplaceErrors';
 
 // SCR-B02's category-browse mode (`/category/:slug`) — resolves the slug to a categoryId, then
-// hands off to the same search grid text-search uses (categoryId-only call, no q).
+// hands off to the same search grid text-search uses (categoryId-only call, no q). No outer
+// max-width wrapper — AppShell's shared content area (Phase C) already provides one.
 export function CategoryPage() {
   const { t } = useTranslation(['marketplace']);
   const { language } = useLanguage();
@@ -28,24 +29,18 @@ export function CategoryPage() {
   const { data: categories } = useQuery({ queryKey: CATEGORIES_QUERY_KEY, queryFn: getCategories });
 
   if (isPending) {
-    return (
-      <div style={{ maxWidth: 1080, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
-        <SkeletonLoader rows={6} />
-      </div>
-    );
+    return <SkeletonLoader rows={6} />;
   }
 
   if (isError || !category) {
-    return (
-      <div style={{ maxWidth: 1080, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
-        <Alert type="error" showIcon message={formatMarketplaceError(t, error)} />
-      </div>
-    );
+    return <Alert type="error" showIcon message={formatMarketplaceError(t, error)} />;
   }
 
   return (
-    <div style={{ maxWidth: 1080, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
-      <Typography.Title level={3}>{language === 'UR' ? category.nameUr : category.nameEn}</Typography.Title>
+    <div>
+      <Typography.Title level={3} style={{ marginBottom: 'var(--sp-5)' }}>
+        {language === 'UR' ? category.nameUr : category.nameEn}
+      </Typography.Title>
       <Row gutter={24}>
         <Col xs={24} md={6}>
           <FilterPanel

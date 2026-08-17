@@ -23,7 +23,7 @@ export function AddressPicker({ addresses, value, onChange, onAddressCreated }: 
       <Radio.Group
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}
+        style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-2)', marginTop: 'var(--sp-2)' }}
       >
         {addresses.map((address) => (
           <Radio key={address.id} value={address.id}>
@@ -33,12 +33,12 @@ export function AddressPicker({ addresses, value, onChange, onAddressCreated }: 
               {address.line1}
               {address.line2 ? `, ${address.line2}` : ''}, {address.city}, {address.province}
             </div>
-            <div>{address.contactPhone}</div>
+            <Typography.Text type="secondary">{address.contactPhone}</Typography.Text>
           </Radio>
         ))}
       </Radio.Group>
 
-      <Button style={{ marginTop: 12 }} onClick={() => setModalOpen(true)}>
+      <Button style={{ marginTop: 'var(--sp-3)' }} onClick={() => setModalOpen(true)}>
         {t('address.addNew')}
       </Button>
 

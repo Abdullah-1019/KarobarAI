@@ -22,8 +22,10 @@ export function AdminDashboardPage() {
   const alerts = useQuery({ queryKey: adminAlertsQueryKey, queryFn: () => getAdminAlerts() });
 
   return (
-    <div style={{ maxWidth: 1200, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
-      <Typography.Title level={3}>{t('dashboard.title')}</Typography.Title>
+    <div>
+      <Typography.Title level={3} style={{ marginBottom: 'var(--sp-4)' }}>
+        {t('dashboard.title')}
+      </Typography.Title>
 
       <Space direction="vertical" size={24} style={{ width: '100%' }}>
         <DateRangeFilter preset={preset} customRange={customRange} onPresetChange={setPreset} onCustomRangeChange={setCustomRange} />
@@ -43,8 +45,8 @@ export function AdminDashboardPage() {
                     kpis.data.pctChangeVsPrevious !== null ? (
                       <span
                         style={{
-                          fontSize: 14,
-                          color: kpis.data.pctChangeVsPrevious >= 0 ? 'var(--success, #3f8600)' : 'var(--error, #cf1322)',
+                          fontSize: 'var(--fs-sm)',
+                          color: kpis.data.pctChangeVsPrevious >= 0 ? 'var(--success)' : 'var(--error)',
                         }}
                       >
                         {kpis.data.pctChangeVsPrevious >= 0 ? '+' : ''}

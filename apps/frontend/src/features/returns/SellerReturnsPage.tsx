@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Alert, Button, Empty, Segmented, Table, Typography } from 'antd';
+import { Alert, Button, Segmented, Table, Typography } from 'antd';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
 import type { ReturnListItemDTO } from '@karobarai/shared';
-import { SkeletonLoader } from '../../components';
+import { EmptyState, SkeletonLoader } from '../../components';
 import { listSellerReturns, sellerReturnsQueryKey } from './returnsApi';
 import { formatReturnsError } from './returnsErrors';
 import { ReturnStatusTag } from './ReturnStatusTag';
@@ -53,11 +53,13 @@ export function SellerReturnsPage() {
   ];
 
   return (
-    <div style={{ maxWidth: 960, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
-      <Typography.Title level={3}>{t('sellerList.title')}</Typography.Title>
+    <div style={{ maxWidth: 960, margin: '0 auto' }}>
+      <Typography.Title level={3} style={{ marginBottom: 'var(--sp-4)' }}>
+        {t('sellerList.title')}
+      </Typography.Title>
 
       <Segmented
-        style={{ marginBottom: 16 }}
+        style={{ marginBottom: 'var(--sp-4)' }}
         value={history ? 'history' : 'active'}
         onChange={(value) => setHistory(value === 'history')}
         options={[
@@ -70,13 +72,13 @@ export function SellerReturnsPage() {
 
       {isError && <Alert type="error" showIcon message={formatReturnsError(t, error)} />}
 
-      {!isPending && !isError && items.length === 0 && <Empty description={t('sellerList.empty')} />}
+      {!isPending && !isError && items.length === 0 && <EmptyState title={t('sellerList.empty')} />}
 
       {!isPending && !isError && items.length > 0 && (
         <>
           <Table rowKey="id" columns={columns} dataSource={items} pagination={false} size="middle" />
           {hasNextPage && (
-            <div style={{ textAlign: 'center', marginTop: 16 }}>
+            <div style={{ textAlign: 'center', marginTop: 'var(--sp-4)' }}>
               <Button loading={isFetchingNextPage} onClick={() => fetchNextPage()}>
                 {t('sellerList.loadMore')}
               </Button>

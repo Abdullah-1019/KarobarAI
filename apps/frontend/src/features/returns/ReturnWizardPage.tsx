@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import type { ReturnDetailDTO } from '@karobarai/shared';
+import { ProductThumbnail } from '../../components';
 import { ReturnImageUploader } from './ReturnImageUploader';
 import { createReturn, submitReturn } from './returnsApi';
 import { formatReturnsError } from './returnsErrors';
@@ -48,13 +49,15 @@ export function ReturnWizardPage() {
   const imageCount = returnRecord?.images.length ?? 0;
 
   return (
-    <div style={{ maxWidth: 640, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
-      <Typography.Title level={3}>{t('wizard.title')}</Typography.Title>
+    <div style={{ maxWidth: 640, margin: '0 auto' }}>
+      <Typography.Title level={3} style={{ marginBottom: 'var(--sp-4)' }}>
+        {t('wizard.title')}
+      </Typography.Title>
 
       <Steps
         current={step}
         size="small"
-        style={{ marginBottom: 24 }}
+        style={{ marginBottom: 'var(--sp-6)' }}
         items={[
           { title: t('wizard.stepEligibility') },
           { title: t('wizard.stepReason') },
@@ -69,7 +72,7 @@ export function ReturnWizardPage() {
           showIcon
           message={t('wizard.blockedTitle')}
           description={blockedError}
-          style={{ marginBottom: 16 }}
+          style={{ marginBottom: 'var(--sp-4)' }}
         />
       )}
 
@@ -96,7 +99,7 @@ export function ReturnWizardPage() {
           </Radio.Group>
           {reasonKey === 'OTHER' && (
             <Input.TextArea
-              style={{ marginTop: 12 }}
+              style={{ marginTop: 'var(--sp-3)' }}
               placeholder={t('wizard.otherReasonLabel')}
               value={otherReason}
               onChange={(e) => setOtherReason(e.target.value)}
@@ -104,7 +107,7 @@ export function ReturnWizardPage() {
               rows={3}
             />
           )}
-          <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
+          <div style={{ marginTop: 'var(--sp-4)', display: 'flex', gap: 'var(--sp-2)' }}>
             <Button onClick={() => setStep(0)}>{t('wizard.back')}</Button>
             <Button
               type="primary"
@@ -125,7 +128,7 @@ export function ReturnWizardPage() {
             images={returnRecord.images}
             onChange={(images) => setReturnRecord((prev) => (prev ? { ...prev, images } : prev))}
           />
-          <div style={{ marginTop: 16 }}>
+          <div style={{ marginTop: 'var(--sp-4)' }}>
             <Button type="primary" disabled={imageCount < 3} onClick={() => setStep(3)}>
               {t('wizard.next')}
             </Button>
@@ -140,17 +143,12 @@ export function ReturnWizardPage() {
             <Typography.Text strong>{t('wizard.reviewReason')}: </Typography.Text>
             {returnRecord.reason}
           </Typography.Paragraph>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+          <div style={{ display: 'flex', gap: 'var(--sp-2)', flexWrap: 'wrap', marginBottom: 'var(--sp-4)' }}>
             {returnRecord.images.map((img) => (
-              <img
-                key={img.id}
-                src={img.cdnUrl}
-                alt=""
-                style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 4 }}
-              />
+              <ProductThumbnail key={img.id} src={img.cdnUrl} size={80} />
             ))}
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 'var(--sp-2)' }}>
             <Button onClick={() => setStep(2)}>{t('wizard.back')}</Button>
             <Button type="primary" loading={submitMutation.isPending} onClick={() => submitMutation.mutate()}>
               {submitMutation.isPending ? t('wizard.submitting') : t('wizard.submit')}

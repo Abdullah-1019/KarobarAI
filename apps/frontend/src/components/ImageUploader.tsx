@@ -61,28 +61,31 @@ export function ImageUploader<T>({
     }
   }
 
+  // Not ProductThumbnail: that component is 1:1-square-only by design (UIUX §13's product-card
+  // spec) — this uploader's rect shape is a wide banner aspect (160x72), which ProductThumbnail
+  // can't represent, so it keeps its own box rather than being forced into the wrong shape.
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-4)' }}>
       {shape === 'circle' ? (
         <Avatar size={72} src={value ?? undefined} shape="circle" />
       ) : value ? (
         <img
           src={value}
           alt=""
-          style={{ width: 160, height: 72, objectFit: 'cover', borderRadius: 4, background: 'var(--bg-secondary, #f5f5f5)' }}
+          style={{ width: 160, height: 72, objectFit: 'cover', borderRadius: 'var(--radius-sm)', background: 'var(--bg-sunken)' }}
         />
       ) : (
         <div
           style={{
             width: 160,
             height: 72,
-            borderRadius: 4,
-            background: 'var(--bg-secondary, #f5f5f5)',
+            borderRadius: 'var(--radius-sm)',
+            background: 'var(--bg-sunken)',
           }}
         />
       )}
       <div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 'var(--sp-2)' }}>
           <Button size="small" loading={busy} onClick={() => fileInputRef.current?.click()}>
             {uploadLabel}
           </Button>
@@ -100,7 +103,7 @@ export function ImageUploader<T>({
           onChange={handleFileChange}
         />
         {error && (
-          <Alert type="error" message={error} showIcon style={{ marginTop: 8, maxWidth: 320 }} />
+          <Alert type="error" message={error} showIcon style={{ marginTop: 'var(--sp-2)', maxWidth: 320 }} />
         )}
       </div>
     </div>

@@ -1,19 +1,19 @@
 import type { ReturnStatus } from '@karobarai/shared';
-import { Tag } from 'antd';
 import { useTranslation } from 'react-i18next';
 
-// Mirrors features/orders/OrderStatusTag.tsx's color-map pattern.
-const STATUS_COLOR: Record<ReturnStatus, string> = {
-  INITIATED: 'default',
-  IMAGES_SUBMITTED: 'blue',
-  UNDER_AI_REVIEW: 'purple',
-  MANUAL_REVIEW: 'gold',
-  APPROVED: 'green',
-  REJECTED: 'red',
-  PICKUP_BOOKED: 'geekblue',
-  REFUND_ISSUED: 'green',
-  UNDER_DISPUTE: 'orange',
-  CLOSED: 'default',
+import { StatusTag, type StatusVariant } from '../../components';
+
+const STATUS_VARIANT: Record<ReturnStatus, StatusVariant> = {
+  INITIATED: 'neutral',
+  IMAGES_SUBMITTED: 'info',
+  UNDER_AI_REVIEW: 'info',
+  MANUAL_REVIEW: 'warning',
+  APPROVED: 'success',
+  REJECTED: 'error',
+  PICKUP_BOOKED: 'info',
+  REFUND_ISSUED: 'success',
+  UNDER_DISPUTE: 'warning',
+  CLOSED: 'neutral',
 };
 
 interface ReturnStatusTagProps {
@@ -22,5 +22,5 @@ interface ReturnStatusTagProps {
 
 export function ReturnStatusTag({ status }: ReturnStatusTagProps) {
   const { t } = useTranslation(['returns']);
-  return <Tag color={STATUS_COLOR[status]}>{t(`status.${status}`)}</Tag>;
+  return <StatusTag variant={STATUS_VARIANT[status]} label={t(`status.${status}`)} />;
 }

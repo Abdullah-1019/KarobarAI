@@ -94,10 +94,10 @@ export function AddressForm({ onCreated }: AddressFormProps) {
 
   return (
     <form onSubmit={onSubmit}>
-      {submitError && <Alert type="error" message={submitError} showIcon style={{ marginBottom: 16 }} />}
+      {submitError && <Alert type="error" message={submitError} showIcon style={{ marginBottom: 'var(--sp-4)' }} />}
 
       {fields.map(({ name, label }) => (
-        <div key={name} style={{ marginBottom: 12 }}>
+        <div key={name} style={{ marginBottom: 'var(--sp-3)' }}>
           <label>{label}</label>
           <Controller name={name} control={control} render={({ field }) => <Input {...field} />} />
           {errors[name] && <Typography.Text type="danger">{errors[name]?.message}</Typography.Text>}

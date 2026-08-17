@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, Button, Input, Typography } from 'antd';
+import { Alert, Button, Card, Input, Typography } from 'antd';
 import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 
@@ -71,7 +71,7 @@ export function ChangePasswordPage() {
 
   if (done) {
     return (
-      <div style={{ maxWidth: 420, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
+      <div style={{ maxWidth: 420, margin: '0 auto' }}>
         <Alert
           type="success"
           showIcon
@@ -83,51 +83,87 @@ export function ChangePasswordPage() {
   }
 
   return (
-    <div style={{ maxWidth: 420, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
-      <Typography.Title level={3}>{t('profile:changePassword.title')}</Typography.Title>
+    <div style={{ maxWidth: 420, margin: '0 auto' }}>
+      <Typography.Title level={3} style={{ marginBottom: 'var(--sp-5)' }}>
+        {t('profile:changePassword.title')}
+      </Typography.Title>
 
-      {submitError && <Alert type="error" message={submitError} showIcon style={{ marginBottom: 16 }} />}
+      <Card>
+        {submitError && <Alert type="error" message={submitError} showIcon style={{ marginBottom: 'var(--sp-4)' }} />}
 
-      <form onSubmit={onSubmit}>
-        <div style={{ marginBottom: 16 }}>
-          <label>{t('profile:changePassword.currentPasswordLabel')}</label>
-          <Controller
-            name="currentPassword"
-            control={control}
-            render={({ field }) => <Input.Password {...field} size="large" />}
-          />
-          {errors.currentPassword && (
-            <Typography.Text type="danger">{errors.currentPassword.message}</Typography.Text>
-          )}
-        </div>
+        <form onSubmit={onSubmit}>
+          <div style={{ marginBottom: 'var(--sp-4)' }}>
+            <label htmlFor="change-password-current">{t('profile:changePassword.currentPasswordLabel')}</label>
+            <Controller
+              name="currentPassword"
+              control={control}
+              render={({ field }) => (
+                <Input.Password
+                  {...field}
+                  id="change-password-current"
+                  size="large"
+                  aria-invalid={!!errors.currentPassword}
+                  aria-describedby={errors.currentPassword ? 'change-password-current-error' : undefined}
+                />
+              )}
+            />
+            {errors.currentPassword && (
+              <Typography.Text id="change-password-current-error" type="danger">
+                {errors.currentPassword.message}
+              </Typography.Text>
+            )}
+          </div>
 
-        <div style={{ marginBottom: 16 }}>
-          <label>{t('profile:changePassword.newPasswordLabel')}</label>
-          <Controller
-            name="newPassword"
-            control={control}
-            render={({ field }) => <Input.Password {...field} size="large" />}
-          />
-          <PasswordStrengthMeter password={newPassword ?? ''} />
-          {errors.newPassword && <Typography.Text type="danger">{errors.newPassword.message}</Typography.Text>}
-        </div>
+          <div style={{ marginBottom: 'var(--sp-4)' }}>
+            <label htmlFor="change-password-new">{t('profile:changePassword.newPasswordLabel')}</label>
+            <Controller
+              name="newPassword"
+              control={control}
+              render={({ field }) => (
+                <Input.Password
+                  {...field}
+                  id="change-password-new"
+                  size="large"
+                  aria-invalid={!!errors.newPassword}
+                  aria-describedby={errors.newPassword ? 'change-password-new-error' : undefined}
+                />
+              )}
+            />
+            <PasswordStrengthMeter password={newPassword ?? ''} />
+            {errors.newPassword && (
+              <Typography.Text id="change-password-new-error" type="danger">
+                {errors.newPassword.message}
+              </Typography.Text>
+            )}
+          </div>
 
-        <div style={{ marginBottom: 16 }}>
-          <label>{t('profile:changePassword.confirmNewPasswordLabel')}</label>
-          <Controller
-            name="confirmNewPassword"
-            control={control}
-            render={({ field }) => <Input.Password {...field} size="large" />}
-          />
-          {errors.confirmNewPassword && (
-            <Typography.Text type="danger">{errors.confirmNewPassword.message}</Typography.Text>
-          )}
-        </div>
+          <div style={{ marginBottom: 'var(--sp-4)' }}>
+            <label htmlFor="change-password-confirm">{t('profile:changePassword.confirmNewPasswordLabel')}</label>
+            <Controller
+              name="confirmNewPassword"
+              control={control}
+              render={({ field }) => (
+                <Input.Password
+                  {...field}
+                  id="change-password-confirm"
+                  size="large"
+                  aria-invalid={!!errors.confirmNewPassword}
+                  aria-describedby={errors.confirmNewPassword ? 'change-password-confirm-error' : undefined}
+                />
+              )}
+            />
+            {errors.confirmNewPassword && (
+              <Typography.Text id="change-password-confirm-error" type="danger">
+                {errors.confirmNewPassword.message}
+              </Typography.Text>
+            )}
+          </div>
 
-        <Button type="primary" htmlType="submit" size="large" block loading={submitting}>
-          {t('profile:changePassword.submit')}
-        </Button>
-      </form>
+          <Button type="primary" htmlType="submit" size="large" block loading={submitting}>
+            {t('profile:changePassword.submit')}
+          </Button>
+        </form>
+      </Card>
     </div>
   );
 }

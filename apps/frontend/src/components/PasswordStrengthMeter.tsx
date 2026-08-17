@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next';
+
 interface PasswordStrengthMeterProps {
   password: string;
 }
@@ -15,35 +17,38 @@ function scorePassword(password: string): number {
   return score;
 }
 
-const LEVELS = [
-  { label: 'Too weak', color: 'var(--error)' },
-  { label: 'Weak', color: 'var(--error)' },
-  { label: 'Fair', color: 'var(--warning)' },
-  { label: 'Good', color: 'var(--warning)' },
-  { label: 'Strong', color: 'var(--success)' },
-];
+const LEVEL_KEYS = ['tooWeak', 'weak', 'fair', 'good', 'strong'] as const;
+const LEVEL_COLOR: Record<(typeof LEVEL_KEYS)[number], string> = {
+  tooWeak: 'var(--error)',
+  weak: 'var(--error)',
+  fair: 'var(--warning)',
+  good: 'var(--warning)',
+  strong: 'var(--success)',
+};
 
 export function PasswordStrengthMeter({ password }: PasswordStrengthMeterProps) {
+  const { t } = useTranslation(['common']);
   if (!password) return null;
   const score = scorePassword(password);
-  const level = LEVELS[Math.max(0, score - 1)] ?? LEVELS[0]!;
+  const levelKey = LEVEL_KEYS[Math.max(0, score - 1)] ?? LEVEL_KEYS[0];
+  const color = LEVEL_COLOR[levelKey];
 
   return (
-    <div style={{ marginTop: 4 }}>
-      <div style={{ display: 'flex', gap: 4 }}>
-        {LEVELS.map((_, index) => (
+    <div style={{ marginTop: 'var(--sp-1)' }}>
+      <div style={{ display: 'flex', gap: 'var(--sp-1)' }}>
+        {LEVEL_KEYS.map((_, index) => (
           <span
             key={index}
             style={{
               flex: 1,
               height: 4,
-              borderRadius: 'var(--radius-pill, 999px)',
-              background: index < score ? level.color : 'var(--bg-sunken)',
+              borderRadius: 'var(--radius-pill)',
+              background: index < score ? color : 'var(--bg-sunken)',
             }}
           />
         ))}
       </div>
-      <span style={{ fontSize: 'var(--fs-xs, 12px)', color: level.color }}>{level.label}</span>
+      <span style={{ fontSize: 'var(--fs-xs)', color }}>{t(`passwordStrength.${levelKey}`)}</span>
     </div>
   );
 }

@@ -48,7 +48,7 @@ export function StoreSetupWizard() {
 
   if (isPending) {
     return (
-      <div style={{ maxWidth: 480, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
+      <div style={{ maxWidth: 480, margin: '0 auto' }}>
         <SkeletonLoader rows={4} />
       </div>
     );
@@ -106,8 +106,8 @@ export function StoreSetupWizard() {
 
   if (alreadyComplete) {
     return (
-      <div style={{ maxWidth: 480, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
-        <Alert type="info" showIcon message={t('profile:storeSetup.alreadyComplete')} style={{ marginBottom: 16 }} />
+      <div style={{ maxWidth: 480, margin: '0 auto' }}>
+        <Alert type="info" showIcon message={t('profile:storeSetup.alreadyComplete')} style={{ marginBottom: 'var(--sp-4)' }} />
         <Button type="primary" block onClick={() => navigate('/seller')}>
           {t('profile:storeSetup.continueToDashboard')}
         </Button>
@@ -116,14 +116,14 @@ export function StoreSetupWizard() {
   }
 
   return (
-    <div style={{ maxWidth: 480, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
-      <Typography.Title level={3}>{t('profile:storeSetup.title')}</Typography.Title>
+    <div style={{ maxWidth: 480, margin: '0 auto' }}>
+      <Typography.Title level={3} style={{ marginBottom: 'var(--sp-1)' }}>{t('profile:storeSetup.title')}</Typography.Title>
       <Typography.Paragraph type="secondary">{t('profile:storeSetup.subtitle')}</Typography.Paragraph>
 
-      {submitError && <Alert type="error" message={submitError} showIcon style={{ marginBottom: 16 }} />}
+      {submitError && <Alert type="error" message={submitError} showIcon style={{ marginBottom: 'var(--sp-4)' }} />}
 
       <form onSubmit={onSubmit}>
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: 'var(--sp-4)' }}>
           <label>{t('profile:storeSetup.storeNameLabel')}</label>
           <Controller
             name="storeName"
@@ -133,7 +133,7 @@ export function StoreSetupWizard() {
           {errors.storeName && <Typography.Text type="danger">{errors.storeName.message}</Typography.Text>}
         </div>
 
-        <div style={{ marginBottom: 24 }}>
+        <div style={{ marginBottom: 'var(--sp-6)' }}>
           <label>{t('profile:storeSetup.storeDescriptionLabel')}</label>
           <Controller
             name="storeDescription"
@@ -146,11 +146,11 @@ export function StoreSetupWizard() {
         </div>
 
         <Typography.Title level={5}>{t('profile:storeSetup.walletSectionTitle')}</Typography.Title>
-        <Typography.Paragraph type="secondary" style={{ marginTop: -8 }}>
+        <Typography.Paragraph type="secondary" style={{ marginTop: 'calc(-1 * var(--sp-2))' }}>
           {t('profile:storeSetup.walletHelp')}
         </Typography.Paragraph>
 
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: 'var(--sp-4)' }}>
           <label>{t('profile:storeSetup.jazzcashLabel')}</label>
           <Controller
             name="jazzcashAccountNumber"
@@ -162,7 +162,7 @@ export function StoreSetupWizard() {
           )}
         </div>
 
-        <div style={{ marginBottom: 24 }}>
+        <div style={{ marginBottom: 'var(--sp-6)' }}>
           <label>{t('profile:storeSetup.easypaisaLabel')}</label>
           <Controller
             name="easypaisaAccountNumber"

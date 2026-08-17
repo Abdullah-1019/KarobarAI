@@ -4,4 +4,4 @@ export { BuyerOrdersPage } from './BuyerOrdersPage';
 export { SellerOrdersPage } from './SellerOrdersPage';
 export { BuyerOrderDetailPage } from './BuyerOrderDetailPage';
 export { SellerOrderDetailPage } from './SellerOrderDetailPage';
-export { OrderStatusTag } from './OrderStatusTag';
+export { OrderStatusTag, ORDER_STATUS_VARIANT } from './OrderStatusTag';

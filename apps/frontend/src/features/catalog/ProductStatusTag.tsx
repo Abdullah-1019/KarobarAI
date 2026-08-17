@@ -1,12 +1,13 @@
 import type { ProductStatus } from '@karobarai/shared';
-import { Tag } from 'antd';
 import { useTranslation } from 'react-i18next';
 
-const STATUS_COLOR: Record<ProductStatus, string> = {
-  DRAFT: 'default',
-  LIVE: 'green',
-  OUT_OF_STOCK: 'orange',
-  REMOVED: 'red',
+import { StatusTag, type StatusVariant } from '../../components';
+
+const STATUS_VARIANT: Record<ProductStatus, StatusVariant> = {
+  DRAFT: 'neutral',
+  LIVE: 'success',
+  OUT_OF_STOCK: 'warning',
+  REMOVED: 'error',
 };
 
 interface ProductStatusTagProps {
@@ -15,5 +16,5 @@ interface ProductStatusTagProps {
 
 export function ProductStatusTag({ status }: ProductStatusTagProps) {
   const { t } = useTranslation(['catalog']);
-  return <Tag color={STATUS_COLOR[status]}>{t(`catalog:status.${status}`)}</Tag>;
+  return <StatusTag variant={STATUS_VARIANT[status]} label={t(`catalog:status.${status}`)} />;
 }

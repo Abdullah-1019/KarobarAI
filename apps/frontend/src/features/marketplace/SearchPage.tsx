@@ -10,7 +10,8 @@ import { SearchResultsGrid } from './SearchResultsGrid';
 import type { SearchParams, SortOption } from './marketplaceApi';
 
 // SCR-B02 — text-search entry point (`/search?q=`). Filters live in the URL so results are
-// shareable/bookmarkable and survive a reload.
+// shareable/bookmarkable and survive a reload. No outer max-width wrapper — AppShell's shared
+// content area (Phase C) already provides one.
 export function SearchPage() {
   const { t } = useTranslation('marketplace');
   const [searchParams, setSearchParams] = useSearchParams();
@@ -43,8 +44,10 @@ export function SearchPage() {
   }
 
   return (
-    <div style={{ maxWidth: 1080, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
-      <Typography.Title level={3}>{q ? `${t('search.title')}: ${q}` : t('search.title')}</Typography.Title>
+    <div>
+      <Typography.Title level={3} style={{ marginBottom: 'var(--sp-5)' }}>
+        {q ? `${t('search.title')}: ${q}` : t('search.title')}
+      </Typography.Title>
       <Row gutter={24}>
         <Col xs={24} md={6}>
           <FilterPanel categories={categories ?? []} value={filters} onChange={updateFilters} onReset={resetFilters} />

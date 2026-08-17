@@ -37,7 +37,7 @@ export function FilterPanel({ categories, value, onChange, onReset, showCategory
           <Typography.Text strong>{t('filters.category')}</Typography.Text>
           <Select
             allowClear
-            style={{ width: '100%', marginTop: 4 }}
+            style={{ width: '100%', marginTop: 'var(--sp-1)' }}
             placeholder={t('filters.allCategories')}
             options={categoryOptions}
             value={value.categoryId}
@@ -48,7 +48,7 @@ export function FilterPanel({ categories, value, onChange, onReset, showCategory
 
       <div>
         <Typography.Text strong>{t('filters.priceRange')}</Typography.Text>
-        <Space style={{ marginTop: 4 }}>
+        <Space style={{ marginTop: 'var(--sp-1)' }}>
           <InputNumber
             min={0}
             placeholder={t('filters.minPrice')}
@@ -68,7 +68,7 @@ export function FilterPanel({ categories, value, onChange, onReset, showCategory
         <Typography.Text strong>{t('filters.condition')}</Typography.Text>
         <Select
           allowClear
-          style={{ width: '100%', marginTop: 4 }}
+          style={{ width: '100%', marginTop: 'var(--sp-1)' }}
           value={value.condition}
           onChange={(condition) => onChange({ ...value, condition })}
           options={CONDITIONS.map((c) => ({ value: c, label: t(`condition.${c}`) }))}
@@ -78,7 +78,7 @@ export function FilterPanel({ categories, value, onChange, onReset, showCategory
       <div>
         <Typography.Text strong>{t('filters.sort')}</Typography.Text>
         <Select
-          style={{ width: '100%', marginTop: 4 }}
+          style={{ width: '100%', marginTop: 'var(--sp-1)' }}
           value={value.sort ?? 'relevance'}
           onChange={(sort: SortOption) => onChange({ ...value, sort })}
           options={[

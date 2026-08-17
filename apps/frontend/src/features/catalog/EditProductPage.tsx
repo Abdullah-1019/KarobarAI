@@ -7,7 +7,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { updateProductSchema, type CategoryDTO, type ProductCondition } from '@karobarai/shared';
 import { ApiError } from '../../api';
-import { EmptyState, Modal, SkeletonLoader, toast } from '../../components';
+import { AIHint, AIRevealPanel, AIStatus, BackLink, BilingualField, EmptyState, Modal, SkeletonLoader, toast } from '../../components';
 import {
   CATEGORIES_QUERY_KEY,
   deleteProduct,
@@ -46,7 +46,10 @@ function flattenCategories(categories: CategoryDTO[], depth = 0): { id: string; 
 
 // SCR-S03/S04 — full product edit: business fields, images, AI generation, publish/unpublish,
 // delete. Loads via the public GET /products/:id detail endpoint, which allows the owning Seller
-// to preview their own Draft (F4-catalog-backend.md's "owner-preview exception").
+// to preview their own Draft (F4-catalog-backend.md's "owner-preview exception"). "Generate with
+// AI" here gets the same UIUX §22 treatment as AddProductPage's flagship flow (AIStatus while
+// working, AIRevealPanel's staggered entrance, AIHint once done) — it's the same signature moment,
+// just re-triggerable on an existing product rather than a first-time one.
 export function EditProductPage() {
   const { t } = useTranslation(['catalog', 'common']);
   const { productId } = useParams<{ productId: string }>();
@@ -65,6 +68,8 @@ export function EditProductPage() {
   const [submitting, setSubmitting] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
+  const [justRegenerated, setJustRegenerated] = useState(false);
+  const [revealKey, setRevealKey] = useState(0);
   const [publishing, setPublishing] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -107,7 +112,7 @@ export function EditProductPage() {
 
   if (isPending) {
     return (
-      <div style={{ maxWidth: 640, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
+      <div style={{ maxWidth: 640, margin: '0 auto' }}>
         <SkeletonLoader rows={6} />
       </div>
     );
@@ -168,6 +173,8 @@ export function EditProductPage() {
     try {
       const updated = await generateListing(id);
       queryClient.setQueryData(productQueryKey(id), updated);
+      setJustRegenerated(true);
+      setRevealKey((k) => k + 1);
       toast.success(t('catalog:editProduct.generateSuccess'));
     } catch (err) {
       setGenerateError(formatCatalogError(t, err));
@@ -210,60 +217,68 @@ export function EditProductPage() {
   }
 
   return (
-    <div style={{ maxWidth: 640, margin: '0 auto', padding: 'var(--sp-6, 24px)' }}>
-      <Link to="/seller">← {t('catalog:productsList.title')}</Link>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, marginBottom: 8 }}>
+    <div style={{ maxWidth: 640, margin: '0 auto' }}>
+      <BackLink to="/seller" label={t('catalog:productsList.title')} />
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'var(--sp-2)', marginBottom: 'var(--sp-2)' }}>
         <Typography.Title level={3} style={{ margin: 0 }}>
           {t('catalog:editProduct.title')}
         </Typography.Title>
         <ProductStatusTag status={product.status} />
       </div>
 
-      <div style={{ marginBottom: 24 }}>
+      <div style={{ marginBottom: 'var(--sp-6)' }}>
         <Typography.Title level={5}>{t('catalog:editProduct.imagesTitle')}</Typography.Title>
         <ProductImageManager productId={id} images={product.images} />
       </div>
 
-      <div style={{ marginBottom: 24 }}>
-        <Button loading={generating} onClick={handleGenerate}>
-          {t('catalog:editProduct.generateListing')}
-        </Button>
-        {generateError && <Alert type="error" message={generateError} showIcon style={{ marginTop: 8 }} />}
+      <div style={{ marginBottom: 'var(--sp-6)' }}>
+        {generating ? (
+          <AIStatus message={t('catalog:aiWizard.generating')} />
+        ) : (
+          <Button loading={generating} onClick={handleGenerate}>
+            {t('catalog:editProduct.generateListing')}
+          </Button>
+        )}
+        {generateError && <Alert type="error" message={generateError} showIcon style={{ marginTop: 'var(--sp-2)' }} />}
       </div>
 
-      {submitError && <Alert type="error" message={submitError} showIcon style={{ marginBottom: 16 }} />}
+      {submitError && <Alert type="error" message={submitError} showIcon style={{ marginBottom: 'var(--sp-4)' }} />}
 
       <form onSubmit={onSubmit}>
-        <div style={{ marginBottom: 16 }}>
-          <label>{t('catalog:editProduct.titleEnLabel')}</label>
-          <Controller name="titleEn" control={control} render={({ field }) => <Input {...field} size="large" />} />
-          {errors.titleEn && <Typography.Text type="danger">{errors.titleEn.message}</Typography.Text>}
-        </div>
+        {justRegenerated && (
+          <div style={{ marginBottom: 'var(--sp-3)' }}>
+            <AIHint label={t('catalog:aiWizard.editAnythingHint')} />
+          </div>
+        )}
 
-        <div style={{ marginBottom: 16 }}>
-          <label>{t('catalog:editProduct.titleUrLabel')}</label>
-          <Controller name="titleUr" control={control} render={({ field }) => <Input {...field} size="large" />} />
-        </div>
+        <AIRevealPanel revealKey={revealKey}>
+          <div style={{ marginBottom: 'var(--sp-4)' }}>
+            <BilingualField
+              enLabel={t('catalog:editProduct.titleEnLabel')}
+              urLabel={t('catalog:editProduct.titleUrLabel')}
+              enField={<Controller name="titleEn" control={control} render={({ field }) => <Input {...field} size="large" />} />}
+              urField={<Controller name="titleUr" control={control} render={({ field }) => <Input {...field} size="large" dir="rtl" />} />}
+            />
+            {errors.titleEn && <Typography.Text type="danger">{errors.titleEn.message}</Typography.Text>}
+          </div>
 
-        <div style={{ marginBottom: 16 }}>
-          <label>{t('catalog:editProduct.descriptionEnLabel')}</label>
-          <Controller
-            name="descriptionEn"
-            control={control}
-            render={({ field }) => <Input.TextArea {...field} rows={3} />}
-          />
-        </div>
+          <div style={{ marginBottom: 'var(--sp-4)' }}>
+            <BilingualField
+              enLabel={t('catalog:editProduct.descriptionEnLabel')}
+              urLabel={t('catalog:editProduct.descriptionUrLabel')}
+              enField={<Controller name="descriptionEn" control={control} render={({ field }) => <Input.TextArea {...field} rows={3} />} />}
+              urField={
+                <Controller
+                  name="descriptionUr"
+                  control={control}
+                  render={({ field }) => <Input.TextArea {...field} rows={3} dir="rtl" />}
+                />
+              }
+            />
+          </div>
+        </AIRevealPanel>
 
-        <div style={{ marginBottom: 16 }}>
-          <label>{t('catalog:editProduct.descriptionUrLabel')}</label>
-          <Controller
-            name="descriptionUr"
-            control={control}
-            render={({ field }) => <Input.TextArea {...field} rows={3} />}
-          />
-        </div>
-
-        <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
+        <div style={{ display: 'flex', gap: 'var(--sp-4)', marginBottom: 'var(--sp-4)' }}>
           <div style={{ flex: 1 }}>
             <label>{t('catalog:editProduct.priceLabel')}</label>
             <Controller
@@ -284,7 +299,7 @@ export function EditProductPage() {
           </div>
         </div>
 
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: 'var(--sp-4)' }}>
           <label>{t('catalog:editProduct.conditionLabel')}</label>
           <Controller
             name="condition"
@@ -300,7 +315,7 @@ export function EditProductPage() {
           />
         </div>
 
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: 'var(--sp-4)' }}>
           <label>{t('catalog:editProduct.categoryLabel')}</label>
           <Controller
             name="categoryId"
@@ -311,7 +326,7 @@ export function EditProductPage() {
           />
         </div>
 
-        <div style={{ marginBottom: 24 }}>
+        <div style={{ marginBottom: 'var(--sp-6)' }}>
           <label>{t('catalog:editProduct.tagsLabel')}</label>
           <Controller
             name="tags"
@@ -325,16 +340,16 @@ export function EditProductPage() {
         </Button>
       </form>
 
-      <div style={{ marginTop: 32, paddingTop: 24, borderTop: '1px solid var(--border-color, #f0f0f0)' }}>
-        {publishError && <Alert type="error" message={publishError} showIcon style={{ marginBottom: 12 }} />}
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+      <div style={{ marginTop: 'var(--sp-8)', paddingTop: 'var(--sp-6)', borderTop: '1px solid var(--border)' }}>
+        {publishError && <Alert type="error" message={publishError} showIcon style={{ marginBottom: 'var(--sp-3)' }} />}
+        <div style={{ display: 'flex', gap: 'var(--sp-3)', flexWrap: 'wrap' }}>
           <Button loading={publishing} onClick={handlePublishToggle}>
             {product.status === 'LIVE' ? t('catalog:editProduct.unpublish') : t('catalog:editProduct.publish')}
           </Button>
           <Button danger onClick={() => setDeleteModalOpen(true)}>
             {t('catalog:editProduct.delete')}
           </Button>
-          <Link to="/seller/products/new" style={{ marginLeft: 'auto' }}>
+          <Link to="/seller/products/new" style={{ marginInlineStart: 'auto' }}>
             <Button>{t('catalog:productsList.addProduct')}</Button>
           </Link>
         </div>

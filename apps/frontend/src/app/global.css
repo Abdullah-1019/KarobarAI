@@ -98,6 +98,20 @@
   --warning: #e0a33a;
   --error: #e0634f;
   --info: #4e97c4;
+
+  /* Soft-tint backgrounds (Phase B, §5.2/§13/§17) were only ever given light-mode values —
+   * every StatusTag chip (success/warning/error/info) and any selected/highlighted surface using
+   * these (e.g. E3's SelectableOptionCard) fell back to the *light* tint even in dark mode: a
+   * near-white background with dark-mode's light body text on top, unreadable. Found during E3
+   * dark-mode verification; fixed at the token level since the gap is app-wide, not one screen.
+   * Dark, desaturated versions of the same hues — distinguishable from --bg-surface without
+   * blowing out contrast against light dark-mode text. */
+  --brand-primary-soft: #1c2a22;
+  --accent-marigold-soft: #3a2e14;
+  --success-soft: var(--brand-primary-soft);
+  --warning-soft: #3a2c14;
+  --error-soft: #3a201c;
+  --info-soft: #182530;
 }
 
 html,
@@ -308,6 +322,56 @@ body {
   .karobarai-app-header-actions,
   .karobarai-app-header-guest-actions {
     display: none;
+  }
+}
+
+/* Cart item row (E3) — thumbnail + title/price + quantity stepper + remove button previously sat
+   in one unwrapping flex row. On a narrow phone (the QuantityStepper alone is ~140px: two 32px
+   buttons plus a 64px number input, plus the remove button and thumbnail) there was no room left
+   for the flex:1 title, which visually disappeared rather than truncating — a real usability bug,
+   not a styling nitpick. `flex-wrap: wrap` plus `flex-basis: 100%` on the controls group below a
+   breakpoint pushes quantity/remove onto their own line, so the mobile hierarchy is: photo+title+
+   price first (what am I buying, how much), controls second (how many, remove) — intentional
+   stacking, not the desktop row simply shrunk. */
+.karobarai-cart-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+}
+.karobarai-cart-item-info {
+  flex: 1 1 160px;
+  min-width: 0;
+}
+.karobarai-cart-item-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-shrink: 0;
+  margin-inline-start: auto;
+}
+@media (max-width: 480px) {
+  .karobarai-cart-item-controls {
+    flex-basis: 100%;
+    justify-content: flex-end;
+  }
+}
+
+/* Orders list (E3, UIUX §31: "Tables -> stack to cards where clearer") — OrderListPage renders
+   the same data two ways (a dense desktop Table, a stacked mobile card list) and this toggles
+   which one is visible per breakpoint, rather than JS viewport state, matching the pure-CSS
+   pattern Sidebar/BottomTabBar already established. Shared by both Buyer's and Seller's order
+   list (same component, `scope` prop) since a table becoming unreadable on a narrow phone isn't
+   role-specific. */
+.karobarai-orders-cards {
+  display: none;
+}
+@media (max-width: 767px) {
+  .karobarai-orders-table {
+    display: none;
+  }
+  .karobarai-orders-cards {
+    display: block;
   }
 }
 

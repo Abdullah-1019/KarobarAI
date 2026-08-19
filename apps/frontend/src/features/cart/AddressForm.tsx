@@ -98,9 +98,24 @@ export function AddressForm({ onCreated }: AddressFormProps) {
 
       {fields.map(({ name, label }) => (
         <div key={name} style={{ marginBottom: 'var(--sp-3)' }}>
-          <label>{label}</label>
-          <Controller name={name} control={control} render={({ field }) => <Input {...field} />} />
-          {errors[name] && <Typography.Text type="danger">{errors[name]?.message}</Typography.Text>}
+          <label htmlFor={`address-${name}`}>{label}</label>
+          <Controller
+            name={name}
+            control={control}
+            render={({ field }) => (
+              <Input
+                {...field}
+                id={`address-${name}`}
+                aria-invalid={!!errors[name]}
+                aria-describedby={errors[name] ? `address-${name}-error` : undefined}
+              />
+            )}
+          />
+          {errors[name] && (
+            <Typography.Text id={`address-${name}-error`} type="danger">
+              {errors[name]?.message}
+            </Typography.Text>
+          )}
         </div>
       ))}
 

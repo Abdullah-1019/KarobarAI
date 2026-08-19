@@ -4,7 +4,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router-dom';
 
-import { Modal, PriceDisplay, STATUS_VARIANT_COLOR, SkeletonLoader, toast } from '../../components';
+import { Modal, PriceDisplay, STATUS_VARIANT_COLOR, SkeletonLoader, StatusTag, toast } from '../../components';
+import type { StatusVariant } from '../../components';
 import { CourierRecommendationCard, TrackingTimeline } from '../tracking';
 import { getAuthenticatedTracking, trackingQueryKey } from '../tracking/trackingApi';
 import { ORDER_STATUS_VARIANT, OrderStatusTag } from './OrderStatusTag';
@@ -14,6 +15,17 @@ import { formatOrdersError } from './ordersErrors';
 interface OrderDetailPageProps {
   scope: 'buyer' | 'seller';
 }
+
+// paymentStatus on OrderDetailDTO is typed as plain `string` (not the narrower PaymentStatus
+// union) at the API layer — defensively falls back to 'neutral' for anything unrecognized rather
+// than throwing on an unmapped value.
+const PAYMENT_STATUS_VARIANT: Record<string, StatusVariant> = {
+  PENDING: 'warning',
+  CONFIRMED: 'success',
+  FAILED: 'error',
+  REFUNDED: 'info',
+  CANCELLED: 'neutral',
+};
 
 // Generic detail page backing SCR-B07's order detail (Buyer) and SCR-S06 (Seller) — the courier
 // card/booking (Feature 8) lives in features/tracking, consumed here. `commission` renders only
@@ -74,15 +86,10 @@ export function OrderDetailPage({ scope }: OrderDetailPageProps) {
         </Typography.Title>
         <OrderStatusTag status={order.status} />
       </div>
-
-      <Card title={t('detail.shipping')} style={{ marginTop: 'var(--sp-4)' }}>
-        <Typography.Text strong>{order.shipping.recipientName}</Typography.Text>
-        <div>
-          {order.shipping.line1}
-          {order.shipping.line2 ? `, ${order.shipping.line2}` : ''}, {order.shipping.city}, {order.shipping.province}
-        </div>
-        <Typography.Text type="secondary">{order.shipping.phone}</Typography.Text>
-      </Card>
+      <Typography.Text type="secondary" style={{ display: 'block', marginTop: 'var(--sp-1)' }}>
+        {t('detail.placedOn', { date: new Date(order.placedAt).toLocaleDateString() })} ·{' '}
+        {t('detail.itemCount', { count: order.items.length })}
+      </Typography.Text>
 
       <Card title={t('detail.items')} style={{ marginTop: 'var(--sp-4)' }}>
         {order.items.map((item) => (
@@ -115,6 +122,27 @@ export function OrderDetailPage({ scope }: OrderDetailPageProps) {
           <Typography.Text strong>{t('detail.totalAmount')}</Typography.Text>
           <PriceDisplay amount={order.totalAmount} size="lg" />
         </div>
+        <Divider style={{ margin: 'var(--sp-3) 0' }} />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography.Text type="secondary">{t('detail.paymentMethodLabel')}</Typography.Text>
+          <Typography.Text>{t(`paymentMethods.${order.paymentMethod}`)}</Typography.Text>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'var(--sp-1)' }}>
+          <Typography.Text type="secondary">{t('detail.paymentStatusLabel')}</Typography.Text>
+          <StatusTag
+            variant={PAYMENT_STATUS_VARIANT[order.paymentStatus] ?? 'neutral'}
+            label={t(`paymentStatus.${order.paymentStatus}`, { defaultValue: order.paymentStatus })}
+          />
+        </div>
+      </Card>
+
+      <Card title={t('detail.shipping')} style={{ marginTop: 'var(--sp-4)' }}>
+        <Typography.Text strong>{order.shipping.recipientName}</Typography.Text>
+        <div>
+          {order.shipping.line1}
+          {order.shipping.line2 ? `, ${order.shipping.line2}` : ''}, {order.shipping.city}, {order.shipping.province}
+        </div>
+        <Typography.Text type="secondary">{order.shipping.phone}</Typography.Text>
         <Typography.Text type="secondary" style={{ display: 'block', marginTop: 'var(--sp-2)' }}>
           {t('detail.courier')}:{' '}
           {tracking?.courier

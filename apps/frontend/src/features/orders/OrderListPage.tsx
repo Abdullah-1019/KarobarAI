@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, Button, Segmented, Table, Typography } from 'antd';
+import { Alert, Button, Card, Divider, Segmented, Table, Typography } from 'antd';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
@@ -24,6 +24,13 @@ interface OrderListPageProps {
 // Generic list page backing both SCR-B07 (My Orders) and SCR-S05 (Seller Order Management) —
 // same tab/cursor contract on both endpoints (packages/shared's ORDER_STATUS_TABS), same
 // useInfiniteQuery/load-more shape SellerProductsPage.tsx already established for Feature 4.
+//
+// E3: renders the same `items` two ways — a dense Table (desktop) and a stacked card list
+// (mobile, karobarai-orders-cards) — CSS toggles which is visible per the app's existing
+// pure-CSS breakpoint convention (global.css). Not a Buyer-specific redesign: this is a shared
+// component, and a data table collapsing to cards on a narrow phone is a generic responsive
+// improvement (UIUX §31) that benefits Seller's order list too, not new business logic or
+// information architecture.
 export function OrderListPage({ scope }: OrderListPageProps) {
   const { t } = useTranslation(['orders']);
   const [tab, setTab] = useState<TabFilter>('All');
@@ -125,7 +132,61 @@ export function OrderListPage({ scope }: OrderListPageProps) {
 
       {!isPending && !isError && items.length > 0 && (
         <>
-          <Table rowKey="id" columns={columns} dataSource={items} pagination={false} size="middle" />
+          <div className="karobarai-orders-table">
+            <Table rowKey="id" columns={columns} dataSource={items} pagination={false} size="middle" />
+          </div>
+
+          <div className="karobarai-orders-cards">
+            {items.map((item) => (
+              <Card key={item.id} size="small" style={{ marginBottom: 'var(--sp-3)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 'var(--sp-2)' }}>
+                  <div>
+                    <Link to={`${detailBase}/${item.id}`} style={{ fontWeight: 500 }}>
+                      {item.id}
+                    </Link>
+                    <Typography.Text type="secondary" style={{ display: 'block', fontSize: 'var(--fs-xs)' }}>
+                      {new Date(item.placedAt).toLocaleDateString()}
+                    </Typography.Text>
+                  </div>
+                  <OrderStatusTag status={item.status} />
+                </div>
+
+                {item.status === 'PENDING_MANUAL_LOGISTICS' && (
+                  <div style={{ marginTop: 'var(--sp-2)' }}>
+                    <StatusTag variant="warning" label={t('list.pendingLogistics')} />
+                  </div>
+                )}
+
+                <Divider style={{ margin: 'var(--sp-3) 0' }} />
+
+                <Typography.Text type="secondary" style={{ fontSize: 'var(--fs-sm)' }}>
+                  {item.counterpartyName}
+                </Typography.Text>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 'var(--sp-1)' }}>
+                  <Typography.Text type="secondary" style={{ fontSize: 'var(--fs-xs)' }}>
+                    {item.itemCount} {t('list.columnItems').toLowerCase()}
+                  </Typography.Text>
+                  <PriceDisplay amount={item.totalAmount} size="sm" />
+                </div>
+
+                <div style={{ display: 'flex', gap: 'var(--sp-2)', marginTop: 'var(--sp-3)' }}>
+                  <Link to={`${detailBase}/${item.id}`} style={{ flex: 1 }}>
+                    <Button block size="small">
+                      {t('list.viewOrder')}
+                    </Button>
+                  </Link>
+                  {scope === 'buyer' && item.returnEligible && (
+                    <Link to={`/orders/${item.id}/return`} style={{ flex: 1 }}>
+                      <Button block size="small">
+                        {t('list.returnAction')}
+                      </Button>
+                    </Link>
+                  )}
+                </div>
+              </Card>
+            ))}
+          </div>
+
           {hasNextPage && (
             <div style={{ textAlign: 'center', marginTop: 'var(--sp-4)' }}>
               <Button loading={isFetchingNextPage} onClick={() => fetchNextPage()}>

@@ -72,16 +72,14 @@ export function CartPage() {
         {group.items.map((item: CartItemDTO, index) => (
           <div
             key={item.id}
+            className="karobarai-cart-item"
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 'var(--sp-4)',
               padding: 'var(--sp-3) 0',
               borderBottom: index === group.items.length - 1 ? 'none' : '1px solid var(--border)',
             }}
           >
             <ProductThumbnail src={item.primaryImageUrl} size={64} />
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="karobarai-cart-item-info">
               <Typography.Text ellipsis style={{ display: 'block' }}>
                 {item.titleEn}
               </Typography.Text>
@@ -92,16 +90,18 @@ export function CartPage() {
                 </div>
               )}
             </div>
-            <QuantityStepper
-              value={item.quantity}
-              min={1}
-              max={item.stockConflict?.available}
-              disabled={updateMutation.isPending}
-              onChange={(quantity) => updateMutation.mutate({ itemId: item.id, quantity })}
-            />
-            <Button type="link" danger loading={removeMutation.isPending} onClick={() => removeMutation.mutate(item.id)}>
-              {t('item.remove')}
-            </Button>
+            <div className="karobarai-cart-item-controls">
+              <QuantityStepper
+                value={item.quantity}
+                min={1}
+                max={item.stockConflict?.available}
+                disabled={updateMutation.isPending}
+                onChange={(quantity) => updateMutation.mutate({ itemId: item.id, quantity })}
+              />
+              <Button type="link" danger loading={removeMutation.isPending} onClick={() => removeMutation.mutate(item.id)}>
+                {t('item.remove')}
+              </Button>
+            </div>
           </div>
         ))}
         <Divider style={{ margin: 'var(--sp-2) 0' }} />
@@ -125,25 +125,25 @@ export function CartPage() {
     return (
       <div
         key={item.productId}
+        className="karobarai-cart-item"
         style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 'var(--sp-4)',
           padding: 'var(--sp-3) 0',
           borderBottom: isLast ? 'none' : '1px solid var(--border)',
         }}
       >
         <ProductThumbnail src={item.primaryImageUrl} size={64} />
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="karobarai-cart-item-info">
           <Typography.Text ellipsis style={{ display: 'block' }}>
             {item.titleEn}
           </Typography.Text>
           <PriceDisplay amount={item.price} size="sm" muted />
         </div>
-        <QuantityStepper value={item.quantity} min={1} onChange={(quantity) => updateGuestQuantity(item.productId, quantity)} />
-        <Button type="link" danger onClick={() => removeGuestItem(item.productId)}>
-          {t('item.remove')}
-        </Button>
+        <div className="karobarai-cart-item-controls">
+          <QuantityStepper value={item.quantity} min={1} onChange={(quantity) => updateGuestQuantity(item.productId, quantity)} />
+          <Button type="link" danger onClick={() => removeGuestItem(item.productId)}>
+            {t('item.remove')}
+          </Button>
+        </div>
       </div>
     );
   }
@@ -167,30 +167,40 @@ export function CartPage() {
             )}
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'var(--sp-4)' }}>
-        <div>
-          <Typography.Text type="secondary" style={{ display: 'block' }}>
-            {t('page.grandTotal')}
-          </Typography.Text>
-          <PriceDisplay amount={isBuyer ? cart?.grandSubtotal ?? 0 : guestTotal} size="lg" />
-        </div>
-        {isBuyer ? (
-          <Button
-            type="primary"
-            size="large"
-            disabled={!cart?.sellerGroups.some((g) => g.eligibleForCheckout)}
-            onClick={() => navigate('/checkout')}
-          >
-            {t('page.checkout')}
-          </Button>
-        ) : (
-          <Link to="/login" state={{ redirect: '/checkout' }}>
-            <Button type="primary" size="large">
+      <Card
+        className="karobarai-cart-summary"
+        style={{
+          marginTop: 'var(--sp-6)',
+          position: 'sticky',
+          bottom: 'var(--sp-4)',
+          boxShadow: 'var(--shadow-md)',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <Typography.Text type="secondary" style={{ display: 'block' }}>
+              {t('page.grandTotal')}
+            </Typography.Text>
+            <PriceDisplay amount={isBuyer ? cart?.grandSubtotal ?? 0 : guestTotal} size="lg" />
+          </div>
+          {isBuyer ? (
+            <Button
+              type="primary"
+              size="large"
+              disabled={!cart?.sellerGroups.some((g) => g.eligibleForCheckout)}
+              onClick={() => navigate('/checkout')}
+            >
               {t('page.checkout')}
             </Button>
-          </Link>
-        )}
-      </div>
+          ) : (
+            <Link to="/login" state={{ redirect: '/checkout' }}>
+              <Button type="primary" size="large">
+                {t('page.checkout')}
+              </Button>
+            </Link>
+          )}
+        </div>
+      </Card>
     </div>
   );
 }

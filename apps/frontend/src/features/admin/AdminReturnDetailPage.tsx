@@ -4,8 +4,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 
-import { Modal, ProductThumbnail, SkeletonLoader, toast } from '../../components';
+import { Modal, PageHeader, ProductThumbnail, SkeletonLoader, toast } from '../../components';
 import { useAuthStore } from '../../lib/authStore';
+import { ReturnProgressTimeline } from '../returns/ReturnProgressTimeline';
 import { ReturnStatusTag } from '../returns/ReturnStatusTag';
 import { adminDecideReturn, adminReturnDetailQueryKey, getAdminReturnDetail } from './adminApi';
 import { formatAdminError } from './adminErrors';
@@ -60,12 +61,16 @@ export function AdminReturnDetailPage() {
 
   return (
     <div style={{ maxWidth: 640, margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography.Title level={3} style={{ margin: 0 }}>
-          {t('returnDetail.title', { id: ret.orderId })}
-        </Typography.Title>
-        <ReturnStatusTag status={ret.status} />
-      </div>
+      <PageHeader
+        title={t('returnDetail.title', { id: ret.orderId })}
+        backTo="/admin/returns"
+        backLabel={t('returnsQueue.title')}
+        actions={<ReturnStatusTag status={ret.status} />}
+      />
+
+      <Card title={t('returnDetail.progressTitle')} style={{ marginBottom: 'var(--sp-4)' }}>
+        <ReturnProgressTimeline ret={ret} />
+      </Card>
 
       <Card title={t('returnDetail.reason')} style={{ marginTop: 'var(--sp-4)' }}>
         {ret.reason}
@@ -101,14 +106,19 @@ export function AdminReturnDetailPage() {
       )}
 
       {canDecide && isAdmin && (
-        <div style={{ display: 'flex', gap: 'var(--sp-3)', marginTop: 'var(--sp-6)' }}>
-          <Button type="primary" onClick={() => setPendingDecision('APPROVED')}>
-            {t('returnDetail.approve')}
-          </Button>
-          <Button danger onClick={() => setPendingDecision('REJECTED')}>
-            {t('returnDetail.reject')}
-          </Button>
-        </div>
+        <>
+          <Typography.Title level={5} style={{ marginBottom: 'var(--sp-2)', marginTop: 'var(--sp-6)' }}>
+            {t('returnDetail.sectionActions')}
+          </Typography.Title>
+          <div style={{ display: 'flex', gap: 'var(--sp-3)' }}>
+            <Button type="primary" onClick={() => setPendingDecision('APPROVED')}>
+              {t('returnDetail.approve')}
+            </Button>
+            <Button danger onClick={() => setPendingDecision('REJECTED')}>
+              {t('returnDetail.reject')}
+            </Button>
+          </div>
+        </>
       )}
 
       {canDecide && !isAdmin && <Alert style={{ marginTop: 'var(--sp-6)' }} type="info" message={t('supportReadOnly')} />}

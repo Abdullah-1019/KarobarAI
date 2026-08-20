@@ -3,7 +3,7 @@ import { Alert, Button, Card, Col, Input, InputNumber, Row, Space, Tag, Typograp
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
-import { SkeletonLoader, toast } from '../../components';
+import { PageHeader, SkeletonLoader, toast } from '../../components';
 import { useAuthStore } from '../../lib/authStore';
 import { adminConfigQueryKey, listAdminConfig, patchAdminConfig } from './adminApi';
 import { formatAdminError } from './adminErrors';
@@ -93,7 +93,7 @@ export function ConfigPanelPage() {
 
   return (
     <div style={{ maxWidth: 720, margin: '0 auto' }}>
-      <Typography.Title level={3}>{t('config.title')}</Typography.Title>
+      <PageHeader title={t('config.title')} />
 
       {!isAdmin && <Alert style={{ marginBottom: 'var(--sp-4)' }} type="info" message={t('supportReadOnly')} />}
 

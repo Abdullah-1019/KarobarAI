@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { Alert, Button, Drawer, Input, Select, Space, Table, Typography } from 'antd';
+import { Alert, Button, Divider, Drawer, Input, Select, Space, Table, Typography } from 'antd';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
 import type { AdminUserListItemDTO, UserStatus } from '@karobarai/shared';
-import { EmptyState, Modal, SkeletonLoader, StatusTag, type StatusVariant, toast } from '../../components';
+import { EmptyState, Modal, PageHeader, SkeletonLoader, StatusTag, type StatusVariant, toast } from '../../components';
 import { useAuthStore } from '../../lib/authStore';
 import {
   adminUserDetailQueryKey,
@@ -114,9 +114,7 @@ export function UserManagementPage() {
 
   return (
     <div>
-      <Typography.Title level={3} style={{ marginBottom: 'var(--sp-4)' }}>
-        {t('userDetail.title')}
-      </Typography.Title>
+      <PageHeader title={t('userDetail.title')} />
 
       <Space style={{ marginBottom: 'var(--sp-4)' }} wrap>
         <Select
@@ -151,7 +149,7 @@ export function UserManagementPage() {
       {!isPending && !isError && items.length === 0 && <EmptyState title={t('userDetail.empty')} />}
       {!isPending && !isError && items.length > 0 && (
         <>
-          <Table rowKey="id" columns={columns} dataSource={items} pagination={false} size="middle" />
+          <Table rowKey="id" columns={columns} dataSource={items} pagination={false} size="middle" scroll={{ x: true }} />
           {hasNextPage && (
             <div style={{ textAlign: 'center', marginTop: 'var(--sp-4)' }}>
               <Button loading={isFetchingNextPage} onClick={() => fetchNextPage()}>
@@ -167,6 +165,9 @@ export function UserManagementPage() {
         {detail.isError && <Alert type="error" showIcon message={formatAdminError(t, detail.error)} />}
         {detail.isSuccess && (
           <Space direction="vertical" size={12} style={{ width: '100%' }}>
+            <Typography.Text strong style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-secondary)' }}>
+              {t('userDetail.sectionAccount')}
+            </Typography.Text>
             <div>
               <Typography.Text type="secondary">{t('userDetail.columnRole')}</Typography.Text>
               <div>{t(`userDetail.role.${detail.data.role}`)}</div>
@@ -192,37 +193,63 @@ export function UserManagementPage() {
                 <div>{detail.data.phone}</div>
               </div>
             )}
-            {detail.data.storeName && (
-              <div>
-                <Typography.Text type="secondary">{t('userDetail.storeName')}</Typography.Text>
-                <div>{detail.data.storeName}</div>
-              </div>
+
+            {(detail.data.storeName || detail.data.fraudRate30d !== null || detail.data.commissionRate !== null) && (
+              <>
+                <Divider style={{ margin: 'var(--sp-1) 0' }} />
+                <Typography.Text strong style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-secondary)' }}>
+                  {t('userDetail.sectionSeller')}
+                </Typography.Text>
+                {detail.data.storeName && (
+                  <div>
+                    <Typography.Text type="secondary">{t('userDetail.storeName')}</Typography.Text>
+                    <div>{detail.data.storeName}</div>
+                  </div>
+                )}
+                {detail.data.fraudRate30d !== null && (
+                  <div>
+                    <Typography.Text type="secondary">{t('userDetail.fraudRate')}</Typography.Text>
+                    <div>{detail.data.fraudRate30d.toFixed(1)}%</div>
+                  </div>
+                )}
+                {detail.data.commissionRate !== null && (
+                  <div>
+                    <Typography.Text type="secondary">{t('userDetail.commissionRate')}</Typography.Text>
+                    <div>{(Number(detail.data.commissionRate) * 100).toFixed(1)}%</div>
+                  </div>
+                )}
+              </>
             )}
-            {detail.data.fraudRate30d !== null && (
-              <div>
-                <Typography.Text type="secondary">{t('userDetail.fraudRate')}</Typography.Text>
-                <div>{detail.data.fraudRate30d.toFixed(1)}%</div>
-              </div>
-            )}
-            {detail.data.commissionRate !== null && (
-              <div>
-                <Typography.Text type="secondary">{t('userDetail.commissionRate')}</Typography.Text>
-                <div>{(Number(detail.data.commissionRate) * 100).toFixed(1)}%</div>
-              </div>
-            )}
+
             {detail.data.addressCount !== null && (
-              <div>
-                <Typography.Text type="secondary">{t('userDetail.addressCount')}</Typography.Text>
-                <div>{detail.data.addressCount}</div>
-              </div>
+              <>
+                <Divider style={{ margin: 'var(--sp-1) 0' }} />
+                <Typography.Text strong style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-secondary)' }}>
+                  {t('userDetail.sectionBuyer')}
+                </Typography.Text>
+                <div>
+                  <Typography.Text type="secondary">{t('userDetail.addressCount')}</Typography.Text>
+                  <div>{detail.data.addressCount}</div>
+                </div>
+              </>
             )}
+
+            <Divider style={{ margin: 'var(--sp-1) 0' }} />
+            <Typography.Text strong style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-secondary)' }}>
+              {t('userDetail.sectionActivity')}
+            </Typography.Text>
             <div>
               <Typography.Text type="secondary">{t('userDetail.lastLoginAt')}</Typography.Text>
               <div>{detail.data.lastLoginAt ? new Date(detail.data.lastLoginAt).toLocaleString() : t('userDetail.never')}</div>
             </div>
 
             {isAdmin ? (
-              <Space style={{ marginTop: 'var(--sp-4)' }} wrap>
+              <>
+                <Divider style={{ margin: 'var(--sp-1) 0' }} />
+                <Typography.Text strong style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-secondary)' }}>
+                  {t('userDetail.sectionActions')}
+                </Typography.Text>
+                <Space wrap>
                 {detail.data.status !== 'SUSPENDED' && detail.data.status !== 'BANNED' && (
                   <Button onClick={() => setPendingAction({ type: 'suspend', userId: detail.data.id })}>
                     {t('userDetail.suspend')}
@@ -238,7 +265,8 @@ export function UserManagementPage() {
                     {t('userDetail.reactivate')}
                   </Button>
                 )}
-              </Space>
+                </Space>
+              </>
             ) : (
               <Alert style={{ marginTop: 'var(--sp-4)' }} type="info" message={t('supportReadOnly')} />
             )}

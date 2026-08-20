@@ -1,6 +1,6 @@
 import { Button, Dropdown } from 'antd';
 import type { MenuProps } from 'antd';
-import { FileClock, LayoutDashboard, Scale, Settings, ShieldCheck, TrendingUp, Users, Wallet } from 'lucide-react';
+import { LayoutDashboard, Scale, Settings, ShieldCheck, TrendingUp, Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Outlet, useNavigate } from 'react-router-dom';
 
@@ -17,23 +17,19 @@ import { logout as logoutApi } from '../auth/authApi';
 // "Overview" reuses the existing nav.dashboard label/route (/admin) rather than a new "Overview"
 // string, since it's the same landing page concept Seller already calls "Dashboard". "Disputes"
 // maps onto the existing /admin/returns route (already titled "Returns Management" — its
-// ReturnStatus values include UNDER_DISPUTE) rather than a separate screen. "Payments" and
-// "Audit" have no dedicated screens yet, so they resolve via the existing `/admin/*` placeholder
-// route (AdminPlaceholder's intended purpose), the same pattern SellerLayout uses for "Wallet".
+// ReturnStatus values include UNDER_DISPUTE) rather than a separate screen.
+//
+// E7 — "Payments" and "Audit" were removed from this list (previously present, both resolving to
+// the generic AdminPlaceholder stub — no /admin/payments or /admin/audit screen exists anywhere in
+// the codebase, and none is scoped in Feature 12's own backend playbook). A nav item that always
+// dead-ends reads as broken, not "coming soon" — directly against the brief's "use the actual
+// available modules" instruction and the admin UI's "professional, controlled" character goal.
+// Re-add them once real screens exist to back them.
 // "Reports" isn't in the UIUX doc's Phase C list but is a real, already-built screen (F11/F12)
 // that the old header exposed — kept in the sidebar so nothing already reachable regresses.
-const SIDEBAR_ITEMS_KEY = [
-  'overview',
-  'users',
-  'payments',
-  'disputes',
-  'moderation',
-  'reports',
-  'config',
-  'audit',
-] as const;
+const SIDEBAR_ITEMS_KEY = ['overview', 'users', 'disputes', 'moderation', 'reports', 'config'] as const;
 // 5 max per §15 — mobile keeps the most operationally urgent items (status, identity, and the two
-// review queues) and drops Payments/Reports/Audit, still reachable from the desktop/tablet sidebar.
+// review queues), Reports still reachable from the desktop/tablet sidebar.
 const BOTTOM_TAB_KEYS = ['overview', 'users', 'moderation', 'disputes', 'config'] as const;
 
 export function AdminLayout() {
@@ -60,12 +56,10 @@ export function AdminLayout() {
   const allItems: Record<(typeof SIDEBAR_ITEMS_KEY)[number], NavItem> = {
     overview: { key: 'overview', to: '/admin', label: t('nav.dashboard'), icon: LayoutDashboard, exact: true },
     users: { key: 'users', to: '/admin/users', label: t('nav.adminUsers'), icon: Users },
-    payments: { key: 'payments', to: '/admin/payments', label: t('nav.payments'), icon: Wallet },
     disputes: { key: 'disputes', to: '/admin/returns', label: t('nav.returns'), icon: Scale },
     moderation: { key: 'moderation', to: '/admin/moderation', label: t('nav.adminModeration'), icon: ShieldCheck },
     reports: { key: 'reports', to: '/admin/reports', label: t('nav.adminReports'), icon: TrendingUp },
     config: { key: 'config', to: '/admin/config', label: t('nav.adminConfig'), icon: Settings },
-    audit: { key: 'audit', to: '/admin/audit', label: t('nav.audit'), icon: FileClock },
   };
   const sidebarItems = SIDEBAR_ITEMS_KEY.map((key) => allItems[key]);
   const bottomTabItems = BOTTOM_TAB_KEYS.map((key) => allItems[key]);

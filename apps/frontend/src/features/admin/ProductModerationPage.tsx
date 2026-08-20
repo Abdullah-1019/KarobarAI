@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { Alert, Button, Drawer, Segmented, Space, Table, Typography, Input } from 'antd';
+import { Alert, Button, Divider, Drawer, Segmented, Space, Table, Typography, Input } from 'antd';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
 import type { AdminProductListItemDTO } from '@karobarai/shared';
-import { EmptyState, Modal, PriceDisplay, SkeletonLoader, toast } from '../../components';
+import { EmptyState, Modal, PageHeader, PriceDisplay, SkeletonLoader, toast } from '../../components';
 import { useAuthStore } from '../../lib/authStore';
 import {
   adminModerationQueryKey,
@@ -87,9 +87,7 @@ export function ProductModerationPage() {
 
   return (
     <div>
-      <Typography.Title level={3} style={{ marginBottom: 'var(--sp-4)' }}>
-        {t('moderation.title')}
-      </Typography.Title>
+      <PageHeader title={t('moderation.title')} />
 
       <Segmented
         style={{ marginBottom: 'var(--sp-4)' }}
@@ -109,7 +107,7 @@ export function ProductModerationPage() {
       {!isPending && !isError && items.length === 0 && <EmptyState title={t('moderation.empty')} />}
       {!isPending && !isError && items.length > 0 && (
         <>
-          <Table rowKey="id" columns={columns} dataSource={items} pagination={false} size="middle" />
+          <Table rowKey="id" columns={columns} dataSource={items} pagination={false} size="middle" scroll={{ x: true }} />
           {hasNextPage && (
             <div style={{ textAlign: 'center', marginTop: 'var(--sp-4)' }}>
               <Button loading={isFetchingNextPage} onClick={() => fetchNextPage()}>
@@ -156,7 +154,12 @@ export function ProductModerationPage() {
             )}
 
             {isAdmin ? (
-              <Space style={{ marginTop: 'var(--sp-4)' }}>
+              <>
+                <Divider style={{ margin: 'var(--sp-1) 0' }} />
+                <Typography.Text strong style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-secondary)' }}>
+                  {t('moderation.sectionActions')}
+                </Typography.Text>
+                <Space>
                 {detail.data.status !== 'REMOVED' ? (
                   <Button danger onClick={() => setPendingAction({ type: 'takedown', productId: detail.data.id })}>
                     {t('moderation.takedown')}
@@ -166,7 +169,8 @@ export function ProductModerationPage() {
                     {t('moderation.restore')}
                   </Button>
                 )}
-              </Space>
+                </Space>
+              </>
             ) : (
               <Alert style={{ marginTop: 'var(--sp-4)' }} type="info" message={t('supportReadOnly')} />
             )}

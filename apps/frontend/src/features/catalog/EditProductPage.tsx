@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, Button, Input, InputNumber, Select, Typography } from 'antd';
+import { Alert, Button, Card, Input, InputNumber, Select, Typography } from 'antd';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
@@ -7,7 +7,19 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { updateProductSchema, type CategoryDTO, type ProductCondition } from '@karobarai/shared';
 import { ApiError } from '../../api';
-import { AIHint, AIRevealPanel, AIStatus, BackLink, BilingualField, EmptyState, Modal, SkeletonLoader, toast } from '../../components';
+import {
+  AIFieldBadge,
+  AIHint,
+  AIResultCard,
+  AIRevealPanel,
+  AIStatus,
+  BilingualField,
+  EmptyState,
+  Modal,
+  PageHeader,
+  SkeletonLoader,
+  toast,
+} from '../../components';
 import {
   CATEGORIES_QUERY_KEY,
   deleteProduct,
@@ -80,7 +92,7 @@ export function EditProductPage() {
     handleSubmit,
     reset,
     setError,
-    formState: { errors },
+    formState: { errors, dirtyFields },
   } = useForm<FormValues>({
     defaultValues: {
       titleEn: '',
@@ -218,13 +230,12 @@ export function EditProductPage() {
 
   return (
     <div style={{ maxWidth: 640, margin: '0 auto' }}>
-      <BackLink to="/seller" label={t('catalog:productsList.title')} />
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'var(--sp-2)', marginBottom: 'var(--sp-2)' }}>
-        <Typography.Title level={3} style={{ margin: 0 }}>
-          {t('catalog:editProduct.title')}
-        </Typography.Title>
-        <ProductStatusTag status={product.status} />
-      </div>
+      <PageHeader
+        title={t('catalog:editProduct.title')}
+        backTo="/seller"
+        backLabel={t('catalog:productsList.title')}
+        actions={<ProductStatusTag status={product.status} />}
+      />
 
       <div style={{ marginBottom: 'var(--sp-6)' }}>
         <Typography.Title level={5}>{t('catalog:editProduct.imagesTitle')}</Typography.Title>
@@ -251,107 +262,151 @@ export function EditProductPage() {
           </div>
         )}
 
-        <AIRevealPanel revealKey={revealKey}>
-          <div style={{ marginBottom: 'var(--sp-4)' }}>
-            <BilingualField
-              enLabel={t('catalog:editProduct.titleEnLabel')}
-              urLabel={t('catalog:editProduct.titleUrLabel')}
-              enField={<Controller name="titleEn" control={control} render={({ field }) => <Input {...field} size="large" />} />}
-              urField={<Controller name="titleUr" control={control} render={({ field }) => <Input {...field} size="large" dir="rtl" />} />}
-            />
-            {errors.titleEn && <Typography.Text type="danger">{errors.titleEn.message}</Typography.Text>}
-          </div>
-
-          <div style={{ marginBottom: 'var(--sp-4)' }}>
-            <BilingualField
-              enLabel={t('catalog:editProduct.descriptionEnLabel')}
-              urLabel={t('catalog:editProduct.descriptionUrLabel')}
-              enField={<Controller name="descriptionEn" control={control} render={({ field }) => <Input.TextArea {...field} rows={3} />} />}
-              urField={
-                <Controller
-                  name="descriptionUr"
-                  control={control}
-                  render={({ field }) => <Input.TextArea {...field} rows={3} dir="rtl" />}
-                />
-              }
-            />
-          </div>
-        </AIRevealPanel>
-
-        <div style={{ display: 'flex', gap: 'var(--sp-4)', marginBottom: 'var(--sp-4)' }}>
-          <div style={{ flex: 1 }}>
-            <label>{t('catalog:editProduct.priceLabel')}</label>
-            <Controller
-              name="price"
-              control={control}
-              render={({ field }) => <InputNumber {...field} size="large" min={0} style={{ width: '100%' }} />}
-            />
-            {errors.price && <Typography.Text type="danger">{errors.price.message}</Typography.Text>}
-          </div>
-          <div style={{ flex: 1 }}>
-            <label>{t('catalog:editProduct.stockLabel')}</label>
-            <Controller
-              name="stock"
-              control={control}
-              render={({ field }) => <InputNumber {...field} size="large" min={0} style={{ width: '100%' }} />}
-            />
-            {errors.stock && <Typography.Text type="danger">{errors.stock.message}</Typography.Text>}
-          </div>
-        </div>
-
-        <div style={{ marginBottom: 'var(--sp-4)' }}>
-          <label>{t('catalog:editProduct.conditionLabel')}</label>
-          <Controller
-            name="condition"
-            control={control}
-            render={({ field }) => (
-              <Select
-                {...field}
-                size="large"
-                style={{ width: '100%' }}
-                options={CONDITIONS.map((c) => ({ value: c, label: t(`catalog:condition.${c}`) }))}
+        <AIResultCard style={{ marginBottom: 'var(--sp-4)' }}>
+          <AIRevealPanel revealKey={revealKey} fast>
+            <div style={{ marginBottom: 'var(--sp-4)' }}>
+              <BilingualField
+                enLabel={
+                  <>
+                    {t('catalog:editProduct.titleEnLabel')}
+                    <AIFieldBadge show={justRegenerated && !dirtyFields.titleEn} label={t('catalog:aiWizard.fieldUneditedHint')} />
+                  </>
+                }
+                urLabel={
+                  <>
+                    {t('catalog:editProduct.titleUrLabel')}
+                    <AIFieldBadge show={justRegenerated && !dirtyFields.titleUr} label={t('catalog:aiWizard.fieldUneditedHint')} />
+                  </>
+                }
+                enField={<Controller name="titleEn" control={control} render={({ field }) => <Input {...field} size="large" />} />}
+                urField={<Controller name="titleUr" control={control} render={({ field }) => <Input {...field} size="large" dir="rtl" />} />}
               />
-            )}
-          />
-        </div>
+              {errors.titleEn && <Typography.Text type="danger">{errors.titleEn.message}</Typography.Text>}
+            </div>
 
-        <div style={{ marginBottom: 'var(--sp-4)' }}>
-          <label>{t('catalog:editProduct.categoryLabel')}</label>
-          <Controller
-            name="categoryId"
-            control={control}
-            render={({ field }) => (
-              <Select {...field} size="large" style={{ width: '100%' }} allowClear options={categoryOptions} />
-            )}
-          />
-        </div>
+            <div>
+              <BilingualField
+                enLabel={
+                  <>
+                    {t('catalog:editProduct.descriptionEnLabel')}
+                    <AIFieldBadge show={justRegenerated && !dirtyFields.descriptionEn} label={t('catalog:aiWizard.fieldUneditedHint')} />
+                  </>
+                }
+                urLabel={
+                  <>
+                    {t('catalog:editProduct.descriptionUrLabel')}
+                    <AIFieldBadge show={justRegenerated && !dirtyFields.descriptionUr} label={t('catalog:aiWizard.fieldUneditedHint')} />
+                  </>
+                }
+                enField={<Controller name="descriptionEn" control={control} render={({ field }) => <Input.TextArea {...field} rows={3} />} />}
+                urField={
+                  <Controller
+                    name="descriptionUr"
+                    control={control}
+                    render={({ field }) => <Input.TextArea {...field} rows={3} dir="rtl" />}
+                  />
+                }
+              />
+            </div>
+          </AIRevealPanel>
+        </AIResultCard>
 
-        <div style={{ marginBottom: 'var(--sp-6)' }}>
-          <label>{t('catalog:editProduct.tagsLabel')}</label>
-          <Controller
-            name="tags"
-            control={control}
-            render={({ field }) => <Select {...field} mode="tags" size="large" style={{ width: '100%' }} open={false} />}
-          />
-        </div>
+        <Card title={t('catalog:editProduct.detailsTitle')} style={{ marginBottom: 'var(--sp-6)' }}>
+          <div style={{ display: 'flex', gap: 'var(--sp-4)', marginBottom: 'var(--sp-4)' }}>
+            <div style={{ flex: 1 }}>
+              <label htmlFor="edit-product-price">{t('catalog:editProduct.priceLabel')}</label>
+              <Controller
+                name="price"
+                control={control}
+                render={({ field }) => (
+                  <InputNumber {...field} id="edit-product-price" size="large" min={0} style={{ width: '100%' }} />
+                )}
+              />
+              {errors.price && <Typography.Text type="danger">{errors.price.message}</Typography.Text>}
+            </div>
+            <div style={{ flex: 1 }}>
+              <label htmlFor="edit-product-stock">{t('catalog:editProduct.stockLabel')}</label>
+              <Controller
+                name="stock"
+                control={control}
+                render={({ field }) => (
+                  <InputNumber {...field} id="edit-product-stock" size="large" min={0} style={{ width: '100%' }} />
+                )}
+              />
+              {errors.stock && <Typography.Text type="danger">{errors.stock.message}</Typography.Text>}
+            </div>
+          </div>
+
+          <div style={{ marginBottom: 'var(--sp-4)' }}>
+            <label htmlFor="edit-product-condition">{t('catalog:editProduct.conditionLabel')}</label>
+            <Controller
+              name="condition"
+              control={control}
+              render={({ field }) => (
+                <Select
+                  {...field}
+                  id="edit-product-condition"
+                  size="large"
+                  style={{ width: '100%' }}
+                  options={CONDITIONS.map((c) => ({ value: c, label: t(`catalog:condition.${c}`) }))}
+                />
+              )}
+            />
+          </div>
+
+          <div style={{ marginBottom: 'var(--sp-4)' }}>
+            <label htmlFor="edit-product-category">{t('catalog:editProduct.categoryLabel')}</label>
+            <Controller
+              name="categoryId"
+              control={control}
+              render={({ field }) => (
+                <Select
+                  {...field}
+                  id="edit-product-category"
+                  size="large"
+                  style={{ width: '100%' }}
+                  allowClear
+                  options={categoryOptions}
+                />
+              )}
+            />
+          </div>
+
+          <div>
+            <label htmlFor="edit-product-tags">{t('catalog:editProduct.tagsLabel')}</label>
+            <Controller
+              name="tags"
+              control={control}
+              render={({ field }) => (
+                <Select {...field} id="edit-product-tags" mode="tags" size="large" style={{ width: '100%' }} open={false} />
+              )}
+            />
+          </div>
+        </Card>
 
         <Button type="primary" htmlType="submit" size="large" block loading={submitting}>
           {t('catalog:editProduct.save')}
         </Button>
       </form>
 
+      {/* Routine actions (Publish, Add another) grouped and kept visually prominent; Delete —
+          the one destructive, irreversible action here — recedes to a text-only button, separated
+          to the trailing edge rather than sitting at equal weight beside everyday actions. The
+          confirm modal (unchanged) is still what actually prevents an accidental click. */}
       <div style={{ marginTop: 'var(--sp-8)', paddingTop: 'var(--sp-6)', borderTop: '1px solid var(--border)' }}>
         {publishError && <Alert type="error" message={publishError} showIcon style={{ marginBottom: 'var(--sp-3)' }} />}
-        <div style={{ display: 'flex', gap: 'var(--sp-3)', flexWrap: 'wrap' }}>
-          <Button loading={publishing} onClick={handlePublishToggle}>
-            {product.status === 'LIVE' ? t('catalog:editProduct.unpublish') : t('catalog:editProduct.publish')}
-          </Button>
-          <Button danger onClick={() => setDeleteModalOpen(true)}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--sp-3)', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 'var(--sp-3)', flexWrap: 'wrap' }}>
+            <Button loading={publishing} onClick={handlePublishToggle}>
+              {product.status === 'LIVE' ? t('catalog:editProduct.unpublish') : t('catalog:editProduct.publish')}
+            </Button>
+            <Link to="/seller/products/new">
+              <Button>{t('catalog:productsList.addProduct')}</Button>
+            </Link>
+          </div>
+          <Button type="text" danger onClick={() => setDeleteModalOpen(true)}>
             {t('catalog:editProduct.delete')}
           </Button>
-          <Link to="/seller/products/new" style={{ marginInlineStart: 'auto' }}>
-            <Button>{t('catalog:productsList.addProduct')}</Button>
-          </Link>
         </div>
       </div>
 

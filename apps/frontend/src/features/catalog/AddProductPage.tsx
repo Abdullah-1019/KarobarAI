@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Alert, Button, Input, InputNumber, Select, Typography } from 'antd';
+import { Alert, Button, Card, Input, InputNumber, Select, Typography } from 'antd';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import imageCompression from 'browser-image-compression';
 import { Controller, useForm } from 'react-hook-form';
@@ -7,7 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
 import { aiSaveProductSchema, type AiStagedImageDTO, type CategoryDTO, type ProductCondition } from '@karobarai/shared';
-import { AIHint, AIRevealPanel, AIStatus, BackLink, BilingualField, ProductThumbnail, toast } from '../../components';
+import { AIFieldBadge, AIHint, AIResultCard, AIRevealPanel, AIStatus, BilingualField, PageHeader, ProductThumbnail, toast } from '../../components';
 import { ApiError } from '../../api';
 import { CATEGORIES_QUERY_KEY, getCategories } from './catalogApi';
 import { formatCatalogError } from './catalogErrors';
@@ -90,7 +90,7 @@ export function AddProductPage() {
     handleSubmit,
     reset,
     setError,
-    formState: { errors },
+    formState: { errors, dirtyFields },
   } = useForm<FormValues>({ defaultValues: EMPTY_VALUES });
 
   async function handleFiles(files: File[]) {
@@ -216,10 +216,7 @@ export function AddProductPage() {
 
   return (
     <div style={{ maxWidth: 640, margin: '0 auto' }}>
-      <BackLink to="/seller" label={t('catalog:productsList.title')} />
-      <Typography.Title level={3} style={{ marginTop: 'var(--sp-2)', marginBottom: 'var(--sp-4)' }}>
-        {t('catalog:aiWizard.title')}
-      </Typography.Title>
+      <PageHeader title={t('catalog:aiWizard.title')} backTo="/seller" backLabel={t('catalog:productsList.title')} />
 
       <div
         onDragOver={(e) => {
@@ -289,7 +286,7 @@ export function AddProductPage() {
 
       {generating && (
         <div style={{ marginBottom: 'var(--sp-4)' }}>
-          <AIStatus message={t('catalog:aiWizard.generating')} />
+          <AIStatus message={t('catalog:aiWizard.generating')} shape="listing" />
         </div>
       )}
 
@@ -320,96 +317,140 @@ export function AddProductPage() {
             </div>
           )}
 
-          <AIRevealPanel revealKey={revealKey}>
-            <div style={{ marginBottom: 'var(--sp-4)' }}>
-              <BilingualField
-                enLabel={t('catalog:editProduct.titleEnLabel')}
-                urLabel={t('catalog:editProduct.titleUrLabel')}
-                enField={<Controller name="titleEn" control={control} render={({ field }) => <Input {...field} size="large" />} />}
-                urField={<Controller name="titleUr" control={control} render={({ field }) => <Input {...field} size="large" dir="rtl" />} />}
-              />
-              {errors.titleEn && <Typography.Text type="danger">{errors.titleEn.message}</Typography.Text>}
-            </div>
+          <AIResultCard style={{ marginBottom: 'var(--sp-6)' }}>
+            <AIRevealPanel revealKey={revealKey}>
+              <div style={{ marginBottom: 'var(--sp-4)' }}>
+                <BilingualField
+                  enLabel={
+                    <>
+                      {t('catalog:editProduct.titleEnLabel')}
+                      <AIFieldBadge show={aiGenerated && !dirtyFields.titleEn} label={t('catalog:aiWizard.fieldUneditedHint')} />
+                    </>
+                  }
+                  urLabel={
+                    <>
+                      {t('catalog:editProduct.titleUrLabel')}
+                      <AIFieldBadge show={aiGenerated && !dirtyFields.titleUr} label={t('catalog:aiWizard.fieldUneditedHint')} />
+                    </>
+                  }
+                  enField={<Controller name="titleEn" control={control} render={({ field }) => <Input {...field} size="large" />} />}
+                  urField={<Controller name="titleUr" control={control} render={({ field }) => <Input {...field} size="large" dir="rtl" />} />}
+                />
+                {errors.titleEn && <Typography.Text type="danger">{errors.titleEn.message}</Typography.Text>}
+              </div>
 
-            <div style={{ marginBottom: 'var(--sp-4)' }}>
-              <BilingualField
-                enLabel={t('catalog:editProduct.descriptionEnLabel')}
-                urLabel={t('catalog:editProduct.descriptionUrLabel')}
-                enField={<Controller name="descriptionEn" control={control} render={({ field }) => <Input.TextArea {...field} rows={3} />} />}
-                urField={
+              <div style={{ marginBottom: 'var(--sp-4)' }}>
+                <BilingualField
+                  enLabel={
+                    <>
+                      {t('catalog:editProduct.descriptionEnLabel')}
+                      <AIFieldBadge show={aiGenerated && !dirtyFields.descriptionEn} label={t('catalog:aiWizard.fieldUneditedHint')} />
+                    </>
+                  }
+                  urLabel={
+                    <>
+                      {t('catalog:editProduct.descriptionUrLabel')}
+                      <AIFieldBadge show={aiGenerated && !dirtyFields.descriptionUr} label={t('catalog:aiWizard.fieldUneditedHint')} />
+                    </>
+                  }
+                  enField={<Controller name="descriptionEn" control={control} render={({ field }) => <Input.TextArea {...field} rows={3} />} />}
+                  urField={
+                    <Controller
+                      name="descriptionUr"
+                      control={control}
+                      render={({ field }) => <Input.TextArea {...field} rows={3} dir="rtl" />}
+                    />
+                  }
+                />
+              </div>
+
+              <div>
+                <div style={{ marginBottom: 'var(--sp-2)' }}>
+                  <label htmlFor="add-product-category">
+                    {t('catalog:editProduct.categoryLabel')}
+                    <AIFieldBadge show={aiGenerated && !dirtyFields.categoryId} label={t('catalog:aiWizard.fieldUneditedHint')} />
+                  </label>
                   <Controller
-                    name="descriptionUr"
+                    name="categoryId"
                     control={control}
-                    render={({ field }) => <Input.TextArea {...field} rows={3} dir="rtl" />}
+                    render={({ field }) => (
+                      <Select
+                        {...field}
+                        id="add-product-category"
+                        size="large"
+                        style={{ width: '100%' }}
+                        allowClear
+                        options={categoryOptions}
+                      />
+                    )}
                   />
-                }
-              />
+                </div>
+                {categoryGuess && (
+                  <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 'var(--sp-2)' }}>
+                    {t('catalog:aiWizard.categoryGuessHint', { guess: categoryGuess })}
+                  </Typography.Text>
+                )}
+
+                <div style={{ marginBottom: 'var(--sp-4)' }}>
+                  <label htmlFor="add-product-tags">
+                    {t('catalog:editProduct.tagsLabel')}
+                    <AIFieldBadge show={aiGenerated && !dirtyFields.tags} label={t('catalog:aiWizard.fieldUneditedHint')} />
+                  </label>
+                  <Controller
+                    name="tags"
+                    control={control}
+                    render={({ field }) => (
+                      <Select {...field} id="add-product-tags" mode="tags" size="large" style={{ width: '100%' }} open={false} />
+                    )}
+                  />
+                </div>
+              </div>
+            </AIRevealPanel>
+          </AIResultCard>
+
+          <Card title={t('catalog:editProduct.detailsTitle')} style={{ marginBottom: 'var(--sp-6)' }}>
+            <div style={{ display: 'flex', gap: 'var(--sp-4)', marginBottom: 'var(--sp-4)' }}>
+              <div style={{ flex: 1 }}>
+                <label htmlFor="add-product-price">{t('catalog:editProduct.priceLabel')}</label>
+                <Controller
+                  name="price"
+                  control={control}
+                  render={({ field }) => (
+                    <InputNumber {...field} id="add-product-price" size="large" min={0} style={{ width: '100%' }} />
+                  )}
+                />
+                {errors.price && <Typography.Text type="danger">{errors.price.message}</Typography.Text>}
+              </div>
+              <div style={{ flex: 1 }}>
+                <label htmlFor="add-product-stock">{t('catalog:editProduct.stockLabel')}</label>
+                <Controller
+                  name="stock"
+                  control={control}
+                  render={({ field }) => (
+                    <InputNumber {...field} id="add-product-stock" size="large" min={0} style={{ width: '100%' }} />
+                  )}
+                />
+                {errors.stock && <Typography.Text type="danger">{errors.stock.message}</Typography.Text>}
+              </div>
             </div>
 
             <div>
-              <div style={{ marginBottom: 'var(--sp-2)' }}>
-                <label>{t('catalog:editProduct.categoryLabel')}</label>
-                <Controller
-                  name="categoryId"
-                  control={control}
-                  render={({ field }) => (
-                    <Select {...field} size="large" style={{ width: '100%' }} allowClear options={categoryOptions} />
-                  )}
-                />
-              </div>
-              {categoryGuess && (
-                <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 'var(--sp-2)' }}>
-                  {t('catalog:aiWizard.categoryGuessHint', { guess: categoryGuess })}
-                </Typography.Text>
-              )}
-
-              <div style={{ marginBottom: 'var(--sp-4)' }}>
-                <label>{t('catalog:editProduct.tagsLabel')}</label>
-                <Controller
-                  name="tags"
-                  control={control}
-                  render={({ field }) => <Select {...field} mode="tags" size="large" style={{ width: '100%' }} open={false} />}
-                />
-              </div>
-            </div>
-          </AIRevealPanel>
-
-          <div style={{ display: 'flex', gap: 'var(--sp-4)', marginBottom: 'var(--sp-4)' }}>
-            <div style={{ flex: 1 }}>
-              <label>{t('catalog:editProduct.priceLabel')}</label>
+              <label htmlFor="add-product-condition">{t('catalog:editProduct.conditionLabel')}</label>
               <Controller
-                name="price"
+                name="condition"
                 control={control}
-                render={({ field }) => <InputNumber {...field} size="large" min={0} style={{ width: '100%' }} />}
+                render={({ field }) => (
+                  <Select
+                    {...field}
+                    id="add-product-condition"
+                    size="large"
+                    style={{ width: '100%' }}
+                    options={CONDITIONS.map((c) => ({ value: c, label: t(`catalog:condition.${c}`) }))}
+                  />
+                )}
               />
-              {errors.price && <Typography.Text type="danger">{errors.price.message}</Typography.Text>}
             </div>
-            <div style={{ flex: 1 }}>
-              <label>{t('catalog:editProduct.stockLabel')}</label>
-              <Controller
-                name="stock"
-                control={control}
-                render={({ field }) => <InputNumber {...field} size="large" min={0} style={{ width: '100%' }} />}
-              />
-              {errors.stock && <Typography.Text type="danger">{errors.stock.message}</Typography.Text>}
-            </div>
-          </div>
-
-          <div style={{ marginBottom: 'var(--sp-6)' }}>
-            <label>{t('catalog:editProduct.conditionLabel')}</label>
-            <Controller
-              name="condition"
-              control={control}
-              render={({ field }) => (
-                <Select
-                  {...field}
-                  size="large"
-                  style={{ width: '100%' }}
-                  options={CONDITIONS.map((c) => ({ value: c, label: t(`catalog:condition.${c}`) }))}
-                />
-              )}
-            />
-          </div>
+          </Card>
 
           <div style={{ display: 'flex', gap: 'var(--sp-3)' }}>
             <Button size="large" loading={savingStatus === 'DRAFT'} onClick={saveWith('DRAFT')} style={{ flex: 1 }}>

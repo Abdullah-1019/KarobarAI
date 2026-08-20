@@ -357,6 +357,19 @@ body {
   }
 }
 
+/* Seller products list (E4) — same table/card responsive toggle as the Orders list (E3). */
+.karobarai-seller-products-cards {
+  display: none;
+}
+@media (max-width: 767px) {
+  .karobarai-seller-products-table {
+    display: none;
+  }
+  .karobarai-seller-products-cards {
+    display: block;
+  }
+}
+
 /* Orders list (E3, UIUX §31: "Tables -> stack to cards where clearer") — OrderListPage renders
    the same data two ways (a dense desktop Table, a stacked mobile card list) and this toggles
    which one is visible per breakpoint, rather than JS viewport state, matching the pure-CSS
@@ -424,9 +437,9 @@ body {
   color: var(--brand-primary);
 }
 
-/* AI Store Builder signature moment (UIUX §22, §25) — AIRevealPanel's staggered field entrance
-   and AIStatus's "working" spinner. Both purposeful/functional (indicate real state changes, not
-   decoration), both stripped to instant by Phase B's centralized prefers-reduced-motion rule. */
+/* AI Store Builder signature moment (UIUX §22, §25) — AIRevealPanel's staggered field entrance.
+   Purposeful/functional (indicates a real state change, not decoration), stripped to instant by
+   Phase B's centralized prefers-reduced-motion rule. */
 @keyframes karobarai-ai-reveal {
   from {
     opacity: 0;
@@ -440,13 +453,42 @@ body {
 .karobarai-ai-reveal {
   animation: karobarai-ai-reveal var(--dur-slow) var(--ease) both;
 }
-@keyframes karobarai-spin {
-  to {
-    transform: rotate(360deg);
+/* E5 — regeneration (re-running AI on an already-edited screen, EditProductPage) reuses the same
+   entrance shape but plays it back at --dur-fast instead of --dur-slow: a quick refresh, not a
+   full replay of the first-time reveal. Same keyframe, not a second animation to keep in sync. */
+.karobarai-ai-reveal-fast {
+  animation: karobarai-ai-reveal var(--dur-fast) var(--ease) both;
+}
+
+/* E5 — AIStatus's "working" indicator. Replaces a spinner with a slow marigold pulse (the AI is
+   "thinking," not spinning a wheel) plus a thin indeterminate bar filling in brand green (the
+   work itself moving forward) — both purposeful, not decorative, both stripped to a static held
+   frame under prefers-reduced-motion rather than removed outright (content still communicates
+   "in progress" without motion). */
+@keyframes karobarai-ai-pulse-dot {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
   }
 }
-.karobarai-spin {
-  animation: karobarai-spin 1s linear infinite;
+.karobarai-ai-pulse-dot {
+  animation: karobarai-ai-pulse-dot 1.6s ease-in-out infinite;
+}
+@keyframes karobarai-ai-progress-fill {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(350%);
+  }
+}
+.karobarai-ai-progress-fill {
+  animation: karobarai-ai-progress-fill 1.3s ease-in-out infinite;
 }
 
 /* BilingualField's EN⇄UR connector icon only makes sense when the pair sits side by side —

@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { Alert, Button, Card, Input, Radio, Space, Steps, Typography } from 'antd';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import type { ReturnDetailDTO } from '@karobarai/shared';
-import { ProductThumbnail } from '../../components';
+import { PageHeader, ProductThumbnail } from '../../components';
+import { getOrder, orderQueryKey } from '../orders/ordersApi';
 import { ReturnImageUploader } from './ReturnImageUploader';
 import { createReturn, submitReturn } from './returnsApi';
 import { formatReturnsError } from './returnsErrors';
@@ -18,7 +19,7 @@ type ReasonKey = (typeof REASON_KEYS)[number];
 // create earlier. That's also the earliest point eligibility (RETURN_WINDOW_CLOSED,
 // RETURN_ALREADY_EXISTS) can be checked server-side; Step 0 is purely informational, no call.
 export function ReturnWizardPage() {
-  const { t } = useTranslation(['returns']);
+  const { t } = useTranslation(['returns', 'orders']);
   const navigate = useNavigate();
   const { id: orderId = '' } = useParams<{ id: string }>();
 
@@ -27,6 +28,11 @@ export function ReturnWizardPage() {
   const [otherReason, setOtherReason] = useState('');
   const [returnRecord, setReturnRecord] = useState<ReturnDetailDTO | null>(null);
   const [blockedError, setBlockedError] = useState<string | null>(null);
+
+  // Real product context (brief: "return process should feel simple and reassuring" — knowing
+  // exactly what you're returning, not just an order number, is part of that) — reuses the same
+  // getOrder() call used elsewhere, no new endpoint.
+  const { data: order } = useQuery({ queryKey: orderQueryKey(orderId), queryFn: () => getOrder(orderId), enabled: !!orderId });
 
   const reasonText = reasonKey === 'OTHER' ? otherReason.trim() : reasonKey ? t(`reasons.${reasonKey}`) : '';
 
@@ -50,9 +56,18 @@ export function ReturnWizardPage() {
 
   return (
     <div style={{ maxWidth: 640, margin: '0 auto' }}>
-      <Typography.Title level={3} style={{ marginBottom: 'var(--sp-4)' }}>
-        {t('wizard.title')}
-      </Typography.Title>
+      <PageHeader title={t('wizard.title')} backTo={`/orders/${orderId}`} backLabel={t('orders:detail.title', { id: orderId })} />
+
+      {order && (
+        <Card style={{ marginBottom: 'var(--sp-4)' }} styles={{ body: { padding: 'var(--sp-3) var(--sp-4)' } }}>
+          <Typography.Text type="secondary" style={{ fontSize: 'var(--fs-xs)' }}>
+            {t('statusPage.itemsLabel')}
+          </Typography.Text>
+          {order.items.map((item) => (
+            <div key={item.productId}>{item.titleSnapshot}</div>
+          ))}
+        </Card>
+      )}
 
       <Steps
         current={step}

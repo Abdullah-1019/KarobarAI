@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Alert, Button, Segmented, Table, Typography } from 'antd';
+import { Alert, Button, Segmented, Table } from 'antd';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
 import type { ReturnListItemDTO } from '@karobarai/shared';
-import { EmptyState, SkeletonLoader } from '../../components';
+import { EmptyState, PageHeader, SkeletonLoader } from '../../components';
 import { listSellerReturns, sellerReturnsQueryKey } from './returnsApi';
 import { formatReturnsError } from './returnsErrors';
 import { ReturnStatusTag } from './ReturnStatusTag';
@@ -54,9 +54,7 @@ export function SellerReturnsPage() {
 
   return (
     <div style={{ maxWidth: 960, margin: '0 auto' }}>
-      <Typography.Title level={3} style={{ marginBottom: 'var(--sp-4)' }}>
-        {t('sellerList.title')}
-      </Typography.Title>
+      <PageHeader title={t('sellerList.title')} />
 
       <Segmented
         style={{ marginBottom: 'var(--sp-4)' }}
@@ -76,7 +74,7 @@ export function SellerReturnsPage() {
 
       {!isPending && !isError && items.length > 0 && (
         <>
-          <Table rowKey="id" columns={columns} dataSource={items} pagination={false} size="middle" />
+          <Table rowKey="id" columns={columns} dataSource={items} pagination={false} size="middle" scroll={{ x: true }} />
           {hasNextPage && (
             <div style={{ textAlign: 'center', marginTop: 'var(--sp-4)' }}>
               <Button loading={isFetchingNextPage} onClick={() => fetchNextPage()}>

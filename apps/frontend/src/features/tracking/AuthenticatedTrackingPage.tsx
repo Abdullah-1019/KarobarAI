@@ -1,12 +1,13 @@
-import { Alert, Button, Card, Typography } from 'antd';
+import { Alert, Button, Card } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 
-import { SkeletonLoader, toast } from '../../components';
-import { OrderStatusTag } from '../orders/OrderStatusTag';
+import { PageHeader, STATUS_VARIANT_COLOR, SkeletonLoader, toast } from '../../components';
+import { ORDER_STATUS_VARIANT, OrderStatusTag } from '../orders/OrderStatusTag';
 import { formatOrdersError } from '../orders/ordersErrors';
 import { TrackingMap } from './TrackingMap';
+import { TrackingStatusCard } from './TrackingStatusCard';
 import { TrackingTimeline } from './TrackingTimeline';
 import { getAuthenticatedTracking, trackingQueryKey } from './trackingApi';
 import { useTrackingSocket } from './useTrackingSocket';
@@ -15,12 +16,16 @@ interface AuthenticatedTrackingPageProps {
   scope: 'buyer' | 'seller';
 }
 
+function colorForStatus(status: string) {
+  return STATUS_VARIANT_COLOR[ORDER_STATUS_VARIANT[status as keyof typeof ORDER_STATUS_VARIANT]];
+}
+
 // SCR-B08 — live shipment visibility, reachable by both the Buyer (My Orders) and the Seller
 // (Order Detail's tracking link); backend ownership is tri-mode (Buyer/Seller/Admin) on the same
 // GET /tracking/:orderId endpoint, so this page itself doesn't need role-specific data fetching —
 // `scope` only decides where "back" goes, same thin-wrapper pattern as OrderDetailPage.
 export function AuthenticatedTrackingPage({ scope }: AuthenticatedTrackingPageProps) {
-  const { t } = useTranslation(['orders']);
+  const { t } = useTranslation(['orders', 'common']);
   const { id = '' } = useParams<{ id: string }>();
   useTrackingSocket(id);
 
@@ -29,6 +34,7 @@ export function AuthenticatedTrackingPage({ scope }: AuthenticatedTrackingPagePr
     isPending,
     isError,
     error,
+    refetch,
   } = useQuery({
     queryKey: trackingQueryKey(id),
     queryFn: () => getAuthenticatedTracking(id),
@@ -48,7 +54,16 @@ export function AuthenticatedTrackingPage({ scope }: AuthenticatedTrackingPagePr
   if (isError || !tracking) {
     return (
       <div style={{ maxWidth: 720, margin: '0 auto' }}>
-        <Alert type="error" showIcon message={formatOrdersError(t, error)} />
+        <Alert
+          type="error"
+          showIcon
+          message={formatOrdersError(t, error)}
+          action={
+            <Button size="small" onClick={() => refetch()}>
+              {t('common:actions.retry')}
+            </Button>
+          }
+        />
       </div>
     );
   }
@@ -59,30 +74,42 @@ export function AuthenticatedTrackingPage({ scope }: AuthenticatedTrackingPagePr
 
   return (
     <div style={{ maxWidth: 720, margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography.Title level={3} style={{ margin: 0 }}>
-          {t('tracking.trackButton')}
-        </Typography.Title>
-        <OrderStatusTag status={tracking.status} />
-      </div>
+      <PageHeader
+        title={t('tracking.trackButton')}
+        backTo={backHref}
+        backLabel={t('tracking.backToOrder')}
+        actions={<OrderStatusTag status={tracking.status} />}
+      />
+
+      <TrackingStatusCard status={tracking.status} deliveryStageLabel={tracking.deliveryStageLabel} colorForStatus={colorForStatus} />
+
+      {tracking.timeline.length === 0 && (
+        <Alert
+          type="info"
+          showIcon
+          message={t('tracking.preparingTitle')}
+          description={t('tracking.preparingBody')}
+          style={{ marginTop: 'var(--sp-4)' }}
+        />
+      )}
 
       <Card style={{ marginTop: 'var(--sp-4)' }}>
         <TrackingMap lastLocation={tracking.lastLocation} />
       </Card>
 
       <Card style={{ marginTop: 'var(--sp-4)' }}>
-        <TrackingTimeline deliveryStageLabel={tracking.deliveryStageLabel} timeline={tracking.timeline} />
+        <TrackingTimeline timeline={tracking.timeline} colorForStatus={colorForStatus} />
       </Card>
 
       {tracking.courier && (
         <Card style={{ marginTop: 'var(--sp-4)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <Typography.Text type="secondary">{t('tracking.courier')}</Typography.Text>
+            <span style={{ color: 'var(--text-secondary)' }}>{t('tracking.courier')}</span>
             <span>{t(`courierNames.${tracking.courier}`)}</span>
           </div>
           {tracking.trackingNo && (
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 'var(--sp-1)' }}>
-              <Typography.Text type="secondary">{t('tracking.trackingNo')}</Typography.Text>
+              <span style={{ color: 'var(--text-secondary)' }}>{t('tracking.trackingNo')}</span>
               <span>{tracking.trackingNo}</span>
             </div>
           )}
@@ -91,9 +118,6 @@ export function AuthenticatedTrackingPage({ scope }: AuthenticatedTrackingPagePr
 
       <div style={{ display: 'flex', gap: 'var(--sp-3)', marginTop: 'var(--sp-6)' }}>
         <Button onClick={copyLink}>{t('tracking.copyLink')}</Button>
-        <Link to={backHref}>
-          <Button>{t('tracking.backToOrder')}</Button>
-        </Link>
       </div>
     </div>
   );

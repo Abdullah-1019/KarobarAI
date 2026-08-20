@@ -60,6 +60,11 @@ export function TopProductsTable({ rangeParams }: { rangeParams: TopProductsPara
           loading={isPending}
           pagination={false}
           size="middle"
+          // Contained horizontal scroll (UIUX §31/§17) rather than letting the table push the
+          // page itself wider than the viewport on a narrow phone — this table doesn't warrant a
+          // full card-list rewrite (it's a secondary summary, not a primary seller workflow like
+          // Products/Orders), but it still needed the "no horizontal overflow" floor.
+          scroll={{ x: true }}
           locale={{ emptyText: t('topProducts.empty') }}
         />
       )}

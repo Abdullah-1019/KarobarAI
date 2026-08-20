@@ -4,7 +4,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router-dom';
 
-import { EmptyState, Modal, SkeletonLoader, toast } from '../../components';
+import { EmptyState, Modal, PageHeader, SkeletonLoader, toast } from '../../components';
+import { getOrder, orderQueryKey } from '../orders/ordersApi';
+import { ReturnProgressTimeline } from './ReturnProgressTimeline';
 import { ReturnStatusTag } from './ReturnStatusTag';
 import { appealReturn, buyerReturnsQueryKey, getReturn, listBuyerReturns, returnQueryKey } from './returnsApi';
 import { formatReturnsError } from './returnsErrors';
@@ -19,7 +21,7 @@ import { formatReturnsError } from './returnsErrors';
 // (decision.service.ts bakes `Reason: {reason}` into the notification, not the DB row). Rather
 // than inventing a field that doesn't exist, this page points to the Notification Center instead.
 export function ReturnStatusPage() {
-  const { t } = useTranslation(['returns']);
+  const { t } = useTranslation(['returns', 'orders']);
   const { id: orderId = '' } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
   const [appealModalOpen, setAppealModalOpen] = useState(false);
@@ -35,6 +37,14 @@ export function ReturnStatusPage() {
     queryKey: returnQueryKey(matchedItem?.id ?? ''),
     queryFn: () => getReturn(matchedItem!.id),
     enabled: !!matchedItem,
+  });
+
+  // Real order/product context (brief asks for "returned product" on this screen) — reuses the
+  // same getOrder() call SellerReturnDetailPage/OrderDetailPage already make, not a new endpoint.
+  const { data: order } = useQuery({
+    queryKey: orderQueryKey(orderId),
+    queryFn: () => getOrder(orderId),
+    enabled: !!orderId,
   });
 
   const appealMutation = useMutation({
@@ -75,14 +85,38 @@ export function ReturnStatusPage() {
 
   return (
     <div style={{ maxWidth: 640, margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography.Title level={3} style={{ margin: 0 }}>
-          {t('statusPage.title')}
-        </Typography.Title>
-        <ReturnStatusTag status={ret.status} />
-      </div>
+      <PageHeader
+        title={t('statusPage.title')}
+        backTo={`/orders/${orderId}`}
+        backLabel={t('orders:detail.title', { id: orderId })}
+        actions={<ReturnStatusTag status={ret.status} />}
+      />
 
-      <Card style={{ marginTop: 'var(--sp-4)' }}>
+      <Link to="/returns" style={{ display: 'inline-block', marginBottom: 'var(--sp-4)', fontSize: 'var(--fs-sm)' }}>
+        {t('statusPage.viewAllReturns')}
+      </Link>
+
+      {order && (
+        <Card style={{ marginBottom: 'var(--sp-4)' }}>
+          <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 'var(--sp-1)' }}>
+            {t('statusPage.itemsLabel')}
+          </Typography.Text>
+          <ul style={{ margin: 0, paddingInlineStart: 'var(--sp-5)' }}>
+            {order.items.map((item) => (
+              <li key={item.productId}>{item.titleSnapshot}</li>
+            ))}
+          </ul>
+        </Card>
+      )}
+
+      <Card style={{ marginBottom: 'var(--sp-4)' }}>
+        <Typography.Title level={5} style={{ marginTop: 0 }}>
+          {t('statusPage.progressTitle')}
+        </Typography.Title>
+        <ReturnProgressTimeline ret={ret} />
+      </Card>
+
+      <Card>
         <Typography.Paragraph>
           <Typography.Text strong>{t('statusPage.reason')}: </Typography.Text>
           {ret.reason}

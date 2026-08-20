@@ -2,8 +2,8 @@ import type { ReactNode } from 'react';
 import { ArrowLeftRight } from 'lucide-react';
 
 interface BilingualFieldProps {
-  enLabel: string;
-  urLabel: string;
+  enLabel: ReactNode;
+  urLabel: ReactNode;
   enField: ReactNode;
   urField: ReactNode;
 }

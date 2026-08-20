@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 
 import type { CourierCode } from '@karobarai/shared';
 import { ApiError } from '../../api';
-import { Modal, PriceDisplay, SkeletonLoader, StatusTag, toast } from '../../components';
+import { AIResultCard, AIStatus, Modal, PriceDisplay, RecommendationTier, StatusTag, toast } from '../../components';
 import { orderQueryKey } from '../orders/ordersApi';
 import { formatOrdersError } from '../orders/ordersErrors';
 import {
@@ -18,6 +18,19 @@ import {
 
 interface CourierRecommendationCardProps {
   orderId: string;
+}
+
+// E5 — the backend's courier score (tracking.service.ts's weighted cost/ETA/reliability/coverage
+// formula) is a real number, but showing it as the headline reads as an unexplained decimal.
+// Translated to a plain-language tier from the same score already returned, per the brief's own
+// "Strong match / Worth a manual look" wording — not a fabricated explanation, just a human-
+// readable read of real data. Thresholds are a presentational judgment call, not sourced from a
+// backend contract (none exists for tiering).
+function scoreTier(score: string): { level: 1 | 2 | 3; labelKey: 'courier.tierStrong' | 'courier.tierGood' | 'courier.tierConsider' } {
+  const n = Number(score);
+  if (n >= 0.7) return { level: 1, labelKey: 'courier.tierStrong' };
+  if (n >= 0.4) return { level: 2, labelKey: 'courier.tierGood' };
+  return { level: 3, labelKey: 'courier.tierConsider' };
 }
 
 // SCR-S06's recommendation card — populates Feature 7's reserved Order Detail placeholder with
@@ -79,8 +92,7 @@ export function CourierRecommendationCard({ orderId }: CourierRecommendationCard
   if (stillScoring) {
     return (
       <Card title={t('courier.cardTitle')}>
-        <SkeletonLoader rows={3} />
-        <Typography.Text type="secondary">{t('courier.finding')}</Typography.Text>
+        <AIStatus message={t('courier.finding')} />
       </Card>
     );
   }
@@ -124,21 +136,29 @@ export function CourierRecommendationCard({ orderId }: CourierRecommendationCard
         disabled={bookMutation.isPending}
         style={{ width: '100%' }}
       >
-        <Space direction="vertical" style={{ width: '100%' }}>
-          {quotes.map((quote) => (
-            <Radio key={quote.courier} value={quote.courier} style={{ width: '100%' }}>
-              <Space style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }} wrap>
+        <Space direction="vertical" style={{ width: '100%' }} size="middle">
+          {quotes.map((quote) => {
+            const tier = scoreTier(quote.score);
+            const isTop = quote.courier === topScored;
+            const row = (
+              <Space direction="vertical" style={{ width: '100%' }} size={4}>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
                   <Typography.Text strong>{t(`courierNames.${quote.courier}`)}</Typography.Text>
-                  {quote.courier === topScored && <StatusTag variant="info" label={t('courier.recommendedBadge')} />}
+                  {isTop && <StatusTag variant="info" label={t('courier.recommendedBadge')} />}
                 </span>
-                <Typography.Text type="secondary">
+                <RecommendationTier label={t(tier.labelKey)} level={tier.level} />
+                <Typography.Text type="secondary" style={{ fontSize: 'var(--fs-xs)' }}>
                   {t('courier.cost')}: <PriceDisplay amount={quote.cost} size="sm" muted /> · {t('courier.eta')}:{' '}
                   {t('courier.etaHours', { hours: quote.etaHours })} · {t('courier.score')}: {quote.score}
                 </Typography.Text>
               </Space>
-            </Radio>
-          ))}
+            );
+            return (
+              <Radio key={quote.courier} value={quote.courier} style={{ width: '100%', alignItems: 'flex-start' }}>
+                {isTop ? <AIResultCard style={{ padding: 'var(--sp-3)', display: 'block' }}>{row}</AIResultCard> : row}
+              </Radio>
+            );
+          })}
         </Space>
       </Radio.Group>
 

@@ -20,7 +20,7 @@ import { CategoryPage, HomePage, ProductDetailPage, SearchPage, StorefrontLayout
 import { NotificationCenterPage } from '../features/notifications';
 import { BuyerOrderDetailPage, BuyerOrdersPage, SellerOrderDetailPage, SellerOrdersPage } from '../features/orders';
 import { ChangePasswordPage, ProfilePage, SettingsPage } from '../features/profile';
-import { ReturnStatusPage, ReturnWizardPage, SellerReturnDetailPage, SellerReturnsPage } from '../features/returns';
+import { BuyerReturnsPage, ReturnStatusPage, ReturnWizardPage, SellerReturnDetailPage, SellerReturnsPage } from '../features/returns';
 import { RequireStore, SellerLayout, SellerPlaceholder, StoreSetupWizard } from '../features/seller';
 import { BuyerTrackingPage, PublicTrackingPage, SellerTrackingPage } from '../features/tracking';
 import { ProtectedRoute } from './ProtectedRoute';
@@ -58,6 +58,7 @@ export const router = createBrowserRouter([
           { path: '/orders', element: <BuyerOrdersPage /> },
           { path: '/orders/:id', element: <BuyerOrderDetailPage /> },
           { path: '/orders/:id/track', element: <BuyerTrackingPage /> },
+          { path: '/returns', element: <BuyerReturnsPage /> },
           { path: '/orders/:id/return', element: <ReturnWizardPage /> },
           { path: '/orders/:id/return/status', element: <ReturnStatusPage /> },
           { path: '/buyer/profile', element: <ProfilePage /> },

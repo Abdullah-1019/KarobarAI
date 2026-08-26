@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { Alert, Button, Input, Typography } from 'antd';
+import { ArrowLeft, ArrowRight, KeyRound } from 'lucide-react';
 import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 import { forgotPasswordSchema } from '@karobarai/shared';
+import { useLanguage } from '../../hooks';
 import { AuthLayout } from './AuthLayout';
 import { forgotPassword } from './authApi';
 import { formatAuthError } from './authErrors';
@@ -18,6 +20,9 @@ interface FormValues {
 // build here — only a generic network-failure path.
 export function ForgotPasswordPage() {
   const { t } = useTranslation(['auth', 'common']);
+  const navigate = useNavigate();
+  const { dir } = useLanguage();
+  const BackIcon = dir === 'rtl' ? ArrowRight : ArrowLeft;
 
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -55,7 +60,7 @@ export function ForgotPasswordPage() {
 
   if (sent) {
     return (
-      <AuthLayout title={t('auth:forgotPassword.title')}>
+      <AuthLayout title={t('auth:forgotPassword.title')} icon={KeyRound}>
         <Alert type="success" showIcon message={t('auth:forgotPassword.sent')} style={{ marginBottom: 'var(--sp-4)' }} />
         <Link to="/login">{t('auth:login.title')}</Link>
       </AuthLayout>
@@ -63,7 +68,7 @@ export function ForgotPasswordPage() {
   }
 
   return (
-    <AuthLayout title={t('auth:forgotPassword.title')} subtitle={t('auth:forgotPassword.subtitle')}>
+    <AuthLayout title={t('auth:forgotPassword.title')} subtitle={t('auth:forgotPassword.subtitle')} icon={KeyRound}>
       {submitError && <Alert type="error" message={submitError} showIcon style={{ marginBottom: 'var(--sp-4)' }} />}
 
       <form onSubmit={onSubmit}>
@@ -94,9 +99,16 @@ export function ForgotPasswordPage() {
         </Button>
       </form>
 
-      <Typography.Paragraph style={{ marginTop: 'var(--sp-4)', marginBottom: 0, textAlign: 'center' }}>
-        <Link to="/login">{t('auth:forgotPassword.backToLogin')}</Link>
-      </Typography.Paragraph>
+      <Button
+        className="karobarai-auth-btn-ghost"
+        size="large"
+        block
+        icon={<BackIcon size={16} aria-hidden="true" />}
+        onClick={() => navigate('/login')}
+        style={{ marginTop: 'var(--sp-3)' }}
+      >
+        {t('auth:forgotPassword.backToLogin')}
+      </Button>
     </AuthLayout>
   );
 }

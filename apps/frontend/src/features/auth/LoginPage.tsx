@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Alert, Button, Input, Typography } from 'antd';
+import { LogIn } from 'lucide-react';
 import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -68,15 +69,11 @@ export function LoginPage() {
   return (
     <AuthLayout
       title={t('auth:login.title')}
+      icon={LogIn}
       footer={
-        <>
-          <Typography.Paragraph style={{ marginBottom: 'var(--sp-2)' }}>
-            <Link to="/forgot-password">{t('auth:login.forgotPassword')}</Link>
-          </Typography.Paragraph>
-          <Typography.Paragraph style={{ margin: 0 }}>
-            {t('auth:login.noAccount')} <Link to="/register">{t('auth:login.registerLink')}</Link>
-          </Typography.Paragraph>
-        </>
+        <Typography.Paragraph style={{ margin: 0 }}>
+          {t('auth:login.noAccount')} <Link to="/register">{t('auth:login.registerLink')}</Link>
+        </Typography.Paragraph>
       }
     >
       {submitError && <Alert type="error" message={submitError} showIcon style={{ marginBottom: 'var(--sp-4)' }} />}
@@ -124,6 +121,12 @@ export function LoginPage() {
               {errors.password.message}
             </Typography.Text>
           )}
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '-8px', marginBottom: 'var(--sp-5)' }}>
+          <Link to="/forgot-password" style={{ fontSize: 'var(--fs-sm)', fontWeight: 600 }}>
+            {t('auth:login.forgotPassword')}
+          </Link>
         </div>
 
         <Button type="primary" htmlType="submit" size="large" block loading={submitting}>

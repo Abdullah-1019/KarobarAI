@@ -42,6 +42,9 @@ Thumbs.db
 # Docker
 docker-compose.override.yml
 
+# Local native infra binaries (Docker-less dev bring-up: portable MinIO/mc + their data dirs)
+infra/bin/
+
 # Test/coverage
 coverage/
 .nyc_output/

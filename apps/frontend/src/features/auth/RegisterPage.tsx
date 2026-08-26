@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Alert, Button, Input, Segmented, Typography } from 'antd';
+import { UserPlus } from 'lucide-react';
 import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
@@ -84,6 +85,7 @@ export function RegisterPage() {
   return (
     <AuthLayout
       title={t('auth:register.title')}
+      icon={UserPlus}
       footer={
         <Typography.Paragraph style={{ margin: 0 }}>
           {t('auth:register.haveAccount')} <Link to="/login">{t('auth:register.loginLink')}</Link>

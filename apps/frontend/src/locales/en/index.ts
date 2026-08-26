@@ -104,6 +104,16 @@ export const auth = {
     missingToken: 'This reset link is missing its token.',
     requestNewLink: 'Request a new link',
   },
+  backToHome: 'Back to Home',
+  // Copy for the split-panel illustration (AuthSlidePanel) shared by all 5 auth screens.
+  slidePanel: {
+    slide1Headline: 'Build your store in minutes',
+    slide1Sub: 'AI writes bilingual product listings — you just add photos.',
+    slide2Headline: 'Reach buyers across Pakistan',
+    slide2Sub: 'From Karachi to Peshawar — sell anywhere, ship everywhere.',
+    slide3Headline: 'Grow with real-time insights',
+    slide3Sub: 'Track sales, orders and payouts from one dashboard.',
+  },
   errors: {
     ACCOUNT_EXISTS: 'An account with that phone/email already exists — log in instead.',
     INVALID_CREDENTIALS: 'Invalid phone/email or password.',

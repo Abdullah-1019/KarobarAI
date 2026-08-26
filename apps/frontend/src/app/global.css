@@ -518,3 +518,624 @@ body {
     padding-bottom: calc(var(--sp-4) + 56px + env(safe-area-inset-bottom, 0px));
   }
 }
+
+/* Auth screens (SCR-A01–A04) — split-panel layout for AuthLayout + AuthSlidePanel, shared by
+ * Register/OTP/Login/Forgot/Reset. Everything here is scoped under .karobarai-auth-shell (or a
+ * child of it) so it restyles Input/Button/Segmented ONLY inside the auth flow — a deliberate
+ * pill-and-shadow visual system for this one flow, not a global control-radius change.
+ *
+ * Local token layer (--auth-*): light-mode values below just alias the app's existing tokens
+ * (--bg-canvas/--bg-surface/--border), so light mode is unaffected. The `[data-theme='dark']`
+ * block further down overrides them with a deliberate deep-green dark palette — the app's
+ * *generic* dark theme (--bg-canvas: near-black #15130f) is intentionally NOT reused here, since
+ * a generic near-black background is exactly the "black + neon green" look this system rejects.
+ * Three tiers give real tonal depth: --auth-canvas (page, darkest) < --auth-surface (panel/card)
+ * < --auth-elevated (inputs) — each a visible step lighter, all in the same green family.
+ * The --auth-tint-* ramp is separate: illustration-only decoration, not page structure.
+ */
+.karobarai-auth-shell {
+  display: flex;
+  min-height: 100vh;
+  background: var(--auth-canvas);
+  --auth-canvas: var(--bg-canvas);
+  --auth-surface: var(--bg-surface);
+  --auth-elevated: var(--bg-surface);
+  --auth-border: var(--border);
+  /* Light mode now uses the same deep forest green dark mode uses for its *background*
+   * (--auth-canvas/#0a2417 below, and its --auth-surface/--auth-elevated steps) — not the
+   * brighter #3fa877 accent green dark mode uses for buttons. Unconditional (not scoped to a
+   * theme) so light and dark end up on the identical deep shade. Every `var(--brand-primary*)`
+   * reference already written throughout the auth CSS below (links, buttons, the ghost button,
+   * focus rings, segmented selected state) — plus --auth-tint-700/900, themselves defined in
+   * terms of these — picks this up automatically via the cascade; no need to touch each usage
+   * individually. Hover lightens a step (toward --auth-elevated's tone), active darkens further. */
+  --brand-primary: #0a2417;
+  --brand-primary-hover: #16392a;
+  --brand-primary-active: #051810;
+  --auth-tint-100: var(--brand-primary-soft);
+  --auth-tint-300: #a9cdb9;
+  --auth-tint-500: #5f9a7c;
+  --auth-tint-700: var(--brand-primary);
+  --auth-tint-900: var(--brand-primary-active);
+}
+[data-theme='dark'] .karobarai-auth-shell {
+  /* The base rule above now sets --brand-primary etc. unconditionally (to the deep green light
+   * mode borrows from dark mode's *background*) — without restating dark mode's own accent here,
+   * that override would win in dark mode too, making every button/link the exact same color as
+   * dark mode's own page background: invisible. Restoring dark mode's real accent explicitly. */
+  --brand-primary: #3fa877;
+  --brand-primary-hover: #52c28d;
+  --brand-primary-active: #2f8f66;
+  --auth-canvas: #0a2417;
+  --auth-surface: #0f2e1e;
+  --auth-elevated: #16392a;
+  --auth-border: #2c4f3f;
+  --auth-tint-100: #1c4a34;
+  --auth-tint-300: #2d6b4c;
+  --auth-tint-500: #4b9370;
+  --auth-tint-700: #3fa877;
+  --auth-tint-900: #6fd1a0;
+}
+
+.karobarai-auth-panel {
+  /* Proportional, not a fixed px width — the standard pattern for this layout (Stripe, Linear,
+   * Vercel-style split auth screens): both halves scale together as the viewport grows, so
+   * there's never a "panel stays put while a fixed-width form drifts toward one edge with a
+   * widening dead gap" mismatch. Bounded so it neither gets cramped on a laptop nor absurd on
+   * an ultrawide monitor. */
+  width: 42%;
+  min-width: 400px;
+  max-width: 640px;
+  flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+  /* Same tone as the shell/form-side canvas — the two sides read as one page with two content
+   * areas, not two separately-colored halves. Separation comes from the seam shadow + content,
+   * not a background-color jump. */
+  background: var(--auth-canvas);
+  display: flex;
+  flex-direction: column;
+  padding: 56px 64px;
+  color: var(--text-primary);
+}
+/* ONE quiet texture — a low-opacity dot grid, faded top and bottom — replaces what was
+ * previously a stack of a blurred gradient blob + this same grid + a fake browser-mockup
+ * illustration + a sparkle accent. Four competing decorative systems read as generic; one
+ * restrained one reads as considered (taste correction — see AuthSlidePanel.tsx header). */
+.karobarai-auth-panel-dots {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(var(--auth-tint-300) 1.4px, transparent 1.4px);
+  background-size: 28px 28px;
+  opacity: 0.28;
+  mask-image: linear-gradient(to bottom, transparent 0%, black 30%, black 75%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 30%, black 75%, transparent 100%);
+}
+[data-theme='dark'] .karobarai-auth-panel-dots {
+  opacity: 0.4;
+}
+
+/* While the cursor is anywhere over the panel, freeze the slide rotation and pagination in
+ * place; it resumes (not restarts — animation-play-state preserves elapsed time) the moment the
+ * cursor leaves. The panel itself is the interaction boundary, per spec. No JS needed. */
+.karobarai-auth-panel:hover .karobarai-auth-slide,
+.karobarai-auth-panel:hover .karobarai-auth-dot,
+.karobarai-auth-panel:hover .karobarai-auth-mark {
+  animation-play-state: paused;
+}
+
+.karobarai-auth-brand {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+.karobarai-auth-brand svg {
+  filter: drop-shadow(0 2px 6px rgba(28, 24, 17, 0.18));
+}
+.karobarai-auth-brand-bg {
+  fill: var(--auth-tint-100);
+}
+.karobarai-auth-brand-fg1 {
+  fill: var(--auth-tint-700);
+}
+.karobarai-auth-brand-fg2 {
+  fill: var(--auth-tint-900);
+}
+.karobarai-auth-brand-dot {
+  fill: var(--accent-marigold);
+}
+.karobarai-auth-brand-word {
+  font-size: var(--fs-xl);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.karobarai-auth-stage {
+  position: relative;
+  flex: 1;
+  margin-top: var(--sp-2);
+}
+.karobarai-auth-slide {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  opacity: 0;
+  animation: karobarai-auth-fade-slide 12s infinite;
+}
+.karobarai-auth-slide.s1 {
+  animation-delay: 0s;
+}
+.karobarai-auth-slide.s2 {
+  animation-delay: 4s;
+}
+.karobarai-auth-slide.s3 {
+  animation-delay: 8s;
+}
+@keyframes karobarai-auth-fade-slide {
+  0% {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  4% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  29% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  34% {
+    opacity: 0;
+    transform: translateY(-14px);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-14px);
+  }
+}
+/* One small, abstract line mark per slide (drawn in AuthSlidePanel.tsx) — stroke-based, same
+ * icon language as the rest of the app, never a fake dashboard/browser/card composition. */
+.karobarai-auth-mark {
+  width: 44px;
+  height: 44px;
+  margin-bottom: 28px;
+  color: var(--auth-tint-700);
+  /* The idle motion from the old illustration set (sparkle pulse, ping ring, bar grow, badge
+   * float) is back, per request — just retargeted at what's actually on the panel now, one
+   * quiet breathing pulse on the mark itself, instead of reintroducing the busy illustration
+   * content those animations used to belong to. */
+  animation: karobarai-auth-mark-float 2.6s ease-in-out infinite;
+}
+@keyframes karobarai-auth-mark-float {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-8px) scale(1.1);
+  }
+}
+.karobarai-auth-slide-headline {
+  /* Deliberately larger than the type scale's --fs-4xl (36px) — this is the panel's one
+   * confident editorial statement, not a caption next to a graphic. */
+  font-size: 46px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  line-height: 1.08;
+  margin: 0 0 14px;
+  max-width: 420px;
+  color: var(--text-primary);
+}
+.karobarai-auth-slide-sub {
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  margin: 0;
+  max-width: 360px;
+}
+
+.karobarai-auth-dots {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-top: var(--sp-6);
+}
+.karobarai-auth-dot {
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--auth-tint-300);
+  width: 22px;
+  animation: karobarai-auth-dot-pulse 12s infinite;
+}
+.karobarai-auth-dot.d1 {
+  animation-delay: 0s;
+}
+.karobarai-auth-dot.d2 {
+  animation-delay: 4s;
+}
+.karobarai-auth-dot.d3 {
+  animation-delay: 8s;
+}
+@keyframes karobarai-auth-dot-pulse {
+  0% {
+    width: 22px;
+    background: var(--auth-tint-300);
+  }
+  4% {
+    width: 34px;
+    background: var(--auth-tint-900);
+  }
+  29% {
+    width: 34px;
+    background: var(--auth-tint-900);
+  }
+  34% {
+    width: 22px;
+    background: var(--auth-tint-300);
+  }
+  100% {
+    width: 22px;
+    background: var(--auth-tint-300);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .karobarai-auth-slide,
+  .karobarai-auth-dot,
+  .karobarai-auth-mark {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+/* Mobile keeps the illustration panel — it must never be removed — but as a compact banner
+ * above the form rather than a full-height column: fixed width becomes full-width, height
+ * shrinks to a fixed compact band, and everything inside scales down to fit it. Visual order
+ * (header row -> panel -> form) is set purely via flex `order` below; DOM order is unchanged so
+ * desktop's layout (where header-row is hidden anyway) needs no changes. */
+@media (max-width: 767px) {
+  .karobarai-auth-panel {
+    order: 2;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    height: 190px;
+    flex-shrink: 0;
+    padding: var(--sp-4) var(--sp-5);
+  }
+  /* The header row already shows the KarobarAI wordmark — avoid showing it a second time
+   * inside the compact panel banner. */
+  .karobarai-auth-panel .karobarai-auth-brand {
+    display: none;
+  }
+  .karobarai-auth-mark {
+    width: 30px;
+    height: 30px;
+    margin-bottom: var(--sp-2);
+  }
+  .karobarai-auth-slide-headline {
+    font-size: 22px;
+    letter-spacing: -0.2px;
+    margin: 0 0 2px;
+    max-width: 260px;
+  }
+  .karobarai-auth-slide-sub {
+    font-size: var(--fs-xs);
+    max-width: 240px;
+  }
+  .karobarai-auth-dots {
+    margin-top: var(--sp-2);
+  }
+  .karobarai-auth-dot {
+    width: 16px;
+    animation-name: karobarai-auth-dot-pulse-mobile;
+  }
+  @keyframes karobarai-auth-dot-pulse-mobile {
+    0%,
+    100% {
+      width: 16px;
+      background: var(--auth-tint-300);
+    }
+    4%,
+    29% {
+      width: 24px;
+      background: var(--auth-tint-900);
+    }
+    34% {
+      width: 16px;
+      background: var(--auth-tint-300);
+    }
+  }
+}
+/* Short phones (SE-class, ~568-640px tall) — claw back space for the form on the densest screen
+ * (Register) by compacting the panel further still. Graphics stay, just smaller — never removed. */
+@media (max-width: 767px) and (max-height: 650px) {
+  .karobarai-auth-panel {
+    height: 128px;
+    padding: var(--sp-3) var(--sp-4);
+  }
+  .karobarai-auth-mark {
+    width: 24px;
+    height: 24px;
+    margin-bottom: 2px;
+  }
+  .karobarai-auth-slide-sub {
+    display: none;
+  }
+  .karobarai-auth-dots {
+    margin-top: var(--sp-1);
+  }
+}
+
+/* Form side: header row (back link + language switch), the bigger heading, and the pill
+ * control system (Input/Button/Segmented restyled, scoped to this subtree only). */
+.karobarai-auth-form-side {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: var(--sp-8) var(--sp-12) var(--sp-12);
+  overflow-y: auto;
+}
+.karobarai-auth-topbar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--sp-5);
+}
+/* "Back to Home" — icon-only circular button, used on both desktop (topbar) and mobile
+ * (header row). A prominent 44px circle rather than an inline "<- Back to Home" text link. */
+.karobarai-auth-shell .karobarai-auth-back-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-pill);
+  background: var(--auth-elevated);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-primary);
+  flex-shrink: 0;
+  transition:
+    background-color var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
+}
+.karobarai-auth-shell .karobarai-auth-back-btn:hover {
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary-hover);
+  box-shadow: var(--shadow-md);
+}
+.karobarai-auth-form-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+.karobarai-auth-card {
+  width: 100%;
+  max-width: 400px;
+  animation: karobarai-auth-card-rise var(--dur-slow) var(--ease) both;
+}
+@keyframes karobarai-auth-card-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .karobarai-auth-card {
+    animation-duration: 0.01ms !important;
+  }
+}
+.karobarai-auth-title.ant-typography {
+  font-size: 38px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  line-height: 1.1;
+}
+.karobarai-auth-eyebrow-icon {
+  display: none;
+}
+
+/* Mobile: fixed-viewport header row (logo start, back + language grouped end) replacing the
+ * desktop topbar. Visual order is Header -> Graphics (.karobarai-auth-panel, restyled compact
+ * further up) -> Form, set via `order` below — DOM order is untouched. The eyebrow-icon badge
+ * (a stand-in for when the panel used to be hidden on mobile) is retired now that the real
+ * panel is back; a second icon above the heading would just duplicate the graphics above it. */
+.karobarai-auth-header-row {
+  display: none;
+}
+@media (max-width: 767px) {
+  .karobarai-auth-shell {
+    flex-direction: column;
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+    padding-inline: 0;
+  }
+  .karobarai-auth-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    order: 1;
+    padding: var(--sp-4) var(--sp-5) 0;
+  }
+  .karobarai-auth-header-row .karobarai-auth-brand svg {
+    width: 24px;
+    height: 24px;
+  }
+  .karobarai-auth-header-row .karobarai-auth-brand-word {
+    font-size: var(--fs-sm);
+  }
+  .karobarai-auth-header-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+  }
+  /* The EN/UR Segmented must read as part of the same control group as the 44px back button
+   * (already sized to the accessibility floor) — match its height rather than shrinking the
+   * button down to the Segmented's small size. */
+  .karobarai-auth-header-actions .ant-segmented {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    box-shadow: var(--shadow-sm);
+  }
+  .karobarai-auth-header-actions .ant-segmented-item-label {
+    min-height: 32px;
+    display: flex;
+    align-items: center;
+    padding-inline: var(--sp-3);
+  }
+  .karobarai-auth-topbar {
+    display: none;
+  }
+  .karobarai-auth-form-side {
+    flex: 1;
+    min-height: 0;
+    order: 3;
+    padding: var(--sp-4) var(--sp-5) var(--sp-6);
+  }
+  .karobarai-auth-eyebrow-icon {
+    display: none !important;
+  }
+  .karobarai-auth-title.ant-typography {
+    font-size: 26px;
+  }
+}
+
+/* Auth-shell links (plain react-router <Link>s — "Forgot password?", footer "Register"/"Log in",
+ * etc.) never got an explicit color, so they fell back to the browser's default link blue/purple
+ * — the exact "random decorative color" this system forbids. One rule fixes every instance.
+ * .karobarai-auth-back-btn is deliberately more specific (two classes) so it keeps winning this
+ * cascade — it's an icon-only button, not a text link, and needs --text-primary instead. */
+.karobarai-auth-shell a {
+  color: var(--brand-primary);
+}
+.karobarai-auth-shell a:hover {
+  color: var(--brand-primary-hover);
+}
+
+/* Pill control system — Input/Button/Segmented/OTP restyled only inside .karobarai-auth-shell.
+ * Background/border pulled from the --auth-elevated/--auth-border tier (not AntD's own
+ * colorBgContainer/colorBorder) so inputs stay in the same green-tonal family as the rest of the
+ * auth shell in dark mode, instead of AntD's generic near-black-brown container color. */
+.karobarai-auth-shell .ant-input,
+.karobarai-auth-shell .ant-input-affix-wrapper {
+  border-radius: var(--radius-pill);
+  padding-inline: var(--sp-5);
+  background: var(--auth-elevated);
+  border-color: var(--auth-border);
+}
+.karobarai-auth-shell .ant-input-affix-wrapper .ant-input {
+  background: transparent;
+}
+.karobarai-auth-shell .ant-input-affix-wrapper .ant-input {
+  padding-inline: 0;
+}
+.karobarai-auth-shell .ant-btn {
+  border-radius: var(--radius-pill);
+  transition:
+    transform var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease),
+    background-color var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
+}
+.karobarai-auth-shell .ant-btn-primary {
+  /* AntD bakes colorPrimary into a literal hex at build time — it never reads a CSS variable —
+   * so the shared brighter green above needs restating here explicitly, or the button alone
+   * would silently stay on the old darker AntD-default green while everything else moved. */
+  background: var(--brand-primary);
+  box-shadow: var(--shadow-md);
+}
+.karobarai-auth-shell .ant-btn-primary:not(:disabled):hover {
+  background: var(--brand-primary-hover);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+.karobarai-auth-shell .ant-btn-primary:not(:disabled):active {
+  background: var(--brand-primary-active);
+  transform: translateY(0) scale(0.97);
+  box-shadow: var(--shadow-sm);
+}
+/* Buyer/Seller, Mobile/Email, EN/UR — all the same AntD Segmented, so one fix covers all three.
+ * AntD's default selected-state visual is a separate `.ant-segmented-thumb` element that slides
+ * (translateX) behind the selected item on every change. That sliding motion is removed per
+ * spec — the selected item gets its own solid brand-green fill directly instead, with only
+ * `background-color`/`color` transitioning.
+ *
+ * IMPORTANT: the thumb must stay in normal rendering (not `display:none`) — AntD's Segmented
+ * only commits the `.ant-segmented-item-selected` class once the thumb's own CSS transition
+ * fires its `transitionend` callback. `display:none` removes it from layout entirely, that
+ * callback never fires, and the selected item's color permanently fails to apply — exactly the
+ * "toggle goes colorless after clicking" bug this caused the first time. Instead the thumb keeps
+ * animating (invisibly) and is just stripped of every visual property, so nothing is seen
+ * sliding while the completion signal AntD depends on still fires normally. */
+.karobarai-auth-shell .ant-segmented {
+  border-radius: var(--radius-pill);
+  background: var(--auth-elevated);
+}
+.karobarai-auth-shell .ant-segmented .ant-segmented-item {
+  border-radius: var(--radius-pill);
+  transition:
+    background-color 200ms var(--ease),
+    color 200ms var(--ease);
+}
+.karobarai-auth-shell .ant-segmented-thumb {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+.karobarai-auth-shell .ant-segmented-item-selected {
+  background: var(--brand-primary);
+}
+.karobarai-auth-shell .ant-segmented-item-selected .ant-segmented-item-label {
+  color: #ffffff;
+}
+.karobarai-auth-shell .ant-segmented-item:not(.ant-segmented-item-selected):hover {
+  background: var(--auth-surface);
+}
+.karobarai-auth-shell .ant-otp .ant-input {
+  border-radius: var(--radius-lg);
+  background: var(--auth-elevated);
+  border-color: var(--auth-border);
+  transition:
+    border-color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease),
+    transform var(--dur-fast) var(--ease);
+}
+.karobarai-auth-shell .ant-otp .ant-input:not(:placeholder-shown) {
+  border-color: var(--brand-primary);
+  transform: translateY(-1px);
+}
+
+/* Ghost/outline button (Forgot Password's "Back to log in") — an outlined pill instead of a
+ * plain text link, per an explicit design request. */
+.karobarai-auth-btn-ghost.ant-btn {
+  background: transparent;
+  border: 1.5px solid var(--brand-primary);
+  color: var(--brand-primary-hover);
+  font-weight: 600;
+}
+.karobarai-auth-btn-ghost.ant-btn:not(:disabled):hover {
+  background: var(--brand-primary-soft);
+  border-color: var(--brand-primary-hover);
+  color: var(--brand-primary-hover);
+}
+.karobarai-auth-btn-ghost.ant-btn:not(:disabled):active {
+  background: var(--brand-primary-soft);
+  border-color: var(--brand-primary-active);
+  color: var(--brand-primary-active);
+}

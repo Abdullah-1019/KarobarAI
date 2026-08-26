@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Alert, Button, Input, Typography } from 'antd';
+import { LockKeyhole } from 'lucide-react';
 import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -71,7 +72,7 @@ export function ResetPasswordPage() {
 
   if (done) {
     return (
-      <AuthLayout title={t('auth:resetPassword.successTitle')}>
+      <AuthLayout title={t('auth:resetPassword.successTitle')} icon={LockKeyhole}>
         <Alert
           type="success"
           showIcon
@@ -85,7 +86,7 @@ export function ResetPasswordPage() {
 
   if (tokenInvalid) {
     return (
-      <AuthLayout title={t('auth:resetPassword.title')}>
+      <AuthLayout title={t('auth:resetPassword.title')} icon={LockKeyhole}>
         <Alert type="error" showIcon message={t('auth:resetPassword.tokenInvalid')} style={{ marginBottom: 'var(--sp-4)' }} />
         <Link to="/forgot-password">{t('auth:resetPassword.requestNewLink')}</Link>
       </AuthLayout>
@@ -94,7 +95,7 @@ export function ResetPasswordPage() {
 
   if (!token) {
     return (
-      <AuthLayout title={t('auth:resetPassword.title')}>
+      <AuthLayout title={t('auth:resetPassword.title')} icon={LockKeyhole}>
         <Alert type="warning" showIcon message={t('auth:resetPassword.missingToken')} style={{ marginBottom: 'var(--sp-4)' }} />
         <Link to="/forgot-password">{t('auth:resetPassword.requestNewLink')}</Link>
       </AuthLayout>
@@ -102,7 +103,7 @@ export function ResetPasswordPage() {
   }
 
   return (
-    <AuthLayout title={t('auth:resetPassword.title')}>
+    <AuthLayout title={t('auth:resetPassword.title')} icon={LockKeyhole}>
       {submitError && <Alert type="error" message={submitError} showIcon style={{ marginBottom: 'var(--sp-4)' }} />}
 
       <form onSubmit={onSubmit}>

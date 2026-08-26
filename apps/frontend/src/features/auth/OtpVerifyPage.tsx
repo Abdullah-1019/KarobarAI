@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Button, Input, Typography } from 'antd';
+import { ShieldCheck } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -75,7 +76,7 @@ export function OtpVerifyPage() {
   }
 
   return (
-    <AuthLayout title={t('auth:otp.title')} subtitle={t('auth:otp.subtitle', { phone })}>
+    <AuthLayout title={t('auth:otp.title')} subtitle={t('auth:otp.subtitle', { phone })} icon={ShieldCheck}>
       {error && <Alert type="error" message={error} showIcon style={{ marginBottom: 'var(--sp-4)' }} />}
 
       <Input.OTP

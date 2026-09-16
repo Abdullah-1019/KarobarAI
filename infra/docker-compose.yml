@@ -31,7 +31,7 @@ services:
 
   # Dev-only S3-compatible object storage (TRD §1: "Cloudinary or local MinIO in dev").
   minio:
-    image: minio/minio:latest
+    image: quay.io/minio/minio:latest
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-karobarai}
@@ -62,6 +62,7 @@ services:
     volumes:
       - ../apps/backend:/workspace/apps/backend
       - ../packages/shared:/workspace/packages/shared
+      - shared_node_modules:/workspace/packages/shared/node_modules
       - api_node_modules:/workspace/apps/backend/node_modules
     ports:
       - "4000:4000"
@@ -93,6 +94,7 @@ services:
     volumes:
       - ../apps/frontend:/workspace/apps/frontend
       - ../packages/shared:/workspace/packages/shared
+      - shared_node_modules:/workspace/packages/shared/node_modules
       - web_node_modules:/workspace/apps/frontend/node_modules
     ports:
       - "5173:5173"
@@ -118,3 +120,4 @@ volumes:
   minio_data:
   api_node_modules:
   web_node_modules:
+  shared_node_modules:

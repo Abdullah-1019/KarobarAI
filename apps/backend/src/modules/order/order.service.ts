@@ -10,6 +10,7 @@ import { prisma } from '../../core/prisma';
 import { createQueue } from '../../core/queue';
 import { canTransition, isCancellable } from '../../core/state-machines/order.state-machine';
 import { restoreStock } from '../catalog/catalog.service';
+import { enqueueProductEmbeddingSync } from '../chatbot/product-embedding.service';
 import { enqueueNotification } from '../notification';
 import type { ListOrdersQueryInput } from './order.dto';
 
@@ -240,6 +241,7 @@ export async function transitionOrderStatus(
   // optional transaction client to Feature 4's decrementStock/restoreStock.
   location?: { lat: number; lng: number },
 ): Promise<void> {
+  const restoredProductIds = new Set<bigint>();
   const committedOrder = await prisma.$transaction(async (tx) => {
     const order = await tx.order.findUniqueOrThrow({ where: { orderId } });
 
@@ -277,6 +279,7 @@ export async function transitionOrderStatus(
       for (const item of items) {
         // eslint-disable-next-line no-await-in-loop -- must serialize within this transaction
         await restoreStock(item.productId, item.quantity, tx);
+        restoredProductIds.add(item.productId);
       }
     }
 
@@ -313,6 +316,12 @@ export async function transitionOrderStatus(
     logger.info({ orderId: orderId.toString(), from: order.status, to: targetStatus, actor }, 'Order status transitioned');
     return order;
   });
+
+  for (const productId of restoredProductIds) {
+    await enqueueProductEmbeddingSync(productId).catch((err) =>
+      logger.error({ err, productId: productId.toString() }, 'Failed to enqueue restored-product embedding'),
+    );
+  }
 
   // Feature 9's own event inventory (FEATURE_9_EVENT_INVENTORY.md, Finding #2) flagged that this
   // feature enqueued zero notification jobs for any status transition, despite the Feature 9

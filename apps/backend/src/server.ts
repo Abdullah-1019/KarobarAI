@@ -18,6 +18,7 @@ import { aiStoreBuilderRouter } from './modules/ai-store-builder';
 import { analyticsRouter } from './modules/analytics';
 import { authRouter } from './modules/auth';
 import { cartRouter } from './modules/cart';
+import { startProductEmbeddingWorker } from './modules/chatbot/product-embedding.service';
 import { publicCatalogRouter, sellerProductRouter } from './modules/catalog';
 import { healthRouter } from './modules/health/health.routes';
 import { notificationRouter, startNotificationConsumer } from './modules/notification';
@@ -101,5 +102,6 @@ if (require.main === module) {
   startCourierAssignmentConsumer();
   startTrackingPollJob().catch((err) => logger.error({ err }, 'failed to start tracking poll job'));
   startNotificationConsumer();
+  startProductEmbeddingWorker();
   startSettlementPollJob().catch((err) => logger.error({ err }, 'failed to start settlement poll job'));
 }

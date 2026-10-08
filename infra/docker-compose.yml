@@ -2,7 +2,7 @@ name: karobarai
 
 services:
   postgres:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16
     environment:
       POSTGRES_USER: karobarai
       POSTGRES_PASSWORD: karobarai
@@ -27,6 +27,25 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    networks: [karobarai_net]
+
+  # Feature 16: local inference only; no host port or Nginx route.
+  ollama:
+    image: ollama/ollama:latest
+    environment:
+      OLLAMA_HOST: 0.0.0.0:11434
+      OLLAMA_CHAT_MODEL: ${OLLAMA_CHAT_MODEL:-qwen2.5vl:7b}
+      OLLAMA_EMBED_MODEL: ${OLLAMA_EMBED_MODEL:-nomic-embed-text}
+    entrypoint: ["/bin/sh", "/startup/ollama-start.sh"]
+    volumes:
+      - ollama_data:/root/.ollama
+      - ./ollama/ollama-start.sh:/startup/ollama-start.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /tmp/models-ready && ollama list >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30m
     networks: [karobarai_net]
 
   # Dev-only S3-compatible object storage (TRD §1: "Cloudinary or local MinIO in dev").
@@ -79,6 +98,10 @@ services:
       dockerfile: apps/ai-service/Dockerfile
     env_file:
       - ../.env
+    environment:
+      OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_CHAT_MODEL: ${OLLAMA_CHAT_MODEL:-qwen2.5vl:7b}
+      OLLAMA_EMBED_MODEL: ${OLLAMA_EMBED_MODEL:-nomic-embed-text}
     volumes:
       - ../apps/ai-service:/app
     # No `ports:` mapping — never reachable from the host or Nginx (TRD §8).
@@ -117,6 +140,7 @@ networks:
 
 volumes:
   postgres_data:
+  ollama_data:
   minio_data:
   api_node_modules:
   web_node_modules:

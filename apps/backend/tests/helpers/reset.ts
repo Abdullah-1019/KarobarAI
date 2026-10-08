@@ -1,5 +1,6 @@
 import { prisma } from '../../src/core/prisma';
 import { redis } from '../../src/core/redis';
+import { resetProductEmbeddingResourcesForTests } from '../../src/modules/chatbot/product-embedding.service';
 
 // Order matters for FK constraints (children before parents). Addresses/payout_wallets/
 // product_images/cart_items aren't listed explicitly — all cascade automatically (onDelete:
@@ -14,6 +15,7 @@ import { redis } from '../../src/core/redis';
 // both be deleted before product/sellerProfile/buyerProfile, or checkout tests would break every
 // later test's resetDb() call with a foreign-key violation.
 export async function resetDb(): Promise<void> {
+  await resetProductEmbeddingResourcesForTests();
   // Feature 12 — audit_logs has no FK dependents (AuditLog.actorId -> users is onDelete:
   // SetNull, never Restrict), so this was never *required* for the deletes below to succeed.
   // It's here for test isolation: every prior feature's audit-row tests scoped by a fresh
@@ -25,6 +27,7 @@ export async function resetDb(): Promise<void> {
   await prisma.refreshToken.deleteMany();
   await prisma.notificationPreference.deleteMany();
   await prisma.payment.deleteMany();
+  await prisma.chatSession.deleteMany();
   await prisma.settlement.deleteMany(); // Feature 11 — Settlement.orderId is onDelete: Restrict, must precede order.deleteMany()
   await prisma.dispute.deleteMany(); // Feature 10 — Dispute.returnId is onDelete: Restrict, must precede return.deleteMany()
   await prisma.return.deleteMany(); // cascades return_images; Return.orderId is onDelete: Restrict, must precede order.deleteMany()

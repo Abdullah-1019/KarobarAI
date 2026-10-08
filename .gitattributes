@@ -1,0 +1,2 @@
+# The Linux container entrypoint must keep LF endings on Windows checkouts.
+infra/ollama/*.sh text eol=lf

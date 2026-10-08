@@ -11,6 +11,7 @@ import { redis } from '../../core/redis';
 import { getOwnedAddressForOrder } from '../address/address.service';
 import { getRawCart, removeCartItems, type RawSellerGroup } from '../cart/cart.service';
 import { decrementStock } from '../catalog/catalog.service';
+import { enqueueProductEmbeddingSync } from '../chatbot/product-embedding.service';
 import { enqueueNotification } from '../notification';
 import type { CheckoutInput } from './checkout.dto';
 import { confirmPayment } from './order.service';
@@ -215,6 +216,12 @@ export async function processCheckout(
       purchasedCartItemIds.push(...group.items.map((item) => item.cartItemId));
     }
   });
+
+  for (const productId of new Set(eligibleGroups.flatMap((group) => group.items.map((item) => item.productId)))) {
+    await enqueueProductEmbeddingSync(productId).catch((err) =>
+      logger.error({ err, productId: productId.toString() }, 'Failed to enqueue checked-out product embedding'),
+    );
+  }
 
   // Interim mock-mode fix (same "mock stub for now" pattern used throughout this codebase):
   // confirmPayment() (order.service.ts) exists and correctly transitions PAYMENT_PENDING ->

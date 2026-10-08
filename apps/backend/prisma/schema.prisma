@@ -207,6 +207,22 @@ enum PayoutWalletType {
   @@map("payout_wallet_type")
 }
 
+enum ChatContext {
+  BUYER_STORE
+  SELLER_ASSISTANT
+
+  @@map("chat_context")
+}
+
+enum ChatRole {
+  USER
+  ASSISTANT
+  SYSTEM
+  TOOL
+
+  @@map("chat_role")
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // §4.1 users
 // ─────────────────────────────────────────────────────────────────────────────
@@ -246,6 +262,7 @@ model User {
   auditLogsAsActor       AuditLog[]              @relation("AuditActor")
   disputesResolved       Dispute[]               @relation("DisputeResolvedBy")
   platformConfigsUpdated PlatformConfig[]        @relation("PlatformConfigUpdatedBy")
+  chatSessions           ChatSession[]            @relation("ChatBuyer")
 
   @@index([role], map: "idx_users_role")
   @@index([status], map: "idx_users_status")
@@ -281,6 +298,8 @@ model SellerProfile {
   returns               Return[]
   sellerDailyStats      SellerDailyStat[]
   sellerRecommendations SellerRecommendation[]
+  buyerStoreChatSessions ChatSession[] @relation("BuyerStoreChats")
+  sellerChatSessions     ChatSession[] @relation("SellerChats")
 
   @@map("seller_profiles")
 }
@@ -388,6 +407,7 @@ model Product {
   cartItems  CartItem[]
   orderItems OrderItem[]
   reviews    Review[]
+  embedding  ProductEmbedding?
 
   @@index([sellerId], map: "idx_products_seller")
   @@index([categoryId], map: "idx_products_category")
@@ -411,6 +431,51 @@ model ProductImage {
 
   @@unique([productId, position], map: "uq_product_images_product_position")
   @@map("product_images")
+}
+
+model ProductEmbedding {
+  id        String   @id @default(cuid())
+  productId BigInt   @unique @map("product_id")
+  embedding Unsupported("vector(768)")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  product   Product  @relation(fields: [productId], references: [productId], onDelete: Cascade)
+
+  @@index([productId], map: "idx_product_embeddings_product")
+  @@map("product_embeddings")
+}
+
+model ChatSession {
+  id          String      @id @default(cuid())
+  context     ChatContext
+  // In this repository a seller profile is the store entity; this FK is the internal seller id.
+  storeId     BigInt?     @map("store_id")
+  sellerId    BigInt?     @map("seller_id")
+  buyerUserId BigInt?     @map("buyer_user_id")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  store       SellerProfile? @relation("BuyerStoreChats", fields: [storeId], references: [userId], onDelete: Cascade)
+  seller      SellerProfile? @relation("SellerChats", fields: [sellerId], references: [userId], onDelete: Cascade)
+  buyer       User?       @relation("ChatBuyer", fields: [buyerUserId], references: [userId], onDelete: SetNull)
+  messages    ChatMessage[]
+
+  @@index([storeId], map: "idx_chat_sessions_store")
+  @@index([sellerId], map: "idx_chat_sessions_seller")
+  @@index([buyerUserId], map: "idx_chat_sessions_buyer")
+  @@map("chat_sessions")
+}
+
+model ChatMessage {
+  id         String      @id @default(cuid())
+  sessionId  String      @map("session_id")
+  role       ChatRole
+  content    String      @db.Text
+  toolCall   Json?       @map("tool_call")
+  toolResult Json?       @map("tool_result")
+  createdAt  DateTime    @default(now()) @map("created_at")
+  session    ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId], map: "idx_chat_messages_session")
+  @@map("chat_messages")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -810,6 +875,7 @@ model PlatformConfig {
   updatedBy     BigInt?  @map("updated_by")
   updatedByUser User?    @relation("PlatformConfigUpdatedBy", fields: [updatedBy], references: [userId], onDelete: SetNull)
   updatedAt     DateTime @updatedAt @map("updated_at")
+  chatbotEnabled Boolean @default(true) @map("chatbot_enabled")
 
   @@map("platform_config")
 }

@@ -17,6 +17,7 @@ import { logger } from '../../core/logger';
 import { prisma } from '../../core/prisma';
 import { redis } from '../../core/redis';
 import { extractStorageKey, validateImageFile } from '../../core/upload/imageValidation';
+import { enqueueProductEmbeddingSync } from '../chatbot/product-embedding.service';
 import type {
   CreateProductInput,
   ListSellerProductsQueryInput,
@@ -308,6 +309,7 @@ export async function publishProduct(sellerUserId: bigint, productPublicId: stri
     data: { status: 'LIVE' },
     include: PRODUCT_INCLUDE,
   });
+  await enqueueProductEmbeddingSync(product.productId);
   return toProductDetail(updated);
 }
 
@@ -497,6 +499,7 @@ export async function decrementStock(
     await run(tx);
   } else {
     await prisma.$transaction((innerTx) => run(innerTx));
+    await enqueueProductEmbeddingSync(productId);
   }
 }
 
@@ -513,6 +516,7 @@ export async function restoreStock(productId: bigint, quantity: number, tx?: Pri
     await run(tx);
   } else {
     await prisma.$transaction((innerTx) => run(innerTx));
+    await enqueueProductEmbeddingSync(productId);
   }
 }
 
@@ -598,7 +602,9 @@ export async function updateProduct(
     }
   });
 
-  return getProductDetailByProductId(product.productId);
+  const result = await getProductDetailByProductId(product.productId);
+  await enqueueProductEmbeddingSync(product.productId);
+  return result;
 }
 
 // Task 6.3 — deliberate LIVE -> DRAFT action, distinct from the automatic stock-driven
@@ -614,6 +620,7 @@ export async function unpublishProduct(sellerUserId: bigint, productPublicId: st
     data: { status: 'DRAFT' },
     include: PRODUCT_INCLUDE,
   });
+  await enqueueProductEmbeddingSync(product.productId);
   return toProductDetail(updated);
 }
 
@@ -630,6 +637,7 @@ export async function deleteProduct(sellerUserId: bigint, productPublicId: strin
     where: { productId: product.productId },
     data: { deletedAt: new Date(), status: 'REMOVED' },
   });
+  await enqueueProductEmbeddingSync(product.productId);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

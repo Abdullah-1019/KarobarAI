@@ -56,10 +56,9 @@ export async function uploadStagingImages(files: Array<{ buffer: Buffer; size: n
 // Task 3 — AI Request Pipeline
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Task 3.3/Assumption #3 — near the 30s user-facing ceiling (REQ-NF-Perf002), leaving headroom
-// for network/mapping overhead; the AI Service's own internal per-client budget (GeminiVisionClient:
-// 10s timeout x 2 attempts each, both primary and fallback) stays comfortably under this.
-const CORE_API_AI_TIMEOUT_MS = 28_000;
+// Local vision inference can take several minutes with constrained Docker memory.
+// Use the configured AI-service timeout, aligned with the Ollama inference timeout.
+const CORE_API_AI_TIMEOUT_MS = config.aiServiceTimeoutMs;
 
 // Defensive re-validation of the AI Service's own response at the Core API boundary (Task 1's
 // Engineering Decision) — catches any contract drift between services; any shape violation is a

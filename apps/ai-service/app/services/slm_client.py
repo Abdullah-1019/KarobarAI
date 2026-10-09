@@ -18,6 +18,14 @@ CORRECTIVE_PROMPT = (
     "Your last response wasn't valid JSON. Respond only with the required JSON envelope."
 )
 SAFE_FAILURE_REPLY = "I couldn't safely process that request. Please rephrase it."
+INVENTORY_GROUNDING_INSTRUCTION = (
+    "Ground product availability and inventory claims only in supplied product facts or tool results. "
+    "Treat an explicit stock count as the maximum available quantity and compare it numerically with "
+    "the quantity requested by the user. If the requested quantity exceeds stock, clearly say that "
+    "the requested amount is unavailable and state no larger quantity than the confirmed stock. "
+    "Never say the requested amount is available or confirm adding it. If stock is missing or unclear, "
+    "do not affirm availability."
+)
 
 
 class OllamaClientError(RuntimeError):
@@ -90,7 +98,9 @@ class SLMClient:
                 ]
                 await asyncio.sleep(self.backoff_base_seconds * (2**attempt))
 
-        raise InvalidEnvelopeError(f"Invalid Ollama JSON envelope after {self.max_attempts} attempts: {last_failure}")
+        raise InvalidEnvelopeError(
+            f"Invalid Ollama JSON envelope after {self.max_attempts} attempts: {last_failure}"
+        )
 
     async def _post(self, path: str, payload: dict[str, Any]) -> dict[str, Any]:
         if self._client is not None:
@@ -142,7 +152,10 @@ class EmbeddingClient:
                     if (
                         not isinstance(vector, list)
                         or len(vector) != 768
-                        or not all(isinstance(value, (int, float)) and math.isfinite(value) for value in vector)
+                        or not all(
+                            isinstance(value, (int, float)) and math.isfinite(value)
+                            for value in vector
+                        )
                         or not any(value != 0 for value in vector)
                     ):
                         raise ValueError("Ollama returned an invalid 768-dimensional embedding")
@@ -204,6 +217,7 @@ def _envelope_messages(
         "Return exactly one JSON object, without markdown or surrounding text.",
         mode,
         "Do not include keys outside the selected envelope.",
+        INVENTORY_GROUNDING_INSTRUCTION,
     ]
     if tools:
         rules.append("Allowed tool definitions: " + json.dumps(tools, ensure_ascii=False))
@@ -231,7 +245,11 @@ def _parse_envelope(raw: Any, allowed_tools: set[str]) -> tuple[dict[str, Any] |
     if set(value) != {"tool_call"} or not isinstance(value["tool_call"], dict):
         return None, "expected exactly a reply or tool_call envelope"
     call = value["tool_call"]
-    if set(call) != {"type", "payload"} or not isinstance(call["type"], str) or not isinstance(call["payload"], dict):
+    if (
+        set(call) != {"type", "payload"}
+        or not isinstance(call["type"], str)
+        or not isinstance(call["payload"], dict)
+    ):
         return None, "malformed tool_call envelope"
     if call["type"] not in allowed_tools:
         return None, "tool type is not in the supplied allowlist"

@@ -210,11 +210,9 @@ interface GeneratedListingResponse {
 }
 
 // Task 3.4 — orchestrates the server-side-only call to ai-service. Mock stub for this pass (see
-// docs/handoffs/F4-catalog-backend.md): ai-service's /generate-listing always returns a fixed,
-// schema-conformant response rather than calling a real LLM — the real GPT-4V/GPT-3.5 fallback
-// chain is a separate, later task. This function's contract (validate → call → persist-on-
-// success, never touch the row on failure) is what that real implementation will run under
-// unchanged.
+// docs/handoffs/F4-catalog-backend.md): ai-service generates a schema-conformant response using
+// the configured local Ollama vision model. This function validates, calls, and persists only on
+// success.
 export async function generateListing(
   sellerUserId: bigint,
   productPublicId: string,
@@ -243,7 +241,7 @@ export async function generateListing(
     const response = await axios.post<GeneratedListingResponse>(
       `${config.aiServiceUrl}/generate-listing`,
       { image_url: images[0]?.cdnUrl, hint },
-      { timeout: 10_000 },
+      { timeout: config.aiServiceTimeoutMs },
     );
     generated = response.data;
   } catch (err) {

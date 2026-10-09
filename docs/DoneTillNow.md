@@ -9,6 +9,98 @@ or flagged for follow-up. Newest entries at the top.
 
 ---
 
+## Feature 16 follow-up: move listing generation to local Ollama
+
+**Status:** Implementation and automated checks complete — 2026-10-08. Replaced the previous
+Gemini-backed listing provider with the configured local Ollama vision model, reused the shared
+`SLMClient`, removed Gemini configuration and provider tests, and applied the configured AI-service
+timeout in the backend. Added an opt-in live listing integration test and a configurable JSON
+envelope benchmark script. This supersedes the Feature 13 provider choice recorded below; the
+Feature 13 flow and API contract remain in place.
+
+**Verified:** AI Service **30/30 pytest tests**; `mypy`, `flake8`, and `black --check` clean.
+Backend typecheck clean. Full backend suite with `TZ=Asia/Karachi`: **759 passed, 2 skipped, 80
+suites passed**. Two test-isolation issues surfaced and were corrected: category name matches now
+have a stable category-ID order, and the admin config list returns the newest row once per key if
+the local database contains duplicate legacy rows.
+
+**Live check:** Ollama returned a valid Qwen chat completion in 35 seconds and a valid 768-
+dimensional `nomic-embed-text` vector in 1.17 seconds. The five-case Urdu benchmark ran; four
+answers were grounded, but the model incorrectly said two units were available when stock was
+one. The listing vision smoke request was manually stopped before it returned after several
+minutes of CPU inference. The live backend listing and BullMQ embedding integration tests remain
+opt-in via `RUN_LIVE_LISTING_TEST=1` and `RUN_LIVE_EMBEDDING_TEST=1` respectively. The alternative
+vision model has not been compared.
+
+**Handoff:** Feature 17’s draft is present in `docs/modules/Feature-17-Buyer-Storefront-Agent.md`.
+Do not start its implementation until the user confirms.
+
+## Feature 16 hardening follow-up: stock grounding and live vision status
+
+**Stock grounding:** After the Urdu smoke benchmark showed the model confirming two units when
+only one was in stock, the shared SLM system instructions were strengthened to require a numeric
+requested-quantity/stock comparison and prohibit confirming quantities above stock. Added a
+regression test for the instruction. AI-service pytest now reports **31 passed**. The five live
+Urdu smoke cases were rerun against `qwen2.5vl:7b`: the stock case now answered `نہیں` for two
+requested with one in stock; the price, material, and color answers matched their facts. The
+availability answer used Arabic `نعم` instead of Urdu `ہاں`, so Urdu fluency still needs review.
+Four supplemental Urdu intents (search, details, add-to-cart, order status) produced the expected
+valid tool-call envelope type in all four cases; no tool was executed.
+
+**Live vision:** The opt-in backend-to-ai-service-to-Ollama listing test was started with the
+development image fixture. Ollama logs showed the image entering Qwen's CPU vision encoder, with
+approximately 6.9 GiB used against Docker's 9.716 GiB limit. The last successful Docker status
+check before the CLI stall reported the service healthy; no OOM event was captured. The backend
+response did not return. Subsequent `docker ps` calls
+blocked for at least 30 seconds, so the test client was interrupted. This is inconclusive: no
+GeneratedListing response was verified, and there is no OOM or model-quality conclusion. The
+temporary host image server was stopped. Docker's current state could not be rechecked while its
+CLI was unresponsive.
+
+The live BullMQ embedding verification passed in the Compose network: create and update jobs
+upserted one row with 768 dimensions. The previous JSON envelope run remains **10/10, 0 retries**.
+In the follow-up validation, backend typecheck passed. The chatbot subset first passed **11 tests,
+with 1 opt-in live test skipped** while the database was available. A later rerun after Docker
+stopped responding had **9 passed, 2 failed, 1 skipped**: the two failures were setup/reset hooks
+in `rag.service.test.ts` because Prisma could not connect to `localhost:5432`; this is an
+infrastructure failure, not a retrieval assertion failure. The last known full backend suite
+remains **759 passed, 2 skipped**; it could not be rerun after Docker became unresponsive.
+
+The Docker daemon is responsive again. `docker ps` and `docker info` succeeded; Docker reported
+9.716 GiB and 4 CPUs. The required `postgres`, `redis`, `ollama`, and `ai-service` containers
+started and remained healthy during the checks. `ollama list` confirmed `qwen2.5vl:7b` and
+`nomic-embed-text`.
+
+The existing live JSON-envelope benchmark was rerun against `qwen2.5vl:7b`: **10/10 passed,
+100%, all on the initial attempt, 0 retries**. It covered five conversational replies and five
+allowlisted tool-call envelopes. The runner validates output only; **no tools were executed**.
+
+The live image-to-listing test was run through the backend, AI service, and local Qwen vision
+model with disposable development fixtures. The image was fetched successfully; Ollama decoded
+vision batch 1 in 182.6 seconds and began batch 2. It remained healthy at about 6.8 GiB of the
+9.716 GiB Docker limit, with no OOM or model-crash evidence. The AI-service inference timeout and
+backend Axios timeout are both 600 seconds. The backend reached its deadline first, logged
+`ECONNABORTED`, and returned **503** through the existing fail-closed error mapping. No valid
+`GeneratedListing` was returned. This evidence points to very slow CPU-based Qwen vision
+inference, not a timeout mismatch or request-routing defect. The existing error path is safe; no
+code change or timeout increase was justified. The temporary host image server was stopped and
+Compose removed its disposable API test container. Feature 16 remains **blocked** on verifying a
+real listing response; Docker availability is no longer a blocker. The next action is one live
+run of the same image test using Qwen on an approved GPU-accelerated inference host.
+
+**Final targeted validation (historical; not rerun for this diagnosis):** AI-service pytest **31 passed** (two dependency deprecation
+warnings); backend typecheck passed; the Feature 16 chatbot test subset passed **11/11** when run
+against the host-generated Prisma client and the healthy local database. The Compose-run Jest
+container initially used a stale generated Prisma client and failed TypeScript compilation in
+`tests/helpers/reset.ts`; this was a test-container artifact, while the host test run passed. The
+10-case JSON benchmark passed **10/10**, with zero retries and no tools executed. The earlier full
+backend suite passed **759 tests with 2 skipped**. The live Urdu stock case rejected a request for
+two when stock was one; its availability wording used Arabic `نعم` rather than Urdu `ہاں`. The
+embedding pipeline previously upserted exactly one 768-dimensional row after create/update. These
+results were not rerun during this timeout diagnosis.
+
+---
+
 ## Feature: AI Store Builder (Implementation Plan Phase 16 / Feature 13)
 
 **Status:** Done — 2026-08-04. New AI Service module (`apps/ai-service/app/llm/`: `client.py`,

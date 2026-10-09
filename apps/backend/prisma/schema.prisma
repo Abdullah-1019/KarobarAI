@@ -278,6 +278,7 @@ model SellerProfile {
   userId                BigInt    @id @map("user_id")
   user                  User      @relation(fields: [userId], references: [userId], onDelete: Cascade)
   storeName             String    @map("store_name") @db.VarChar(120)
+  storeSlug             String    @unique(map: "uq_seller_profiles_store_slug") @map("store_slug") @db.VarChar(180)
   storeDescription      String?   @map("store_description") @db.Text
   logoUrl               String?   @map("logo_url") @db.VarChar(512)
   // Feature 3 (Store Management) addition — no banner column in the base Schema Doc §4.2;

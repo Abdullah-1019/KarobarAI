@@ -3,7 +3,7 @@ import { Alert, Button, Carousel, Typography } from 'antd';
 import { ImageOff } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { PriceDisplay, ProductThumbnail, QuantityStepper, SkeletonLoader, StatusTag, toast } from '../../components';
 import type { ProductImageDTO } from '@karobarai/shared';
@@ -13,6 +13,7 @@ import { getProduct, productQueryKey } from '../catalog/catalogApi';
 import { formatCatalogError } from '../catalog/catalogErrors';
 import { CART_QUERY_KEY, addCartItem } from '../cart/cartApi';
 import { useGuestCartStore } from '../cart/guestCartStore';
+import { getStoreForProduct } from './storeApi';
 
 // E2: previously a raw <img> with no background/fallback — when a URL fails to load (any
 // storage/network hiccup, e.g. this environment's object storage being unreachable), the entire
@@ -77,6 +78,11 @@ export function ProductDetailPage() {
     queryKey: productQueryKey(id),
     queryFn: () => getProduct(id),
     enabled: !!id,
+  });
+  const storeQuery = useQuery({
+    queryKey: ['product-store', id],
+    queryFn: () => getStoreForProduct(id),
+    enabled: !!product && product.status === 'LIVE',
   });
 
   const addToCartMutation = useMutation({
@@ -171,6 +177,7 @@ export function ProductDetailPage() {
         <Typography.Title level={3} style={{ marginBottom: 'var(--sp-2)' }}>
           {title}
         </Typography.Title>
+        {storeQuery.data && <Typography.Paragraph><Link to={`/store/${encodeURIComponent(storeQuery.data.slug)}`}>{storeQuery.data.name}</Link></Typography.Paragraph>}
         <StatusTag variant="neutral" label={t(`catalog:condition.${product.condition}`)} />
 
         <div style={{ marginTop: 'var(--sp-3)' }}>

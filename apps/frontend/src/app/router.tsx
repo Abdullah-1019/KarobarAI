@@ -16,7 +16,7 @@ import { AnalyticsDashboardPage } from '../features/analytics';
 import { ForgotPasswordPage, LoginPage, OtpVerifyPage, RegisterPage, ResetPasswordPage } from '../features/auth';
 import { AddProductPage, EditProductPage, SellerProductsPage } from '../features/catalog';
 import { CartPage, CheckoutConfirmationPage, CheckoutPage } from '../features/cart';
-import { CategoryPage, HomePage, ProductDetailPage, SearchPage, StorefrontLayout } from '../features/marketplace';
+import { CategoryPage, HomePage, ProductDetailPage, SearchPage, StorePage, StorefrontLayout } from '../features/marketplace';
 import { NotificationCenterPage } from '../features/notifications';
 import { BuyerOrderDetailPage, BuyerOrdersPage, SellerOrderDetailPage, SellerOrdersPage } from '../features/orders';
 import { ChangePasswordPage, ProfilePage, SettingsPage } from '../features/profile';
@@ -49,6 +49,7 @@ export const router = createBrowserRouter([
       { path: '/search', element: <SearchPage /> },
       { path: '/category/:slug', element: <CategoryPage /> },
       { path: '/product/:id', element: <ProductDetailPage /> },
+      { path: '/store/:storeSlug', element: <StorePage /> },
       { path: '/cart', element: <CartPage /> },
       {
         element: <ProtectedRoute allowedRoles={['BUYER']} />,

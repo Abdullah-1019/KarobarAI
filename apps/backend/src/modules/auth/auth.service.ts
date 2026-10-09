@@ -9,6 +9,7 @@ import { AuthError, ConflictError, ForbiddenError, NotFoundError, ValidationErro
 import { config } from '../../core/config';
 import { signAccessToken } from '../../core/jwt';
 import { prisma } from '../../core/prisma';
+import { createStoreSlug } from '../profile/store-slug';
 import { redis } from '../../core/redis';
 import type {
   ForgotPasswordInput,
@@ -113,6 +114,7 @@ async function activateUser(user: ActivatingUser, role: UserRole): Promise<void>
         create: {
           userId: user.userId,
           storeName: `Seller-${user.publicId.slice(0, 8)}`,
+          storeSlug: createStoreSlug(`Seller-${user.publicId.slice(0, 8)}`, user.publicId),
           onboardingStep: 0,
           // Reads platform_config.commission_rate_default at signup time, not the schema's own
           // hardcoded 0.0500 — an existing seller's rate is never retroactively changed by a

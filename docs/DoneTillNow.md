@@ -1241,3 +1241,9 @@ just cosmetic. `returns_confidence_threshold` (`platform_config`, R1.1-scoped, r
 Feature 12's Admin Panel) is very likely the exact config key Feature 14's AI confidence-gating
 logic will finally give a real consumer to — worth checking first, since Feature 12's own
 handoff doc flagged it as configured-but-inert until this feature.*
+
+## Feature 17 — Buyer Storefront Agent (2026-10-09)
+
+**Implementation status: pending live end-to-end acceptance.** Added a public store route/page, product cards, store chat widget, API routes, Redis rate limiting, fixed-store chat sessions, bilingual scope guard, same-store RAG search, validated buyer tools, and checkout navigation signal. Store slugs are now persisted and backfilled by the Feature 17 migration. Cart changes delegate to the existing `CartService` after store ownership, buyer authentication, and stock checks.
+
+Verification this pass: 4 targeted backend suites / 13 tests passed; backend and frontend typechecks and backend production build passed; frontend production build passed with large-bundle/PWA precache warnings; Prisma validation passed; Feature 17 migration deployed and migration status is up to date. Lint scripts have no configured rules. A live public-route request attempted before API startup completed failed to connect; API startup also initialized existing BullMQ consumers and processed queued background jobs, so the server was stopped and not restarted. No live model conversation, real persisted cart verification, browser flow, or full suites were run. The known product schema has no variants and seller profiles have no policy fields; unknown variant/policy facts are explicitly rejected/reported unavailable. Feature 16 image-to-listing remains BLOCKED as previously documented; it is not a dependency for storefront chat.

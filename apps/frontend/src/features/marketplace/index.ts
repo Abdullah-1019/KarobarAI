@@ -4,3 +4,4 @@ export { HomePage } from './HomePage';
 export { SearchPage } from './SearchPage';
 export { CategoryPage } from './CategoryPage';
 export { ProductDetailPage } from './ProductDetailPage';
+export { StorePage } from './StorePage';

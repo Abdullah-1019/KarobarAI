@@ -157,7 +157,7 @@ Floating widget, bottom-right, on the store page only. On receiving a `redirect_
 
 ## 13. Implementation and verification status (2026-10-09)
 
-**Status: implemented, pending live end-to-end acceptance.** Feature 17 adds a public store page and floating chat widget, server-side store-slug resolution, fixed-store chat sessions, bilingual scope-guard configuration, RAG-backed product search, strict tool payload validation, store-owned LIVE-product checks, buyer-only cart access through `CartService`, per-store/IP Redis rate limiting, and a frontend-only checkout redirect. The migration adds unique `seller_profiles.store_slug` values and backfills existing stores using their public account UUID, so existing rows remain addressable.
+**Status: PARTIAL — pending live end-to-end acceptance.** Feature 17 adds a public store page and floating chat widget, server-side store-slug resolution, fixed-store chat sessions, bilingual scope-guard configuration, RAG-backed product search, strict tool payload validation, store-owned LIVE-product checks, buyer-only cart access through `CartService`, per-store/IP Redis rate limiting, and a frontend-only checkout redirect. The migration adds unique `seller_profiles.store_slug` values and backfills existing stores using their public account UUID, so existing rows remain addressable.
 
 The current product/cart schema has no variant records or variant field, and seller profiles have no store-specific policy fields. The implementation therefore reports variants and policies as unavailable and rejects requested variant attributes instead of inventing them. Adding catalog variant and policy management is outside this feature's existing data model and remains a limitation.
 

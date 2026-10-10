@@ -22,6 +22,7 @@ import { BuyerOrderDetailPage, BuyerOrdersPage, SellerOrderDetailPage, SellerOrd
 import { ChangePasswordPage, ProfilePage, SettingsPage } from '../features/profile';
 import { BuyerReturnsPage, ReturnStatusPage, ReturnWizardPage, SellerReturnDetailPage, SellerReturnsPage } from '../features/returns';
 import { RequireStore, SellerLayout, SellerPlaceholder, StoreSetupWizard } from '../features/seller';
+import { SellerAssistantPage } from '../features/seller/SellerAssistantPage';
 import { BuyerTrackingPage, PublicTrackingPage, SellerTrackingPage } from '../features/tracking';
 import { ProtectedRoute } from './ProtectedRoute';
 
@@ -85,6 +86,7 @@ export const router = createBrowserRouter([
               { path: '/seller/products/new', element: <AddProductPage /> },
               { path: '/seller/products/:productId/edit', element: <EditProductPage /> },
               { path: '/seller/analytics', element: <AnalyticsDashboardPage /> },
+              { path: '/seller/assistant', element: <SellerAssistantPage /> },
               { path: '/seller/orders', element: <SellerOrdersPage /> },
               { path: '/seller/orders/:id', element: <SellerOrderDetailPage /> },
               { path: '/seller/orders/:id/track', element: <SellerTrackingPage /> },

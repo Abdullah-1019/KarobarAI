@@ -9,6 +9,14 @@ or flagged for follow-up. Newest entries at the top.
 
 ---
 
+## Feature 18 — Seller Business Agent (2026-10-10)
+
+**Status: PARTIAL.** Implemented the authenticated Seller Center assistant, server-derived seller context, nine strictly validated read-only tools, scoped session persistence, Redis rate limiting, scope guard, and bilingual chat page. No schema or migration change was required. Seller identity is resolved from the authenticated user by `requireActiveSeller`; client/model seller IDs are rejected. Inventory low-stock means zero stock because the schema has no configurable threshold. Grounding guards replace unsupported inventory counts and recommendation claims with verified data-derived responses.
+
+**Verified:** focused seller backend tests passed **22/22**. Live integration used disposable loopback-only PostgreSQL and Redis plus local Qwen; it verified seller-scoped tools, authenticated/persisted chat, cross-seller isolation, buyer-role denial, scope-guard refusal with zero tool calls, and a real recommendation request with real combined tool results. Qwen's first raw recommendation was unsupported; the grounding guard returned the verified restock recommendation, and the targeted post-fix live test passed **1/1**. The isolated full backend suite passed **88 suites / 794 tests**, with **3 suites / 7 tests skipped**. Backend typecheck/build and frontend typecheck/build passed. No browser flow was run. Lint scripts have no rules configured.
+
+**Remaining:** the real Qwen recommendation request is verified, but a grounded raw model synthesis is not: the guard supplied the final grounded response after unsupported model text. The seller factory and dependent-row reset defects were fixed and covered; the full isolated suite now passes. Browser interaction remains unverified. Keep Feature 18 PARTIAL until the model-synthesis criterion is demonstrated or explicitly revised.
+
 ## Feature 16 follow-up: move listing generation to local Ollama
 
 **Status:** Implementation and automated checks complete — 2026-10-08. Replaced the previous
@@ -1244,6 +1252,6 @@ handoff doc flagged it as configured-but-inert until this feature.*
 
 ## Feature 17 — Buyer Storefront Agent (2026-10-09)
 
-**Implementation status: pending live end-to-end acceptance.** Added a public store route/page, product cards, store chat widget, API routes, Redis rate limiting, fixed-store chat sessions, bilingual scope guard, same-store RAG search, validated buyer tools, and checkout navigation signal. Store slugs are now persisted and backfilled by the Feature 17 migration. Cart changes delegate to the existing `CartService` after store ownership, buyer authentication, and stock checks.
+**Implementation status: PARTIAL — pending live end-to-end acceptance.** Added a public store route/page, product cards, store chat widget, API routes, Redis rate limiting, fixed-store chat sessions, bilingual scope guard, same-store RAG search, validated buyer tools, and checkout navigation signal. Store slugs are now persisted and backfilled by the Feature 17 migration. Cart changes delegate to the existing `CartService` after store ownership, buyer authentication, and stock checks.
 
 Verification this pass: 4 targeted backend suites / 13 tests passed; backend and frontend typechecks and backend production build passed; frontend production build passed with large-bundle/PWA precache warnings; Prisma validation passed; Feature 17 migration deployed and migration status is up to date. Lint scripts have no configured rules. A live public-route request attempted before API startup completed failed to connect; API startup also initialized existing BullMQ consumers and processed queued background jobs, so the server was stopped and not restarted. No live model conversation, real persisted cart verification, browser flow, or full suites were run. The known product schema has no variants and seller profiles have no policy fields; unknown variant/policy facts are explicitly rejected/reported unavailable. Feature 16 image-to-listing remains BLOCKED as previously documented; it is not a dependency for storefront chat.

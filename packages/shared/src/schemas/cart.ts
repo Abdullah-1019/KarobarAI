@@ -39,7 +39,7 @@ export const updateAddressSchema = createAddressSchema.partial();
 export const checkoutSchema = z
   .object({
     addressId: z.string().regex(/^\d+$/, 'addressId must be numeric'),
-    paymentMethod: z.enum(['JAZZCASH', 'EASYPAISA', 'COD']),
+    paymentMethod: z.enum(['JAZZCASH', 'EASYPAISA', 'COD', 'STRIPE']),
   })
   .strict();
 

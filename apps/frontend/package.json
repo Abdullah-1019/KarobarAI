@@ -13,6 +13,8 @@
   },
   "dependencies": {
     "@karobarai/shared": "workspace:*",
+    "@stripe/react-stripe-js": "^7.0.0",
+    "@stripe/stripe-js": "^10.0.0",
     "@tanstack/react-query": "5.51.23",
     "antd": "5.19.3",
     "axios": "1.7.4",

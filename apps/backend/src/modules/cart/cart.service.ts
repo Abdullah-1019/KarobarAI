@@ -212,7 +212,7 @@ export async function removeCartItem(buyerId: bigint, cartItemId: bigint): Promi
 // Called by checkout.service.ts (modules/order) after successfully creating orders for a set of
 // seller groups — removes only the purchased items, never the whole cart (any newly-added or
 // still-ineligible items from other sellers must remain untouched).
-export async function removeCartItems(cartItemIds: bigint[]): Promise<void> {
+export async function removeCartItems(cartItemIds: bigint[], tx?: Prisma.TransactionClient): Promise<void> {
   if (cartItemIds.length === 0) return;
-  await prisma.cartItem.deleteMany({ where: { cartItemId: { in: cartItemIds } } });
+  await (tx ?? prisma).cartItem.deleteMany({ where: { cartItemId: { in: cartItemIds } } });
 }

@@ -67,11 +67,11 @@ describe('Feature 10 reuse/scope audit (Task 8.8)', () => {
     expect(schema).not.toMatch(/model (RefundRequest|ReturnAudit|CodRefundWallet) /);
   });
 
-  it('the courier/payment adapter calls in decision.service.ts reuse the existing factories, not a bespoke booking/refund implementation', () => {
+  it('return pickup reuses the courier adapter and refunds use the shared payment service', () => {
     const content = fs.readFileSync(path.join(SRC_ROOT, 'modules/returns/decision.service.ts'), 'utf-8');
     expect(content).toContain("from '../../adapters/courier'");
-    expect(content).toContain("from '../../adapters/payment'");
     expect(content).toContain('getCourierAdapter()');
-    expect(content).toContain('getPaymentAdapter()');
+    expect(content).toContain("from '../payment/payment.service'");
+    expect(content).toContain('refundOrderPayment(');
   });
 });

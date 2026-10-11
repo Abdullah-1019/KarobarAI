@@ -5,6 +5,7 @@ import { resolveUserId } from '../../core/http/resolveUserId';
 import * as checkoutService from './checkout.service';
 import { generateInvoiceHtml } from './invoice.service';
 import * as orderService from './order.service';
+import { reconcileStripeOrderFromProvider } from '../payment/stripe-webhook.service';
 import type { CheckoutInput } from './checkout.dto';
 import type { ListOrdersQueryInput } from './order.dto';
 
@@ -20,6 +21,9 @@ export const checkoutHandler = asyncHandler(async (req, res) => {
       undefined,
       'IDEMPOTENCY_KEY_REQUIRED',
     );
+  }
+  if (idempotencyKey.trim().length === 0 || idempotencyKey.length > 64) {
+    throw new ValidationError('Idempotency-Key must contain 1 to 64 characters', undefined, 'INVALID_IDEMPOTENCY_KEY');
   }
 
   const buyerId = await resolveUserId(req.user!.sub);
@@ -51,6 +55,13 @@ export const listSellerOrdersHandler = asyncHandler(async (req, res) => {
 export const getOrderDetailHandler = asyncHandler(async (req, res) => {
   const userId = await resolveUserId(req.user!.sub);
   const order = await orderService.getOrderById(req.params.id ?? '', { userId, role: req.user!.role });
+  res.status(200).json(ok(order));
+});
+
+export const reconcileOrderPaymentHandler = asyncHandler(async (req, res) => {
+  const buyerId = await resolveUserId(req.user!.sub);
+  await reconcileStripeOrderFromProvider(req.params.id ?? '', buyerId);
+  const order = await orderService.getOrderById(req.params.id ?? '', { userId: buyerId, role: req.user!.role });
   res.status(200).json(ok(order));
 });
 

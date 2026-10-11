@@ -10,6 +10,7 @@ import {
   getOrderInvoiceHandler,
   listBuyerOrdersHandler,
   listSellerOrdersHandler,
+  reconcileOrderPaymentHandler,
 } from './order.controller';
 import { checkoutSchema } from './checkout.dto';
 import { listOrdersQuerySchema } from './order.dto';
@@ -38,7 +39,7 @@ checkoutRouter.use(authenticate, authorize('BUYER'));
  *             type: object
  *             properties:
  *               addressId: { type: string }
- *               paymentMethod: { type: string, enum: [JAZZCASH, EASYPAISA, COD] }
+ *               paymentMethod: { type: string, enum: [JAZZCASH, EASYPAISA, COD, STRIPE] }
  *     responses:
  *       201:
  *         description: "CheckoutResultDTO: { orders: CreatedOrderDTO[] } — one entry per seller group"
@@ -103,6 +104,9 @@ orderRouter.get('/', authorize('BUYER'), validateQuery(listOrdersQuerySchema), l
  *         description: Order not found (ORDER_NOT_FOUND)
  */
 orderRouter.get('/:id', getOrderDetailHandler);
+// Provider reconciliation never creates or confirms a PaymentIntent. The buyer can request
+// verification of their own pending order; the service rate-limits and validates the real event.
+orderRouter.post('/:id/reconcile-payment', authorize('BUYER'), reconcileOrderPaymentHandler);
 
 /**
  * @swagger

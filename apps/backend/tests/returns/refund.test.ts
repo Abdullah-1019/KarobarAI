@@ -1,7 +1,6 @@
 import { Queue } from 'bullmq';
 
 import { MockCourierAdapter } from '../../src/adapters/courier/mock';
-import { MockPaymentAdapter } from '../../src/adapters/payment/mock';
 import { prisma } from '../../src/core/prisma';
 import { redis } from '../../src/core/redis';
 import { app } from '../../src/server'; // eslint-disable-line @typescript-eslint/no-unused-vars
@@ -9,15 +8,17 @@ import { closeNotificationQueue } from '../../src/modules/notification';
 import { bookReturnPickupAndTriggerRefund, triggerRefund } from '../../src/modules/returns/decision.service';
 import { createTestOrder, createTestProduct, createTestUser } from '../helpers/factories';
 import { resetDb, resetRedis } from '../helpers/reset';
+import { refundOrderPayment } from '../../src/modules/payment/payment.service';
 
-const refundSpy = jest.spyOn(MockPaymentAdapter.prototype, 'refund');
+jest.mock('../../src/modules/payment/payment.service', () => ({ refundOrderPayment: jest.fn() }));
+const refundSpy = jest.mocked(refundOrderPayment);
 const bookSpy = jest.spyOn(MockCourierAdapter.prototype, 'book');
 const queueAddSpy = jest.spyOn(Queue.prototype, 'add').mockResolvedValue({} as never);
 
 beforeEach(async () => {
   await resetDb();
   await resetRedis();
-  refundSpy.mockClear();
+  refundSpy.mockReset().mockResolvedValue({ success: true, refundReference: 're_test' });
   bookSpy.mockClear();
   queueAddSpy.mockClear();
 });
@@ -26,7 +27,6 @@ afterAll(async () => {
   await closeNotificationQueue();
   await prisma.$disconnect();
   await redis.quit();
-  refundSpy.mockRestore();
   bookSpy.mockRestore();
   queueAddSpy.mockRestore();
 });
@@ -75,11 +75,11 @@ describe('triggerRefund (Task 6 — idempotent, integration-point-only)', () => 
   it('COD orders refund with method=COD; prepaid orders refund with their own method', async () => {
     const cod = await createReturnFixture('COD');
     await triggerRefund(cod.ret.returnId);
-    expect(refundSpy).toHaveBeenLastCalledWith(expect.objectContaining({ method: 'COD' }));
+    expect(refundSpy).toHaveBeenLastCalledWith(cod.order.publicId, cod.order.totalAmount.toString(), `return-refund-${cod.ret.returnId}`);
 
     const prepaid = await createReturnFixture('JAZZCASH');
     await triggerRefund(prepaid.ret.returnId);
-    expect(refundSpy).toHaveBeenLastCalledWith(expect.objectContaining({ method: 'JAZZCASH' }));
+    expect(refundSpy).toHaveBeenLastCalledWith(prepaid.order.publicId, prepaid.order.totalAmount.toString(), `return-refund-${prepaid.ret.returnId}`);
   });
 
   it('on adapter failure, the return stays PICKUP_BOOKED (visible to admin as stuck) rather than crashing', async () => {

@@ -26,6 +26,7 @@ import { healthRouter } from './modules/health/health.routes';
 import { notificationRouter, startNotificationConsumer } from './modules/notification';
 import { checkoutRouter, orderRouter, sellerOrderRouter } from './modules/order';
 import { profileRouter } from './modules/profile';
+import { paymentRouter, stripeWebhookRouter } from './modules/payment';
 import { adminReturnsRouter, returnsRouter, sellerReturnsRouter } from './modules/returns';
 import { startSettlementPollJob } from './modules/settlement';
 import {
@@ -48,6 +49,9 @@ app.use(
     credentials: true,
   }),
 );
+// Stripe requires the untouched body bytes for signature verification. This route must precede
+// express.json(); mounting an express.raw route below the JSON parser would invalidate signatures.
+app.use('/api/v1/payments', stripeWebhookRouter);
 app.use(express.json({ limit: '1mb' }));
 app.use(cookieParser());
 app.use(
@@ -67,6 +71,7 @@ app.use('/api/v1/stores', buyerChatRouter);
 app.use('/api/v1/seller/chat', sellerChatRouter);
 app.use('/api/v1/addresses', addressRouter);
 app.use('/api/v1/checkout', checkoutRouter);
+app.use('/api/v1/payments', paymentRouter);
 app.use('/api/v1/orders', orderRouter);
 app.use('/api/v1/orders', courierRouter);
 app.use('/api/v1/seller/orders', sellerOrderRouter);

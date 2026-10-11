@@ -1,9 +1,9 @@
 import { getCourierAdapter } from '../../adapters/courier';
-import { getPaymentAdapter } from '../../adapters/payment';
 import { createAuditLog } from '../../core/audit';
 import { BusinessRuleError, NotFoundError } from '../../core/errors/AppError';
 import { logger } from '../../core/logger';
 import { prisma } from '../../core/prisma';
+import { refundOrderPayment } from '../payment/payment.service';
 import { enqueueNotification } from '../notification';
 import * as repo from './returns.repository';
 import { transitionReturnStatus } from './returns.service';
@@ -51,13 +51,12 @@ export async function triggerRefund(returnId: bigint): Promise<void> {
   if (!row || row.status !== 'PICKUP_BOOKED') return;
 
   try {
-    const result = await getPaymentAdapter().refund({
-      orderPublicId: row.order.publicId,
-      amount: Number(row.order.totalAmount),
-      method: row.order.paymentMethod,
-      idempotencyKey: `return-refund-${returnId}`,
-    });
-    if (result.status === 'CONFIRMED') {
+    const refundConfirmed = (await refundOrderPayment(
+      row.order.publicId,
+      row.order.totalAmount.toString(),
+      `return-refund-${returnId}`,
+    )).success;
+    if (refundConfirmed) {
       await transitionReturnStatus(returnId, 'REFUND_ISSUED', { refundedAt: new Date() });
       await enqueueNotification({
         userId: row.order.buyerId.toString(),

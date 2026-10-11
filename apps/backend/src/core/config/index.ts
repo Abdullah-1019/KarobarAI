@@ -31,6 +31,20 @@ export const config = {
   redisUrl: process.env.REDIS_URL ?? '',
   corsAllowedOrigins: (process.env.CORS_ALLOWED_ORIGINS ?? '').split(',').filter(Boolean),
   adapterMode: (process.env.ADAPTER_MODE ?? 'mock') as 'mock' | 'live',
+  stripe: {
+    secretKey: process.env.STRIPE_SECRET_KEY ?? '',
+    publishableKey: process.env.STRIPE_PUBLISHABLE_KEY ?? '',
+    webhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? '',
+  },
+  jazzCash: {
+    merchantId: process.env.JAZZCASH_MERCHANT_ID ?? '',
+    password: process.env.JAZZCASH_PASSWORD ?? '',
+    secretKey: process.env.JAZZCASH_SECRET_KEY ?? '',
+  },
+  easyPaisa: {
+    storeId: process.env.EASYPAISA_STORE_ID ?? '',
+    hashKey: process.env.EASYPAISA_HASH_KEY ?? '',
+  },
   bcryptCost: Number(process.env.BCRYPT_COST ?? 12),
   fieldEncryptionKey: process.env.FIELD_ENCRYPTION_KEY ?? '',
   // Internal-only (TRD §8: ai-service is never reachable from the host/Nginx) — native dev uses

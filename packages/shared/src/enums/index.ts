@@ -19,7 +19,7 @@ export type ProductStatus = 'DRAFT' | 'LIVE' | 'OUT_OF_STOCK' | 'REMOVED';
 
 export type ProductCondition = 'NEW' | 'LIKE_NEW' | 'USED' | 'REFURBISHED';
 
-export type PaymentMethod = 'JAZZCASH' | 'EASYPAISA' | 'COD';
+export type PaymentMethod = 'JAZZCASH' | 'EASYPAISA' | 'COD' | 'STRIPE';
 
 export type PaymentStatus = 'PENDING' | 'CONFIRMED' | 'FAILED' | 'REFUNDED' | 'CANCELLED';
 

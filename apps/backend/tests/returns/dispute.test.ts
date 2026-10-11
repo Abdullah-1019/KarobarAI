@@ -117,7 +117,7 @@ describe('POST /api/v1/admin/returns/:id/decision (Task 5.3/5.4/5.5/5.6)', () =>
     expect(res.status).toBe(403);
   });
 
-  it('approving a disputed case resolves the dispute RESOLVED_APPROVED and reaches REFUND_ISSUED, notifying both buyer and seller', async () => {
+  it('approving a disputed COD return resolves the dispute but does not claim an unsupported refund was issued', async () => {
     const { seller, buyer, ret } = await createReturnFixture('UNDER_DISPUTE');
     const admin = await createTestUser('ADMIN');
 
@@ -127,7 +127,7 @@ describe('POST /api/v1/admin/returns/:id/decision (Task 5.3/5.4/5.5/5.6)', () =>
       .send({ decision: 'APPROVED', reason: 'Buyer evidence is convincing' });
 
     expect(res.status).toBe(200);
-    expect(res.body.data.status).toBe('REFUND_ISSUED');
+    expect(res.body.data.status).toBe('PICKUP_BOOKED');
 
     const dispute = await prisma.dispute.findUniqueOrThrow({ where: { returnId: ret.returnId } });
     expect(dispute.status).toBe('RESOLVED_APPROVED');
@@ -139,6 +139,7 @@ describe('POST /api/v1/admin/returns/:id/decision (Task 5.3/5.4/5.5/5.6)', () =>
     );
     const recipients = decisionCalls.map((call) => (call[1] as { userId?: string }).userId);
     expect(recipients).toEqual(expect.arrayContaining([buyer.userId.toString(), seller.userId.toString()]));
+    expect(queueAddSpy.mock.calls.some((call) => call[1] && (call[1] as { type?: string }).type === 'REFUND_ISSUED')).toBe(false);
   });
 
   it('rejecting a disputed case resolves the dispute RESOLVED_REJECTED and closes the return (dispute + return consistent in one transaction)', async () => {

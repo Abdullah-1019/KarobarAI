@@ -87,6 +87,7 @@ enum PaymentMethod {
   JAZZCASH
   EASYPAISA
   COD
+  STRIPE
 
   @@map("payment_method")
 }
@@ -605,9 +606,21 @@ model Payment {
   confirmedAt    DateTime?     @map("confirmed_at")
   createdAt      DateTime      @default(now()) @map("created_at")
   updatedAt      DateTime      @updatedAt @map("updated_at")
+  stripeWebhookEvents StripeWebhookEvent[]
 
   @@index([status], map: "idx_payments_status")
   @@map("payments")
+}
+
+model StripeWebhookEvent {
+  eventId     String   @id @map("event_id") @db.VarChar(120)
+  eventType   String   @map("event_type") @db.VarChar(80)
+  paymentId   BigInt   @map("payment_id")
+  payment     Payment  @relation(fields: [paymentId], references: [paymentId], onDelete: Restrict)
+  receivedAt  DateTime @default(now()) @map("received_at")
+
+  @@index([paymentId, receivedAt], map: "idx_stripe_webhook_events_payment")
+  @@map("stripe_webhook_events")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -26,6 +26,7 @@ export async function resetDb(): Promise<void> {
   await prisma.auditLog.deleteMany();
   await prisma.refreshToken.deleteMany();
   await prisma.notificationPreference.deleteMany();
+  await prisma.stripeWebhookEvent.deleteMany();
   await prisma.payment.deleteMany();
   await prisma.codRemittance.deleteMany(); // CodRemittance.orderId is Restrict, so it must precede order deletion.
   await prisma.chatSession.deleteMany();

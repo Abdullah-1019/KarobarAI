@@ -28,15 +28,17 @@ afterAll(async () => {
 });
 
 describe('GET /api/v1/admin/config (Task 6.1)', () => {
-  it('returns all five seeded config keys with correct writable flags', async () => {
+  it('returns seeded config keys, including disabled local payment gateways, with correct writable flags', async () => {
     const admin = await createTestUser('ADMIN');
     const res = await request(app).get('/api/v1/admin/config').set('Authorization', `Bearer ${admin.accessToken}`);
     expect(res.status).toBe(200);
-    expect(res.body.data.items).toHaveLength(5);
+    expect(res.body.data.items).toHaveLength(7);
     const byKey = (key: string) => res.body.data.items.find((i: { key: string }) => i.key === key);
     expect(byKey('commission_rate_default').value).toBe(0.05);
     expect(byKey('return_window_days').writable).toBe(true);
     expect(byKey('returns_confidence_threshold').writable).toBe(false); // Task 6.5
+    expect(byKey('jazzcash_enabled')).toMatchObject({ value: false, writable: false });
+    expect(byKey('easypaisa_enabled')).toMatchObject({ value: false, writable: false });
   });
 });
 

@@ -71,14 +71,19 @@ describe('Feature 7 reuse/scope audit (module doc Task 7 patch + Task 9)', () =>
     expect(hits).toEqual([]);
   });
 
-  it('transitionOrderStatus is the only place in src/ that writes orders.status', () => {
+  it('order status writes are limited to transitionOrderStatus and the Stripe payment lifecycle', () => {
     const hits = allSourceFiles.filter((file) => {
-      if (file === orderServicePath) return false; // the one legitimate write site, checked separately below
+      if (file === orderServicePath) return false; // canonical transition helper, checked separately below
       const content = fs.readFileSync(file, 'utf-8');
       // Matches Prisma `.order.update(`/`.order.updateMany(` calls whose data payload sets `status`.
       return /\.order\.(update|updateMany)\(\{[\s\S]{0,400}?status\s*:/m.test(content);
     });
-    expect(hits).toEqual([]);
+    expect(hits.sort()).toEqual(
+      [
+        path.join(SRC_ROOT, 'modules/order/checkout.service.ts'),
+        path.join(SRC_ROOT, 'modules/payment/stripe-webhook.service.ts'),
+      ].sort(),
+    );
   });
 
   it('order.service.ts itself writes orders.status exactly once (inside transitionOrderStatus)', () => {

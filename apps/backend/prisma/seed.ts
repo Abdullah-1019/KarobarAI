@@ -29,6 +29,16 @@ const platformConfig = [
     value: 0.85,
     description: 'ReturnsAI confidence floor (D3) — below this, a return is routed to manual review.',
   },
+  {
+    configKey: 'jazzcash_enabled',
+    value: false,
+    description: 'JazzCash checkout is disabled until merchant onboarding and provider implementation are complete.',
+  },
+  {
+    configKey: 'easypaisa_enabled',
+    value: false,
+    description: 'Easypaisa checkout is disabled until merchant onboarding and provider implementation are complete.',
+  },
 ];
 
 // Starter category set (bilingual EN/UR, flat — no parent categories yet).

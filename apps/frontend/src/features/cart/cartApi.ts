@@ -1,4 +1,4 @@
-import type { AddressDTO, CartDTO, CheckoutResultDTO } from '@karobarai/shared';
+import type { AddressDTO, CartDTO, CheckoutResultDTO, OrderDetailDTO, PaymentMethod } from '@karobarai/shared';
 
 import type { ApiEnvelope } from '../../api';
 import { apiClient, unwrap } from '../../api';
@@ -56,7 +56,26 @@ export function deleteAddress(id: string): Promise<{ deleted: true }> {
 
 export interface CheckoutInput {
   addressId: string;
-  paymentMethod: 'JAZZCASH' | 'EASYPAISA' | 'COD';
+  paymentMethod: PaymentMethod;
+}
+
+export interface PaymentConfigDTO {
+  stripeEnabled: boolean;
+  stripePublishableKey: string | null;
+  jazzCashEnabled: boolean;
+  easyPaisaEnabled: boolean;
+}
+
+export function getPaymentConfig(): Promise<PaymentConfigDTO> {
+  return unwrap(apiClient.get<ApiEnvelope<PaymentConfigDTO>>('/payments/config'));
+}
+
+export function getOrderPaymentStatus(orderId: string): Promise<OrderDetailDTO> {
+  return unwrap(apiClient.get<ApiEnvelope<OrderDetailDTO>>(`/orders/${orderId}`));
+}
+
+export function reconcileOrderPayment(orderId: string): Promise<OrderDetailDTO> {
+  return unwrap(apiClient.post<ApiEnvelope<OrderDetailDTO>>(`/orders/${orderId}/reconcile-payment`));
 }
 
 // Requires a client-generated Idempotency-Key, reused across retries of the same checkout

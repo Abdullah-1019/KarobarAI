@@ -390,6 +390,30 @@ export async function confirmPayment(orderId: bigint): Promise<void> {
   await getCourierHandoffQueue().add('assign', { orderId: orderId.toString() });
 }
 
+/** Idempotently publish fulfillment side effects after a verified Stripe payment transition. */
+export async function enqueuePaymentConfirmationEffects(orderId: bigint): Promise<void> {
+  const order = await prisma.order.findUnique({
+    where: { orderId },
+    select: { publicId: true, buyerId: true, status: true, paymentMethod: true },
+  });
+  if (!order || order.status !== 'PAYMENT_CONFIRMED' || order.paymentMethod !== 'STRIPE') return;
+
+  await getCourierHandoffQueue().add(
+    'assign',
+    { orderId: orderId.toString() },
+    { jobId: `payment-confirmed-order-${orderId}` },
+  );
+  await enqueueNotification(
+    {
+      userId: order.buyerId.toString(),
+      type: 'ORDER_PAYMENT_CONFIRMED',
+      orderId: order.publicId,
+      vars: { orderId: order.publicId },
+    },
+    `payment-confirmed-notification-${order.publicId}`,
+  );
+}
+
 // Gap #3 — Seller-only manual action, from any pre-shipment state.
 export async function cancelOrder(sellerId: bigint, orderPublicId: string): Promise<void> {
   const order = await prisma.order.findUnique({ where: { publicId: orderPublicId } });

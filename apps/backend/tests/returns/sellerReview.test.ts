@@ -38,7 +38,7 @@ async function createReturnFixture(status: 'MANUAL_REVIEW' | 'INITIATED' = 'MANU
 }
 
 describe('POST /api/v1/seller/returns/:id/decision (Task 4.3/4.4/4.5)', () => {
-  it('approving books the return pickup, then triggers the refund, reaching REFUND_ISSUED end to end (mock is synchronous)', async () => {
+  it('approving books the return pickup but does not invent a refund for an unpaid COD order', async () => {
     const { seller, ret } = await createReturnFixture();
 
     const res = await request(app)
@@ -47,9 +47,9 @@ describe('POST /api/v1/seller/returns/:id/decision (Task 4.3/4.4/4.5)', () => {
       .send({ decision: 'APPROVED' });
 
     expect(res.status).toBe(200);
-    expect(res.body.data.status).toBe('REFUND_ISSUED');
-    expect(res.body.data.refundStatus).toBe('ISSUED');
-    expect(res.body.data.refundedAt).not.toBeNull();
+    expect(res.body.data.status).toBe('PICKUP_BOOKED');
+    expect(res.body.data.refundStatus).toBe('NOT_ISSUED');
+    expect(res.body.data.refundedAt).toBeNull();
 
     const auditRows = await prisma.auditLog.findMany({ where: { entity: 'returns', entityId: ret.returnId } });
     expect(auditRows).toHaveLength(1);

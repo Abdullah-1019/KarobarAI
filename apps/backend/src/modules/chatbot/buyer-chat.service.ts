@@ -4,9 +4,11 @@ import { ForbiddenError, NotFoundError } from '../../core/errors/AppError';
 import { prisma } from '../../core/prisma';
 import { resolveUserId } from '../../core/http/resolveUserId';
 import { runScopedAgentLoop } from './scoped-agent.service';
+import type { AgentLoopResult } from './agent-loop.service';
 import type { ScopeGuardConfig } from './scope-guard.service';
 import { buildBuyerContext, getPublicStorefront, getStoreForLiveProduct } from './buyer-context-builder.service';
 import { buyerTools, executeBuyerTool } from './buyer-tool-executor.service';
+import { formatCatalogListings, getCatalogReply, resolveCartRequest } from './buyer-catalog-lookup.service';
 import type { ToolCall } from './slm-client';
 
 const BUYER_SCOPE: ScopeGuardConfig = {
@@ -54,6 +56,44 @@ function buyerSystemPrompt(context: Awaited<ReturnType<typeof buildBuyerContext>
   ].join('\n');
 }
 
+function greetingReply(message: string, storeName: string, locale: 'en' | 'ur'): string | null {
+  const greeting = message.trim().toLowerCase().replace(/[!.,?؟]+$/u, '').trim();
+  if (!['hello', 'hi', 'hey', 'salam', 'assalam o alaikum', 'assalamualaikum', 'سلام', 'السلام علیکم', 'ہیلو'].includes(greeting)) {
+    return null;
+  }
+  return locale === 'ur'
+    ? `${storeName} میں خوش آمدید! آپ کسی پروڈکٹ، قیمت یا دستیابی کے بارے میں پوچھ سکتے ہیں۔`
+    : `Welcome to ${storeName}! Ask me about products, prices, or availability.`;
+}
+
+function groundedBuyerResult(result: AgentLoopResult, locale: 'en' | 'ur'): AgentLoopResult {
+  const cartStep = result.steps.find((step) => step.toolCall.type === 'add_to_cart');
+  if (cartStep) {
+    const outcome = cartStep.toolResult as { ok?: unknown; error?: unknown; quantityAdded?: unknown } | null;
+    if (outcome?.ok === true && typeof outcome.quantityAdded === 'number') {
+      return { ...result, finalReply: locale === 'ur'
+        ? `${outcome.quantityAdded} چیز کارٹ میں شامل کی گئی۔ آرڈر ابھی نہیں دیا گیا؛ چیک آؤٹ پر تصدیق کریں۔`
+        : `Added ${outcome.quantityAdded} item(s) to your cart. No order has been placed; review and confirm it at checkout.` };
+    }
+    return { ...result, finalReply: typeof outcome?.error === 'string'
+      ? `${outcome.error} No item was added and no order was placed.`
+      : 'I could not verify a cart update. No order was placed.' };
+  }
+  const search = result.steps.find((step) => step.toolCall.type === 'search_products');
+  if (search && Array.isArray(search.toolResult)) {
+    const facts = search.toolResult.filter((item): item is { titleEn: string; price: string; stock: number } =>
+      Boolean(item && typeof item === 'object' && typeof item.titleEn === 'string'
+        && typeof item.price === 'string' && typeof item.stock === 'number')).slice(0, 3);
+    if (facts.length) return { ...result, finalReply: locale === 'ur'
+      ? `متعلقہ درج شدہ چیزیں: ${formatCatalogListings(facts, locale)}۔`
+      : `Related listings: ${formatCatalogListings(facts, locale)}.` };
+  }
+  if (/\b(?:added (?:it|the item) to (?:your )?cart|order (?:has been |was )?placed|payment (?:was |is )?(?:completed|paid))\b/i.test(result.finalReply)) {
+    return { ...result, finalReply: 'I could not verify that action. No order or payment was completed in chat.' };
+  }
+  return result;
+}
+
 async function getOrCreateSession(
   storeId: bigint,
   buyerUserId: bigint | undefined,
@@ -96,7 +136,29 @@ export async function sendBuyerMessage(
     data: { sessionId, role: 'USER', content: input.message },
   });
 
-  const result = await runScopedAgentLoop(
+  const greeting = greetingReply(input.message, context.store.name, input.locale);
+  const orderIntent = /^(?:please\s+)?(?:place|complete|submit)\s+(?:the\s+|an?\s+|my\s+)?order\b/i.test(input.message.trim());
+  const cartLookup = greeting || orderIntent ? null : await resolveCartRequest(context.storeId, input.message);
+  const catalog = greeting || orderIntent || cartLookup ? null : await getCatalogReply(context.storeId, input.message, input.locale);
+  const quickReply = greeting ?? (orderIntent
+    ? 'No order has been placed. Add the product to your cart, then review and confirm the order at checkout.'
+    : cartLookup?.kind === 'clarify' ? cartLookup.reply : catalog);
+  let rawResult: AgentLoopResult;
+  if (cartLookup?.kind === 'product') {
+    const toolCall: ToolCall = {
+      type: 'add_to_cart', payload: { productId: cartLookup.productId, quantity: cartLookup.quantity, variantAttributes: {} },
+    };
+    const toolResult = await executeBuyerTool(context, buyerUserId, toolCall);
+    rawResult = groundedBuyerResult({ finalReply: '', steps: [{ toolCall, toolResult }] }, input.locale);
+    if ((toolResult as { ok?: unknown } | null)?.ok === true) {
+      rawResult.finalReply = input.locale === 'ur'
+        ? `${cartLookup.quantity} × ${cartLookup.titleEn} کارٹ میں شامل کیا گیا۔ آرڈر ابھی نہیں دیا گیا؛ چیک آؤٹ پر تصدیق کریں۔`
+        : `Added ${cartLookup.quantity} × ${cartLookup.titleEn} to your cart. No order has been placed; confirm it at checkout.`;
+    }
+  } else if (quickReply) {
+    rawResult = { finalReply: quickReply, steps: [] };
+  } else {
+    rawResult = await runScopedAgentLoop(
     {
       systemPrompt: buyerSystemPrompt(context, input.locale),
       tools: buyerTools,
@@ -108,6 +170,8 @@ export async function sendBuyerMessage(
     BUYER_SCOPE,
     input.locale,
   );
+  }
+  const result = quickReply || cartLookup?.kind === 'product' ? rawResult : groundedBuyerResult(rawResult, input.locale);
 
   for (const step of result.steps) {
     await prisma.chatMessage.create({
@@ -133,7 +197,8 @@ export async function sendBuyerMessage(
   return {
     sessionId,
     reply: result.finalReply,
-    redirectToCheckout: result.steps.some((step) => step.toolCall.type === 'redirect_checkout'),
+    redirectToCheckout: result.steps.some((step) => step.toolCall.type === 'redirect_checkout'
+      && (step.toolResult as { signal?: unknown } | null)?.signal === 'redirect_checkout'),
   };
 }
 

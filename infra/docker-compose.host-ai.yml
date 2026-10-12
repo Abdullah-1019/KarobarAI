@@ -1,0 +1,6 @@
+# Development override for a backend launched on the Windows host.
+# The base Compose file keeps ai-service on Docker's private network.
+services:
+  ai-service:
+    ports:
+      - "127.0.0.1:8000:8000"

@@ -21,9 +21,9 @@ export interface RateResult {
 
 // Feature 8 — the adapter's primary real consumer. checkCoverage/getQuote/book/track/cancel were
 // never built (Feature 6 only ever called getRate()); building them is this feature's own scope.
-export type CourierCode = 'TCS' | 'LEOPARDS' | 'TRAX';
+export type CourierCode = 'TCS' | 'LEOPARDS' | 'TRAX' | 'POSTEX';
 
-export const ALL_COURIERS: readonly CourierCode[] = ['TCS', 'LEOPARDS', 'TRAX'];
+export const ALL_COURIERS: readonly CourierCode[] = ['TCS', 'LEOPARDS', 'TRAX', 'POSTEX'];
 
 export interface CheckCoverageParams {
   courier: CourierCode;
@@ -39,12 +39,17 @@ export interface QuoteParams {
   courier: CourierCode;
   destinationCity: string;
   destinationProvince: string;
+  originCity?: string;
+  weightKg?: number;
+  dimensions?: { lengthCm: number; widthCm: number; heightCm: number };
 }
 
 export interface QuoteResult {
   cost: number; // PKR
   etaHours: number;
   reliability: number; // 0..1
+  slaScore: number; // synthetic on-time profile, 0..1
+  ratingScore: number; // synthetic quality profile, 0..1
 }
 
 export interface BookParams {
@@ -55,6 +60,7 @@ export interface BookParams {
 
 export interface BookResult {
   trackingNo: string;
+  bookingReference: string;
 }
 
 export interface TrackParams {

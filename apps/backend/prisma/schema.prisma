@@ -123,8 +123,32 @@ enum CourierCode {
   TCS
   LEOPARDS
   TRAX
+  POSTEX
 
   @@map("courier_code")
+}
+
+enum CourierShipmentSource {
+  SIMULATED
+  REAL
+
+  @@map("courier_shipment_source")
+}
+
+enum CourierShipmentStatus {
+  EVALUATING
+  BOOKING
+  BOOKED
+  FAILED
+  UNCERTAIN
+  PICKED_UP
+  IN_TRANSIT
+  OUT_FOR_DELIVERY
+  DELIVERED
+  RETURNED
+  CANCELLED
+
+  @@map("courier_shipment_status")
 }
 
 enum ReturnStatus {
@@ -295,6 +319,7 @@ model SellerProfile {
 
   products              Product[]
   orders                Order[]
+  courierShipments      CourierShipment[]
   settlements           Settlement[]
   payoutWallets         PayoutWallet[]
   returns               Return[]
@@ -556,6 +581,7 @@ model Order {
   return         Return?
   trackingEvents TrackingEvent[]
   courierQuotes  CourierQuote[]
+  courierShipment CourierShipment?
   notifications  Notification[]
   reviews        Review[]
 
@@ -828,11 +854,56 @@ model CourierQuote {
   cost      Decimal?    @db.Decimal(12, 2)
   etaHours  Int?        @map("eta_hours")
   score     Decimal?    @db.Decimal(6, 3)
+  evaluationId String?  @map("evaluation_id") @db.Uuid
+  slaScore Decimal?      @map("sla_score") @db.Decimal(5, 4)
+  ratingScore Decimal?   @map("rating_score") @db.Decimal(5, 4)
+  scoreBreakdown Json?   @map("score_breakdown")
+  source CourierShipmentSource @default(SIMULATED)
+  originCity String?     @map("origin_city") @db.VarChar(80)
+  destCity String?       @map("dest_city") @db.VarChar(80)
+  weightKg Decimal?      @map("weight_kg") @db.Decimal(8, 3)
   selected  Boolean     @default(false)
   createdAt DateTime    @default(now()) @map("created_at")
 
   @@index([orderId], map: "idx_courier_quotes_order")
+  @@index([orderId, evaluationId], map: "idx_courier_quotes_evaluation")
   @@map("courier_quotes")
+}
+
+model CourierShipment {
+  shipmentId BigInt @id @default(autoincrement()) @map("shipment_id")
+  orderId BigInt @unique @map("order_id")
+  order Order @relation(fields: [orderId], references: [orderId], onDelete: Restrict)
+  sellerId BigInt @map("seller_id")
+  seller SellerProfile @relation(fields: [sellerId], references: [userId], onDelete: Restrict)
+  courier CourierCode?
+  source CourierShipmentSource @default(SIMULATED)
+  status CourierShipmentStatus @default(EVALUATING)
+  originCity String @map("origin_city") @db.VarChar(80)
+  destCity String @map("dest_city") @db.VarChar(80)
+  destProvince String @map("dest_province") @db.VarChar(80)
+  weightKg Decimal @map("weight_kg") @db.Decimal(8, 3)
+  dimensions Json?
+  evaluationId String? @map("evaluation_id") @db.Uuid
+  scoreBreakdown Json? @map("score_breakdown")
+  bookingReference String? @map("booking_reference") @db.VarChar(100)
+  trackingId String? @map("tracking_id") @db.VarChar(100)
+  failureCode String? @map("failure_code") @db.VarChar(80)
+  failureMessage String? @map("failure_message") @db.VarChar(200)
+  bookedAt DateTime? @map("booked_at")
+  pickedUpAt DateTime? @map("picked_up_at")
+  inTransitAt DateTime? @map("in_transit_at")
+  deliveredAt DateTime? @map("delivered_at")
+  returnedAt DateTime? @map("returned_at")
+  cancelledAt DateTime? @map("cancelled_at")
+  failedAt DateTime? @map("failed_at")
+  onTime Boolean? @map("on_time")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([sellerId, status], map: "idx_courier_shipments_seller_status")
+  @@index([courier, destCity, weightKg], map: "idx_courier_shipments_performance")
+  @@map("courier_shipments")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

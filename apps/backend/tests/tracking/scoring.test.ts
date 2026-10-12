@@ -18,7 +18,7 @@ afterAll(async () => {
 });
 
 describe('initializeShipment / scoreCouriers (Task 2/3 — courier scoring)', () => {
-  it('a COD order to a city where only 2/3 couriers support COD scores exactly those 2', async () => {
+  it('excludes couriers that cannot serve a COD route', async () => {
     const seller = await createTestUser('SELLER', { onboarded: true });
     const buyer = await createTestUser('BUYER');
     const product = await createTestProduct(seller.userId);
@@ -31,8 +31,10 @@ describe('initializeShipment / scoreCouriers (Task 2/3 — courier scoring)', ()
     await trackingService.initializeShipment(order.orderId);
 
     const quotes = await prisma.courierQuote.findMany({ where: { orderId: order.orderId } });
-    expect(quotes).toHaveLength(2);
-    expect(new Set(quotes.map((q) => q.courier))).toEqual(new Set(['TCS', 'LEOPARDS']));
+    expect(quotes).toHaveLength(3);
+    expect(new Set(quotes.map((q) => q.courier))).toEqual(new Set(['TCS', 'LEOPARDS', 'POSTEX']));
+    expect(await prisma.courierShipment.count({ where: { orderId: order.orderId } })).toBe(0);
+    expect((await prisma.order.findUniqueOrThrow({ where: { orderId: order.orderId } })).courier).toBeNull();
   });
 
   it('a courier with a general (non-COD-specific) coverage gap is excluded regardless of payment method', async () => {
@@ -69,8 +71,9 @@ describe('initializeShipment / scoreCouriers (Task 2/3 — courier scoring)', ()
     await trackingService.initializeShipment(order.orderId);
 
     const quotes = await prisma.courierQuote.findMany({ where: { orderId: order.orderId }, orderBy: { score: 'desc' } });
-    // TRAX is cheapest (100 PKR mock) — with cost weighted at 100%, it must rank first.
-    expect(quotes[0]?.courier).toBe('TRAX');
+    const lowestCost = quotes.reduce((minimum, quote) =>
+      quote.cost!.lessThan(minimum) ? quote.cost! : minimum, quotes[0]!.cost!);
+    expect(quotes[0]?.cost?.equals(lowestCost)).toBe(true);
   });
 
   it('is idempotent: re-processing an already-scored order does not create duplicate courier_quotes rows (Gap #2)', async () => {
@@ -86,7 +89,7 @@ describe('initializeShipment / scoreCouriers (Task 2/3 — courier scoring)', ()
     await trackingService.initializeShipment(order.orderId); // simulated BullMQ redelivery
 
     const quotes = await prisma.courierQuote.findMany({ where: { orderId: order.orderId } });
-    expect(quotes).toHaveLength(3); // TCS + LEOPARDS + TRAX, not 6
+    expect(quotes).toHaveLength(4); // all four, not eight
   });
 
   it('is a no-op for an order not yet PAYMENT_CONFIRMED', async () => {
@@ -131,7 +134,7 @@ describe('GET /api/v1/orders/:id/courier-quotes (Task 3.5)', () => {
       .set('Authorization', `Bearer ${seller.accessToken}`);
 
     expect(res.status).toBe(200);
-    expect(res.body.data.quotes).toHaveLength(3);
+    expect(res.body.data.quotes).toHaveLength(4);
     const scores = res.body.data.quotes.map((q: { score: string }) => Number(q.score));
     expect(scores).toEqual([...scores].sort((a, b) => b - a));
   });
@@ -180,7 +183,7 @@ describe('GET /api/v1/orders/:id/courier-quotes (Task 3.5)', () => {
 });
 
 describe('POST /api/v1/orders/:id/refresh-rates (Task 3.7)', () => {
-  it('re-scores and replaces the existing courier_quotes rows, not appends', async () => {
+  it('re-scores while preserving the earlier quote evaluation', async () => {
     const seller = await createTestUser('SELLER', { onboarded: true });
     const buyer = await createTestUser('BUYER');
     const product = await createTestProduct(seller.userId);
@@ -192,9 +195,10 @@ describe('POST /api/v1/orders/:id/refresh-rates (Task 3.7)', () => {
       .set('Authorization', `Bearer ${seller.accessToken}`);
 
     expect(res.status).toBe(200);
-    expect(res.body.data.quotes).toHaveLength(3);
+    expect(res.body.data.quotes).toHaveLength(4);
     const quotes = await prisma.courierQuote.findMany({ where: { orderId: order.orderId } });
-    expect(quotes).toHaveLength(3); // replaced, not doubled to 6
+    expect(quotes).toHaveLength(8);
+    expect(new Set(quotes.map((quote) => quote.evaluationId)).size).toBe(2);
   });
 
   it('rejects refreshing an already-booked order with 422', async () => {

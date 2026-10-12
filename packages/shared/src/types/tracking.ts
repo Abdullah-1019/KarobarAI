@@ -6,12 +6,33 @@ import type { TrackingEventDTO } from './order';
 export interface CourierQuoteDTO {
   courier: CourierCode;
   cost: string;
-  etaHours: number;
+  etaHours: number | null;
   score: string;
   selected: boolean;
+  slaScore?: number | null;
+  ratingScore?: number | null;
+  breakdown?: unknown;
+  simulated?: boolean;
 }
 
 export interface CourierQuotesDTO {
+  quotes: CourierQuoteDTO[];
+}
+
+export interface CourierSelectionDTO {
+  shipment: {
+    status: string;
+    source: 'SIMULATED' | 'REAL';
+    simulated: boolean;
+    courier: CourierCode | null;
+    bookingReference: string | null;
+    trackingId: string | null;
+    originCity: string;
+    destCity: string;
+    weightKg: string;
+    failureCode: string | null;
+    failureMessage: string | null;
+  };
   quotes: CourierQuoteDTO[];
 }
 
@@ -26,4 +47,5 @@ export interface TrackingDTO {
   deliveryStageLabel: string;
   lastLocation: { lat: string; lng: string } | null;
   timeline: TrackingEventDTO[];
+  simulated?: boolean | null;
 }

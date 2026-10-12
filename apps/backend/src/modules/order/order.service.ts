@@ -4,7 +4,7 @@ import type { Order, OrderStatus, Prisma, UserRole } from '@prisma/client';
 import type { Queue } from 'bullmq';
 
 import { decryptField } from '../../core/crypto/fieldCipher';
-import { BusinessRuleError, ForbiddenError, NotFoundError } from '../../core/errors/AppError';
+import { BusinessRuleError, ConflictError, ForbiddenError, NotFoundError } from '../../core/errors/AppError';
 import { logger } from '../../core/logger';
 import { prisma } from '../../core/prisma';
 import { createQueue } from '../../core/queue';
@@ -243,6 +243,16 @@ export async function transitionOrderStatus(
 ): Promise<void> {
   const restoredProductIds = new Set<bigint>();
   const committedOrder = await prisma.$transaction(async (tx) => {
+    if (targetStatus === 'CANCELLED') {
+      // Serialize cancellation with the courier claim. A booking in progress or with an
+      // uncertain outcome must be reconciled before inventory can be restored.
+      await tx.$queryRaw`SELECT order_id FROM orders WHERE order_id = ${orderId} FOR UPDATE`;
+      const shipment = await tx.courierShipment.findUnique({ where: { orderId } });
+      if (shipment && ['EVALUATING', 'BOOKING', 'UNCERTAIN', 'BOOKED'].includes(shipment.status)) {
+        throw new ConflictError('Courier booking must be reconciled before cancellation', undefined,
+          'COURIER_OUTCOME_UNCERTAIN');
+      }
+    }
     const order = await tx.order.findUniqueOrThrow({ where: { orderId } });
 
     if (!canTransition(order.status, targetStatus)) {
@@ -271,6 +281,31 @@ export async function transitionOrderStatus(
         locationLng: location?.lng,
       },
     });
+
+    // Feature 20: persist courier milestones in the same transaction as the existing order
+    // transition. The shipment source identifies these mock-generated events as simulated.
+    if (targetStatus === 'PICKED_UP' || targetStatus === 'IN_TRANSIT'
+      || targetStatus === 'OUT_FOR_DELIVERY' || targetStatus === 'DELIVERED' || targetStatus === 'CANCELLED') {
+      const shipment = await tx.courierShipment.findUnique({ where: { orderId } });
+      if (shipment) {
+        const now = new Date();
+        const etaQuote = targetStatus === 'DELIVERED' && shipment.evaluationId
+          ? await tx.courierQuote.findFirst({ where: { orderId, evaluationId: shipment.evaluationId, selected: true } })
+          : null;
+        await tx.courierShipment.update({
+          where: { orderId },
+          data: {
+            status: targetStatus,
+            ...(targetStatus === 'PICKED_UP' ? { pickedUpAt: now } : {}),
+            ...(targetStatus === 'IN_TRANSIT' ? { inTransitAt: now } : {}),
+            ...(targetStatus === 'DELIVERED' ? { deliveredAt: now,
+              onTime: shipment.bookedAt && etaQuote?.etaHours
+                ? now.getTime() - shipment.bookedAt.getTime() <= etaQuote.etaHours * 3_600_000 : null } : {}),
+            ...(targetStatus === 'CANCELLED' ? { cancelledAt: now } : {}),
+          },
+        });
+      }
+    }
 
     // Entry action — Gap #3: cancelling from any pre-shipment state restores stock (REQ-F-Inv-004),
     // reusing Feature 4's existing method, never a second increment implementation.

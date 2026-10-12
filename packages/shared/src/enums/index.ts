@@ -35,4 +35,4 @@ export type OrderStatus =
   | 'CANCELLED'
   | 'PENDING_MANUAL_LOGISTICS';
 
-export type CourierCode = 'TCS' | 'LEOPARDS' | 'TRAX';
+export type CourierCode = 'TCS' | 'LEOPARDS' | 'TRAX' | 'POSTEX';

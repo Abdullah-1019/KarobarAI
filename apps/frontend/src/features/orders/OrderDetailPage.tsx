@@ -151,9 +151,9 @@ export function OrderDetailPage({ scope }: OrderDetailPageProps) {
         </Typography.Text>
       </Card>
 
-      {scope === 'seller' && order.status === 'PAYMENT_CONFIRMED' && !tracking?.courier && (
+      {scope === 'seller' && (order.status === 'PAYMENT_CONFIRMED' || Boolean(tracking?.courier)) && (
         <div style={{ marginTop: 'var(--sp-4)' }}>
-          <CourierRecommendationCard orderId={id} />
+          <CourierRecommendationCard orderId={id} eligible={order.status === 'PAYMENT_CONFIRMED' && !tracking?.courier} />
         </div>
       )}
 

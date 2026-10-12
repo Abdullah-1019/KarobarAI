@@ -74,7 +74,7 @@ export function PublicTrackingPage() {
     <div style={{ maxWidth: 600, margin: '0 auto', padding: 'var(--sp-6)' }}>
       <PageHeader title={t('tracking.publicTitle')} actions={<OrderStatusTag status={tracking.status} />} />
 
-      <TrackingStatusCard status={tracking.status} deliveryStageLabel={tracking.deliveryStageLabel} colorForStatus={colorForStatus} />
+      <TrackingStatusCard status={tracking.status} deliveryStageLabel={tracking.deliveryStageLabel} colorForStatus={colorForStatus} simulated={tracking.simulated} />
 
       {tracking.timeline.length === 0 && (
         <Alert

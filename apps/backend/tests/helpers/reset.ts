@@ -34,6 +34,7 @@ export async function resetDb(): Promise<void> {
   await prisma.dispute.deleteMany(); // Feature 10 — Dispute.returnId is onDelete: Restrict, must precede return.deleteMany()
   await prisma.return.deleteMany(); // cascades return_images; Return.orderId is onDelete: Restrict, must precede order.deleteMany()
   await prisma.review.deleteMany(); // Review.orderId is onDelete: Restrict, must precede order.deleteMany()
+  await prisma.courierShipment.deleteMany(); // Feature 20 shipment history restricts order deletion.
   await prisma.order.deleteMany(); // cascades order_items/tracking_events/courier_quotes
   await prisma.product.deleteMany();
   await prisma.sellerProfile.deleteMany();

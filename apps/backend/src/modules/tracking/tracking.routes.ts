@@ -5,6 +5,9 @@ import { authorize } from '../../core/middleware/authorize';
 import { validateBody } from '../../core/middleware/validate';
 import { bookCourierSchema } from './tracking.dto';
 import {
+  autoSelectCourierHandler,
+  getAutoSelectionHandler,
+  getCourierPerformanceHandler,
   bookCourierHandler,
   getAuthenticatedTrackingHandler,
   getCourierQuotesHandler,
@@ -19,7 +22,7 @@ import {
 // Seller-only: courier selection/booking. Ownership beyond "is a Seller" is re-checked inside
 // tracking.service.ts via Feature 7's getOwnedOrderRow.
 export const courierRouter = Router();
-courierRouter.use(authenticate, authorize('SELLER'));
+const sellerOnly = [authenticate, authorize('SELLER')];
 
 /**
  * @swagger
@@ -36,13 +39,22 @@ courierRouter.use(authenticate, authorize('SELLER'));
  *       422:
  *         description: Quotes not scored yet (COURIER_QUOTES_NOT_READY)
  */
-courierRouter.get('/:id/courier-quotes', getCourierQuotesHandler);
+courierRouter.get('/:id/courier-quotes', ...sellerOnly, getCourierQuotesHandler);
+
+/** Seller-scoped synthetic outcome aggregates; at least five deliveries for rate estimates. */
+courierRouter.get('/courier-performance', ...sellerOnly, getCourierPerformanceHandler);
+
+/** Read the persisted simulated selection, quote comparison, and reconciliation state. */
+courierRouter.get('/:id/courier-selection', ...sellerOnly, getAutoSelectionHandler);
+
+/** Seller click only; evaluates all valid quotes and books one computed winner. */
+courierRouter.post('/:id/auto-select-courier', ...sellerOnly, autoSelectCourierHandler);
 
 /**
  * @swagger
  * /api/v1/orders/{id}/refresh-rates:
  *   post:
- *     summary: Re-score couriers and replace the existing courier_quotes rows (Task 3.7)
+ *     summary: Re-score couriers and retain the earlier quote evaluation in history
  *     tags: [Tracking]
  *     security: [{ bearerAuth: [] }]
  *     responses:
@@ -51,13 +63,13 @@ courierRouter.get('/:id/courier-quotes', getCourierQuotesHandler);
  *       422:
  *         description: Order is no longer courier-selection-eligible (ORDER_NOT_COURIER_ELIGIBLE)
  */
-courierRouter.post('/:id/refresh-rates', refreshCourierRatesHandler);
+courierRouter.post('/:id/refresh-rates', ...sellerOnly, refreshCourierRatesHandler);
 
 /**
  * @swagger
  * /api/v1/orders/{id}/book-courier:
  *   post:
- *     summary: Confirm & Book Courier — retry x3 @30s then fallback to next-best; all-fail -> PENDING_MANUAL_LOGISTICS
+ *     summary: Manually book one eligible simulated courier with no automatic retry or fallback
  *     tags: [Tracking]
  *     security: [{ bearerAuth: [] }]
  *     requestBody:
@@ -66,16 +78,16 @@ courierRouter.post('/:id/refresh-rates', refreshCourierRatesHandler);
  *           schema:
  *             type: object
  *             properties:
- *               courierCode: { type: string, enum: [TCS, LEOPARDS, TRAX] }
+ *               courierCode: { type: string, enum: [TCS, LEOPARDS, TRAX, POSTEX] }
  *     responses:
  *       200:
- *         description: Updated OrderDetailDTO (status PROCESSING on success, or PENDING_MANUAL_LOGISTICS if every courier failed)
+ *         description: Updated OrderDetailDTO after one confirmed simulated booking
  *       409:
  *         description: Order already has a booked courier (COURIER_ALREADY_BOOKED)
  *       422:
  *         description: Not eligible (ORDER_NOT_COURIER_ELIGIBLE) or unscored courier selected (INVALID_COURIER_SELECTION)
  */
-courierRouter.post('/:id/book-courier', validateBody(bookCourierSchema), bookCourierHandler);
+courierRouter.post('/:id/book-courier', ...sellerOnly, validateBody(bookCourierSchema), bookCourierHandler);
 
 // Authenticated tracking read — any role, tri-mode ownership (Buyer/Seller/Admin) enforced inside
 // the service via Feature 7's getOwnedOrderRow.

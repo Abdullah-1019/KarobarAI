@@ -34,12 +34,12 @@ describe('Feature 8 reuse/scope audit (Task 8.5/8.7)', () => {
     expect(hits).toEqual([]);
   });
 
-  it('tracking.repository.ts never writes orders.status — only non-status columns (courier/tracking_no/courier_overridden)', () => {
+  it('tracking.repository.ts never writes orders; the shipment claim writes only courier fields', () => {
     const repoContent = fs.readFileSync(path.join(SRC_ROOT, 'modules/tracking/tracking.repository.ts'), 'utf-8');
-    // Tightly scoped to the one order.update() call site's own data shape, rather than a wide
-    // char-window regex that could spuriously span into an unrelated later function.
-    expect(repoContent).toMatch(/order\.update\(\{\s*where:\s*\{\s*orderId\s*\},\s*data\s*\}\);/);
-    expect(repoContent).toMatch(/data:\s*\{\s*courier:\s*CourierCode;\s*trackingNo:\s*string;\s*courierOverridden:\s*boolean\s*\}/);
+    const autoContent = fs.readFileSync(path.join(SRC_ROOT, 'modules/tracking/auto-select.service.ts'), 'utf-8');
+    expect(repoContent).not.toMatch(/\.order\.(update|updateMany)\(/);
+    expect(autoContent).toMatch(/tx\.order\.updateMany\(\{[^;]*?data:\s*\{\s*courier:/);
+    expect(autoContent).not.toMatch(/tx\.order\.updateMany\(\{[^;]*?data:\s*\{\s*status:/);
     expect(repoContent).not.toMatch(/function appendTrackingEvent|\.appendTrackingEvent\(/);
   });
 
@@ -62,10 +62,11 @@ describe('Feature 8 reuse/scope audit (Task 8.5/8.7)', () => {
     expect(hits).toEqual([]);
   });
 
-  it('no new Prisma model was added for this feature — courier_quotes/tracking_events already existed from the Database feature', () => {
+  it('reuses courier quotes and tracking events while adding one durable shipment history model', () => {
     const schema = fs.readFileSync(path.join(SRC_ROOT, '../prisma/schema.prisma'), 'utf-8');
     expect(schema).toMatch(/model CourierQuote /);
     expect(schema).toMatch(/model TrackingEvent /);
+    expect(schema).toMatch(/model CourierShipment /);
     expect(schema).not.toMatch(/model (Shipment|CourierBooking|TrackingLog) /);
   });
 

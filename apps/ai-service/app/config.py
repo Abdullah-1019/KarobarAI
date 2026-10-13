@@ -6,6 +6,10 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://ollama:11434"
     ollama_chat_model: str = "qwen2.5vl:7b"
     ollama_embed_model: str = "nomic-embed-text"
+    gemini_api_key: str = ""
+    gemini_listing_model: str = "gemini-3.1-flash-lite"
+    gemini_listing_timeout_seconds: float = 45.0
+    listing_image_allowed_hosts: str = "minio"
     ollama_timeout_seconds: float = 600.0
     ollama_max_attempts: int = 3
     ollama_backoff_base_seconds: float = 0.25

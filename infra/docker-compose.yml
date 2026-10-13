@@ -77,7 +77,9 @@ services:
       DATABASE_URL: postgresql://karobarai:karobarai@postgres:5432/karobarai?schema=public
       REDIS_URL: redis://redis:6379
       AI_SERVICE_URL: http://ai-service:8000
+      AI_SERVICE_IMAGE_BASE_URL: http://minio:9000
       MINIO_ENDPOINT: http://minio:9000
+      S3_PUBLIC_BASE_URL: http://localhost:9000
     volumes:
       - ../apps/backend:/workspace/apps/backend
       - ../packages/shared:/workspace/packages/shared

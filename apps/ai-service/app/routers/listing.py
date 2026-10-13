@@ -2,6 +2,7 @@ from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
 from app.llm.errors import AiGenerationError
+from app.llm.gemini_listing_client import GeminiListingError
 from app.llm.fallback_orchestrator import build_default_orchestrator
 from app.schemas.listing import GeneratedListing, GenerateListingRequest
 
@@ -19,10 +20,16 @@ _orchestrator = build_default_orchestrator()
 @router.post(
     "/generate-listing",
     response_model=GeneratedListing,
-    responses={502: {"description": "Both primary and fallback LLM providers failed"}},
+    responses={502: {"description": "Listing generation failed"}},
 )
 def generate_listing_route(payload: GenerateListingRequest) -> GeneratedListing | JSONResponse:
     try:
         return _orchestrator.generate(payload.image_url, payload.hint)
-    except AiGenerationError:
+    except AiGenerationError as error:
+        cause = error.__cause__
+        if isinstance(cause, GeminiListingError):
+            if cause.reason == "configuration_unavailable":
+                return JSONResponse(status_code=503, content={"error": "LISTING_PROVIDER_NOT_CONFIGURED"})
+            if cause.reason == "rate_limited":
+                return JSONResponse(status_code=429, content={"error": "LISTING_PROVIDER_RATE_LIMITED"})
         return JSONResponse(status_code=502, content={"error": "GENERATION_FAILED"})

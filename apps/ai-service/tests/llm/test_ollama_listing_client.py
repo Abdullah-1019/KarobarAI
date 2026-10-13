@@ -62,13 +62,13 @@ def test_listing_client_converts_ollama_failure_to_provider_error() -> None:
         client.generate("https://cdn.example/product.jpg")
 
 
-def test_local_listing_failure_preserves_safe_generation_error_contract() -> None:
+def test_listing_failure_preserves_safe_generation_error_contract() -> None:
     class FailedClient:
         def generate(self, image_url: str, hint: str | None = None) -> GeneratedListing:
             raise LlmClientError("local model unavailable")
 
     orchestrator = LlmFallbackOrchestrator(primary=FailedClient())  # type: ignore[arg-type]
-    with pytest.raises(AiGenerationError, match="Local Ollama"):
+    with pytest.raises(AiGenerationError, match="Listing generation failed"):
         orchestrator.generate("https://cdn.example/product.jpg")
 
 

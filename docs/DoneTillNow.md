@@ -9,6 +9,37 @@ or flagged for follow-up. Newest entries at the top.
 
 ---
 
+## Hosted seller image listing refactor (2026-10-13)
+
+**Status: PARTIAL — hosted listing passes through both authenticated backend paths on isolated data; browser interaction remains unverified.** Seller image listing now uses a server-side Gemini vision adapter through the AI service's existing `LlmClient` contract. The default model is configurable (`GEMINI_LISTING_MODEL`, currently `gemini-3.1-flash-lite`); the key belongs only in the root `.env` as `GEMINI_API_KEY`. The adapter fetches only allowlisted image hosts, checks JPEG/PNG/WebP image bytes and size, sends the image to Gemini with a structured output schema, validates the returned `GeneratedListing`, and returns sanitized failures. It retries a transient provider failure at most once. The backend revalidates the listing; malformed output cannot create a new draft or update an existing draft. Seller review and authorization remain in place. The old local Ollama listing client is retained in source for historical tests but is inactive. Chat and embeddings still use `qwen2.5vl:7b` and `nomic-embed-text` respectively; no separate Urdu/listing model was found in active configuration. Installed experimental models were not deleted.
+
+**Verified this pass:** AI-service pytest **50/50**, backend listing integration tests **34/34** on disposable PostgreSQL/Redis, and a focused provider-error regression suite **16/16**. Backend typecheck and build passed. The small live Roman-English/Roman-Urdu/mixed chatbot smoke benchmark is recorded separately in `docs/benchmarks/roman-chatbot-evaluation.md`: reviewed result **10/13**, no tools executed, with failures in an out-of-stock tool argument, out-of-scope weather answer, and seller write refusal. The root environment now has a configured Gemini key; a synthetic image returned a valid live GeneratedListing from the AI-service route, and both authenticated backend listing paths passed on isolated data; the browser flow remains unverified. Uploaded images are transmitted to Google for listing generation; check account data-use and quota terms before using customer images. The earlier CPU-based local vision timeout below remains historical context, not a claim about the new provider.
+
+**Live provider evidence (2026-10-13):** The configured Gemini key loaded in the AI service. Gemini 3.5 Flash-Lite model metadata was accessible, but its image request returned provider HTTP 503 and a minimal text request timed out. The same key completed a minimal text request on Gemini 3.1 Flash-Lite. With 3.1 Flash-Lite, a synthetic 513-byte blue T-shirt graphic produced a Pydantic-valid listing in about 16 seconds. After changing the configurable default, the private `/generate-listing` route returned HTTP 200 in about 15 seconds with all six required fields, Urdu text, and a grounded English description identifying the input as a graphic icon. This proves AI-service-to-Gemini listing generation. Separate authenticated backend tests verified a seller review draft and persisted existing-product listing; the review draft created no product. Browser interaction remains unverified.
+
+**Live backend evidence:** On disposable PostgreSQL and Redis, with no API listener or workers started, the authenticated existing-product listing test passed **1/1**: backend HTTP 200, AI-service HTTP 200, validated fields persisted and read back, then the test record was removed. The separate upload-and-review draft test passed **1/1**: backend HTTP 200, a nonempty bilingual draft returned, and the seller's product count stayed zero. Its first run used an invalid test field and failed at HTTP 400 before inference; the request was corrected to the documented `categoryHint` field and rerun. No shared database, real customer image, or browser interaction was used.
+
+## Seller image listing runtime check (2026-10-12)
+
+**Status: BLOCKED on local vision inference time.** The reported `AI_SERVICE_UNAVAILABLE`
+at 18:36:02 was caused by the native backend calling `localhost:8000` while the AI service
+was reachable only inside Docker. The API now runs in Compose and reaches
+`http://ai-service:8000/health` (HTTP 200). Browser-facing MinIO image URLs are retained in
+staging, while the AI request uses `http://minio:9000`; a focused backend regression test
+passed **14/14**, backend typecheck passed, and `/health`, `/ready`, and the frontend returned
+HTTP 200. The synthetic image upload returned HTTP 201 and its public image URL returned
+HTTP 200.
+
+The same synthetic shirt image reached local Ollama. `qwen2.5vl:7b` exceeded the backend's
+600-second deadline; `qwen2.5vl:3b` timed out after 360 seconds; `qwen3-vl:2b` took over five
+minutes and entered a corrective JSON retry, so that probe was stopped without a valid listing.
+`moondream:1.8b` responded in 63 seconds but misidentified the shirt as an urn. No alternative
+was activated; production listing generation remains on `qwen2.5vl:7b`, with no commercial API.
+No `GeneratedListing` response was verified and no product was created. The next practical step
+is to run the existing end-to-end image test on a GPU-capable local Ollama host, or explicitly
+approve another inference setup after a grounded quality and latency check. The original
+connection error is fixed, but automatic image listing is **not yet usable on this CPU**.
+
 ## Feature 18 — Seller Business Agent (2026-10-10)
 
 **Status: PARTIAL.** Implemented the authenticated Seller Center assistant, server-derived seller context, nine strictly validated read-only tools, scoped session persistence, Redis rate limiting, scope guard, and bilingual chat page. No schema or migration change was required. Seller identity is resolved from the authenticated user by `requireActiveSeller`; client/model seller IDs are rejected. Inventory low-stock means zero stock because the schema has no configurable threshold. Grounding guards replace unsupported inventory counts and recommendation claims with verified data-derived responses.

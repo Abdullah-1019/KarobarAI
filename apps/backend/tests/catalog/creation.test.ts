@@ -103,6 +103,26 @@ describe('POST /api/v1/seller/products/:id/generate-listing (Task 3.4 — mock A
     expect(res.body.data.category?.id).toBe(category.categoryId.toString());
   });
 
+  it('rejects an invalid hosted listing without changing the draft product', async () => {
+    const seller = await createTestUser('SELLER', { onboarded: true });
+    const product = await createTestProduct(seller.userId, { titleEn: 'Original Title', price: 10 });
+    await prisma.productImage.create({
+      data: { productId: product.productId, cdnUrl: 'mock://storage/product.jpg', position: 0 },
+    });
+    mockedAxiosPost.mockResolvedValue({ data: { title_en: 'Incomplete' } });
+
+    const res = await request(app)
+      .post(`/api/v1/seller/products/${product.publicId}/generate-listing`)
+      .set('Authorization', `Bearer ${seller.accessToken}`)
+      .send({});
+
+    expect(res.status).toBe(503);
+    expect(res.body.error.code).toBe('AI_GENERATION_FAILED');
+    const unchanged = await prisma.product.findUniqueOrThrow({ where: { productId: product.productId } });
+    expect(unchanged.titleEn).toBe('Original Title');
+    expect(unchanged.aiGenerated).toBe(false);
+  });
+
   it("keeps the existing categoryId when AI's guessed slug matches no real category", async () => {
     const seller = await createTestUser('SELLER', { onboarded: true });
     const category = await prisma.category.findFirstOrThrow({ where: { slug: 'electronics' } });

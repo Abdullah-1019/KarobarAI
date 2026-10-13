@@ -25,6 +25,8 @@ import type {
   SearchQueryInput,
   UpdateProductInput,
 } from './catalog.dto';
+import { toAiServiceImageUrl } from './ai-image-url';
+import { generatedListingResponseSchema } from './generated-listing.schema';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Task 2 — Category Integration (read-only; categories are seeded reference data, Schema §4.5)
@@ -200,18 +202,8 @@ export async function createProduct(sellerUserId: bigint, input: CreateProductIn
   return toProductDetail(product);
 }
 
-interface GeneratedListingResponse {
-  title_en: string;
-  title_ur: string;
-  description_en: string;
-  description_ur: string;
-  category: string;
-  tags: string[];
-}
-
-// Task 3.4 — orchestrates the server-side-only call to ai-service. Mock stub for this pass (see
-// docs/handoffs/F4-catalog-backend.md): ai-service generates a schema-conformant response using
-// the configured local Ollama vision model. This function validates, calls, and persists only on
+// Task 3.4 — orchestrates the server-side-only call to ai-service. The configured hosted vision
+// provider generates a schema-conformant response. This function validates, calls, and persists only on
 // success.
 export async function generateListing(
   sellerUserId: bigint,
@@ -236,20 +228,27 @@ export async function generateListing(
     );
   }
 
-  let generated: GeneratedListingResponse;
+  let rawGenerated: unknown;
   try {
-    const response = await axios.post<GeneratedListingResponse>(
+    const response = await axios.post<unknown>(
       `${config.aiServiceUrl}/generate-listing`,
-      { image_url: images[0]?.cdnUrl, hint },
+      { image_url: toAiServiceImageUrl(images[0]?.cdnUrl ?? ''), hint },
       { timeout: config.aiServiceTimeoutMs },
     );
-    generated = response.data;
+    rawGenerated = response.data;
   } catch (err) {
     // REQ-F-Store005: failure leaves the row untouched (fields stay blank/whatever the seller
     // had) — never destructive on failure, so manual entry remains possible.
     logger.warn({ err }, 'AI listing generation failed');
     throw new DependencyError('AI listing generation is temporarily unavailable', undefined, 'AI_GENERATION_FAILED');
   }
+
+  const parsed = generatedListingResponseSchema.safeParse(rawGenerated);
+  if (!parsed.success) {
+    logger.warn({ issues: parsed.error.issues }, 'AI listing response failed schema validation');
+    throw new DependencyError('AI listing generation is temporarily unavailable', undefined, 'AI_GENERATION_FAILED');
+  }
+  const generated = parsed.data;
 
   // AI's category is a best-guess slug — resolved against real categories; if it doesn't match
   // anything, the product's existing categoryId (if any) is left as-is, never clobbered with null.

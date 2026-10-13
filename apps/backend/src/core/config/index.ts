@@ -50,6 +50,9 @@ export const config = {
   // Internal-only (TRD §8: ai-service is never reachable from the host/Nginx) — native dev uses
   // localhost:PORT_AI, Docker Compose overrides this to http://ai-service:8000 in its env block.
   aiServiceUrl: process.env.AI_SERVICE_URL || `http://localhost:${process.env.PORT_AI ?? 8000}`,
+  // When the API runs in Docker, browser-facing MinIO URLs use localhost while the private AI
+  // service must fetch the same object through Docker DNS. Leave unset for native/local callers.
+  aiServiceImageBaseUrl: process.env.AI_SERVICE_IMAGE_BASE_URL || '',
   aiServiceTimeoutMs: Number(process.env.AI_SERVICE_TIMEOUT_MS ?? 600_000),
   jwt: {
     privateKey: unescapePem(process.env.JWT_PRIVATE_KEY),

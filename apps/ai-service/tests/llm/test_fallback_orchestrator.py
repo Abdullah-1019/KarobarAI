@@ -5,7 +5,7 @@ import pytest
 from app.llm.client import LlmClient
 from app.llm.errors import AiGenerationError, LlmClientError
 from app.llm.fallback_orchestrator import LlmFallbackOrchestrator, build_default_orchestrator
-from app.llm.ollama_listing_client import OllamaListingClient
+from app.llm.gemini_listing_client import GeminiListingClient
 from app.schemas.listing import GeneratedListing
 
 FALLBACK_RESULT = GeneratedListing(
@@ -77,10 +77,8 @@ class TestLlmFallbackOrchestrator:
 
 
 class TestBuildDefaultOrchestrator:
-    def test_builds_local_ollama_listing_client(self, monkeypatch) -> None:
-        monkeypatch.setattr("app.llm.fallback_orchestrator.settings.ollama_chat_model", "qwen-test")
+    def test_builds_hosted_listing_client_without_local_fallback(self) -> None:
         orchestrator = build_default_orchestrator()
 
-        assert isinstance(orchestrator._primary, OllamaListingClient)
-        assert orchestrator._primary._model == "qwen-test"
+        assert isinstance(orchestrator._primary, GeminiListingClient)
         assert orchestrator._fallback is None

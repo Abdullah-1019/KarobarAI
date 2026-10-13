@@ -1,9 +1,8 @@
-"""Listing-generation orchestration backed exclusively by the configured local Ollama model."""
+"""Listing-generation orchestration independent of the local chatbot model."""
 
-from app.config import settings
 from app.llm.client import LlmClient
 from app.llm.errors import AiGenerationError, LlmClientError
-from app.llm.ollama_listing_client import OllamaListingClient
+from app.llm.gemini_listing_client import GeminiListingClient
 from app.schemas.listing import GeneratedListing
 
 
@@ -17,7 +16,7 @@ class LlmFallbackOrchestrator:
             return self._primary.generate(image_url, hint)
         except LlmClientError as primary_error:
             if self._fallback is None:
-                raise AiGenerationError("Local Ollama listing generation failed") from primary_error
+                raise AiGenerationError("Listing generation failed") from primary_error
 
         try:
             return self._fallback.generate(image_url, hint)
@@ -25,9 +24,8 @@ class LlmFallbackOrchestrator:
             raise AiGenerationError("Both primary and fallback LLM clients failed") from err
 
 
-# The route always uses the selected local Ollama model. No API key or commercial provider is
-# consulted. Generation failures surface as the existing safe 502 response.
+# Hosted listing generation has no Ollama fallback: failures never consume chatbot capacity.
 def build_default_orchestrator() -> LlmFallbackOrchestrator:
     return LlmFallbackOrchestrator(
-        primary=OllamaListingClient(model=settings.ollama_chat_model),
+        primary=GeminiListingClient(),
     )

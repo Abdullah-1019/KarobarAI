@@ -16,6 +16,7 @@ import { AnalyticsDashboardPage } from '../features/analytics';
 import { ForgotPasswordPage, LoginPage, OtpVerifyPage, RegisterPage, ResetPasswordPage } from '../features/auth';
 import { AddProductPage, EditProductPage, SellerProductsPage } from '../features/catalog';
 import { CartPage, CheckoutConfirmationPage, CheckoutPage } from '../features/cart';
+import { UiGalleryPage } from '../features/dev/UiGalleryPage';
 import { CategoryPage, HomePage, ProductDetailPage, SearchPage, StorefrontLayout } from '../features/marketplace';
 import { NotificationCenterPage } from '../features/notifications';
 import { BuyerOrderDetailPage, BuyerOrdersPage, SellerOrderDetailPage, SellerOrdersPage } from '../features/orders';
@@ -125,6 +126,16 @@ export const router = createBrowserRouter([
   {
     element: <ProtectedRoute allowedRoles={['BUYER', 'SELLER', 'ADMIN', 'SUPPORT']} />,
     children: [{ path: '/notifications', element: <NotificationCenterPage /> }],
+  },
+  // Dev-only component gallery (Phase 1, Batch-1 Buyer Purchase Journey) — a reference surface for
+  // the shared UI in EN/UR + LTR/RTL. Not rendered in production builds.
+  {
+    path: '/dev/ui',
+    element: import.meta.env.DEV ? (
+      <UiGalleryPage />
+    ) : (
+      <EmptyState title="Page not found" description="We couldn't find that." />
+    ),
   },
   { path: '*', element: <EmptyState title="Page not found" description="We couldn't find that." /> },
 ]);

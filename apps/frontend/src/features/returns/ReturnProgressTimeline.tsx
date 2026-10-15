@@ -1,7 +1,7 @@
 import type { ComponentType } from 'react';
 import type { ReturnDetailDTO } from '@karobarai/shared';
 import { Typography } from 'antd';
-import { CheckCircle2, Circle, Package, PackageSearch, Truck, Wallet, XCircle, type LucideProps } from 'lucide-react';
+import { CheckCircle2, Package, PackageSearch, Truck, Wallet, XCircle, type LucideProps } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 type StepState = 'done' | 'current' | 'upcoming';

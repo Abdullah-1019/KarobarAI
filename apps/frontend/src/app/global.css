@@ -1,40 +1,67 @@
-/* Design tokens — UIUX doc §5 (color), §6.1 (type scale), §11 (radius/shadow/motion). */
+/* Design tokens — Home redesign (Modern Pakistani Bazaar). Global brand + type + spacing +
+   radius/shadow/motion. Components must consume these variables, never hard-coded hex. */
+
+/* Base reset — content-box → border-box everywhere (safe with AntD, which assumes border-box). */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
 
 :root {
-  /* Color — light mode (UIUX §5.1) */
-  --brand-primary: #1a6b49;
-  --brand-primary-hover: #15583c;
-  --brand-primary-active: #0f4630;
-  --brand-primary-soft: #e7f2ec;
-  --accent-marigold: #f4a024;
+  /* Brand (light) — warm emerald + saffron + terracotta on cream. 60-30-10. */
+  --brand-primary: #0b6e4f; /* deep emerald — primary actions, links */
+  --brand-primary-hover: #095e43; /* darkened emerald for hover */
+  --brand-primary-active: #064e38; /* primary-dark — pressed */
+  --brand-primary-soft: #e3f4ec; /* mint — selected/tint surfaces */
+  --accent-marigold: #f5a623; /* saffron — main CTA, badges */
   --accent-marigold-soft: #fcefd6;
-  --bg-canvas: #fbf8f3;
+  --accent-marigold-strong: #d98a0b; /* darkened saffron for CTA hover */
+  --accent-2: #e4572e; /* terracotta — sale badge */
+
+  /* Surfaces / text */
+  --bg-canvas: #fbf8f3; /* warm cream (60) */
   --bg-surface: #ffffff;
   --bg-sunken: #f3eee5;
-  --border: #e7e0d5;
-  --text-primary: #211d17;
-  --text-secondary: #6b6358;
+  --border: #e8e2d6;
+  --text-primary: #1a2b25; /* never pure black */
+  --text-secondary: #5f6f68;
+  --text-tertiary: #8b8175;
   --text-disabled: #a89e90;
 
-  /* Semantic (UIUX §5.2) */
-  --success: #1a6b49;
+  /* Semantic */
+  --success: #1e9e6a;
   --warning: #c77a12;
-  --error: #b23a2a;
+  --error: #d64545;
   --info: #2c6a93;
-
-  /* Semantic soft-tint backgrounds — for status chips/badges (UIUX §5.2, §13, §17: "status cells
-     use chips... never color alone"). Not enumerated in the doc's token table; derived the same
-     way --brand-primary-soft/--accent-marigold-soft already were (a light, warm-leaning tint of
-     the base hue). --success-soft aliases --brand-primary-soft since success and brand-primary
-     share the same light/dark values in §5.2's own table. Only defined for light mode, matching
-     the existing precedent of --brand-primary-soft/--accent-marigold-soft (doc doesn't specify
-     dark-mode soft values either). */
-  --success-soft: var(--brand-primary-soft);
+  --success-soft: #e3f4ec;
   --warning-soft: #fbefda;
   --error-soft: #f8e6e2;
   --info-soft: #e4eef4;
 
-  /* Type scale (UIUX §6.1) */
+  /* Category tints (bg / icon) — Phase 5 */
+  --cat-beauty-bg: #fde8ef;
+  --cat-beauty-fg: #d6336c;
+  --cat-books-bg: #e7f0fd;
+  --cat-books-fg: #2f6fde;
+  --cat-electronics-bg: #eee9fd;
+  --cat-electronics-fg: #6a4bd8;
+  --cat-fashion-bg: #fef3dc;
+  --cat-fashion-fg: #c77d0a;
+  --cat-grocery-bg: #e3f4ec;
+  --cat-grocery-fg: #0b6e4f;
+  --cat-home-bg: #fdebe4;
+  --cat-home-fg: #e4572e;
+  --cat-mobile-bg: #ddf4f4;
+  --cat-mobile-fg: #0e8a8a;
+  --cat-sports-bg: #ffebd9;
+  --cat-sports-fg: #e67e22;
+
+  /* Type — Plus Jakarta headings, Inter body, Nastaliq Urdu. */
+  --font-heading: 'Plus Jakarta Sans', 'IBM Plex Sans Arabic', system-ui, sans-serif;
+  --font-body: 'Inter', 'IBM Plex Sans Arabic', system-ui, -apple-system, sans-serif;
+  --font-urdu: 'Noto Nastaliq Urdu', 'IBM Plex Sans Arabic', serif;
+
   --fs-xs: 12px;
   --fs-sm: 14px;
   --fs-base: 16px;
@@ -43,8 +70,11 @@
   --fs-2xl: 24px;
   --fs-3xl: 30px;
   --fs-4xl: 36px;
+  /* Fluid display sizes — hero H1 + section titles. */
+  --fs-hero: clamp(34px, 5vw + 1rem, 56px);
+  --fs-section: clamp(24px, 1.6vw + 1rem, 32px);
 
-  /* Spacing (UIUX §9) — 4px base unit; components must use these tokens, no arbitrary pixels */
+  /* Spacing — 4px base unit; no arbitrary pixels in components. */
   --sp-1: 4px;
   --sp-2: 8px;
   --sp-3: 12px;
@@ -55,98 +85,448 @@
   --sp-10: 40px;
   --sp-12: 48px;
   --sp-16: 64px;
+  --sp-24: 96px;
 
-  /* Radius / shadow / motion (UIUX §11) */
+  /* Radius / shadow / motion */
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
+  --radius-button: 12px;
+  --radius-image: 16px;
+  --radius-card: 20px;
   --radius-pill: 999px;
-  --shadow-sm: 0 1px 2px rgba(33, 29, 23, 0.06), 0 1px 3px rgba(33, 29, 23, 0.08);
-  --shadow-md: 0 4px 12px rgba(33, 29, 23, 0.1);
-  --shadow-lg: 0 12px 32px rgba(33, 29, 23, 0.14);
+  --shadow-sm: 0 2px 8px rgba(26, 43, 37, 0.06);
+  --shadow-md: 0 4px 16px rgba(26, 43, 37, 0.08);
+  --shadow-lg: 0 12px 32px rgba(26, 43, 37, 0.12);
   --dur-fast: 150ms;
   --dur-base: 220ms;
   --dur-slow: 320ms;
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --ease-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --container-max: 1280px;
+  --header-blur-bg: rgba(251, 248, 243, 0.85);
+  /* Announcement strip keeps the deep emerald in both themes (white text stays ≥4.5:1). */
+  --announce-bg: #0b6e4f;
+  --announce-fg: #ffffff;
+  /* Hero banner — fixed deep-emerald gradient in both themes (white text/CTAs ride on top). */
+  --hero-from: #0b6e4f;
+  --hero-to: #064e38;
   --z-toast: 1000;
   --z-modal: 900;
   --z-sticky: 100;
 
-  /* Chart palette (UIUX §18) — primary green for the main series, marigold for a secondary/
-     highlight series, neutral grey for comparison/baseline, info blue as a 4th categorical
-     color when needed (never more than 4 series). Aliased to existing tokens (not new hex)
-     so charts stay in sync with the brand palette and dark mode automatically. */
+  /* Chart palette (§18): primary green main series, marigold highlight, neutral baseline, info 4th.
+     Aliased, never new hex, so charts track the brand + dark mode automatically. */
   --chart-1: var(--brand-primary);
   --chart-2: var(--accent-marigold);
   --chart-3: var(--text-secondary);
   --chart-4: var(--info);
+
+  /* Phase 1 (Batch-1 Buyer Purchase Journey) additions — only genuinely-missing tokens; the
+     existing `--brand-*` / `--bg-*` / `--text-*` names stay (renaming app-wide is out of scope). */
+  --accent-2-soft: #fdebe4;
+  --border-strong: #d3cbb9;
+  --shadow-xs: 0 1px 3px rgba(26, 43, 37, 0.06);
+  --brand-ring: rgba(11, 110, 79, 0.25);
+  --radius-xl: 24px;
 }
 
 [data-theme='dark'] {
-  /* Color — dark mode (UIUX §5.3) */
-  --bg-canvas: #15130f;
-  --bg-surface: #1f1c17;
-  --bg-sunken: #100e0b;
-  --border: #34302a;
-  --text-primary: #f2eee6;
-  --text-secondary: #ada597;
-  --brand-primary: #3fa877;
-  --accent-marigold: #f4a024;
-
-  /* Semantic (UIUX §5.2, dark values) */
-  --success: #3fa877;
+  --bg-canvas: #0f1a16;
+  --bg-surface: #16251f;
+  --bg-sunken: #0b1411;
+  --border: #263a32;
+  --text-primary: #eaf2ee;
+  --text-secondary: #a9b8b2;
+  --text-tertiary: #8a8172;
+  --brand-primary: #2dbe8a;
+  --brand-primary-hover: #35cf98;
+  --brand-primary-active: #2dbe8a;
+  --brand-primary-soft: #16291f;
+  --accent-marigold: #f5a623;
+  --accent-marigold-soft: #3a2e14;
+  --accent-marigold-strong: #e0a33a;
+  --success: #2dbe8a;
   --warning: #e0a33a;
   --error: #e0634f;
   --info: #4e97c4;
-
-  /* Soft-tint backgrounds (Phase B, §5.2/§13/§17) were only ever given light-mode values —
-   * every StatusTag chip (success/warning/error/info) and any selected/highlighted surface using
-   * these (e.g. E3's SelectableOptionCard) fell back to the *light* tint even in dark mode: a
-   * near-white background with dark-mode's light body text on top, unreadable. Found during E3
-   * dark-mode verification; fixed at the token level since the gap is app-wide, not one screen.
-   * Dark, desaturated versions of the same hues — distinguishable from --bg-surface without
-   * blowing out contrast against light dark-mode text. */
-  --brand-primary-soft: #1c2a22;
-  --accent-marigold-soft: #3a2e14;
-  --success-soft: var(--brand-primary-soft);
+  --success-soft: #16291f;
   --warning-soft: #3a2c14;
   --error-soft: #3a201c;
   --info-soft: #182530;
+  --header-blur-bg: rgba(22, 37, 31, 0.85);
+  /* Phase 1 additions (dark). */
+  --accent-2-soft: #3a201c;
+  --border-strong: #35544a;
+  --shadow-xs: 0 1px 3px rgba(0, 0, 0, 0.35);
+  --brand-ring: rgba(45, 190, 138, 0.3);
 }
 
+html {
+  scroll-behavior: smooth;
+}
 html,
 body {
   margin: 0;
   padding: 0;
   background: var(--bg-canvas);
   color: var(--text-primary);
-  font-family: 'IBM Plex Sans', 'IBM Plex Sans Arabic', system-ui, sans-serif;
+  font-family: var(--font-body);
   font-size: var(--fs-base);
   line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Nastaliq is reserved for headings/brand only (UIUX §6) — never apply globally, it needs
-   generous line-height (1.9–2.0) or it clips. */
+/* Headings use the display face (EN). The `[dir='rtl']` Nastaliq rule below wins in Urdu. */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+h1.ant-typography,
+h2.ant-typography,
+h3.ant-typography,
+h4.ant-typography,
+h5.ant-typography {
+  font-family: var(--font-heading);
+  letter-spacing: -0.01em;
+}
+
+/* Urdu — Nastaliq across the UI, with the generous line box the script needs to never clip. */
+html[lang='ur'] body {
+  font-family: var(--font-urdu);
+  line-height: 2;
+}
+
+/* Nastaliq helper (kept for existing call sites). */
 .font-nastaliq {
-  font-family: 'Noto Nastaliq Urdu', 'IBM Plex Sans Arabic', serif;
+  font-family: var(--font-urdu);
   line-height: 1.95;
 }
 
-/* Every page's top-level heading (AntD Typography.Title level 1-3, which renders literally as
-   h1/h2/h3.ant-typography) is exactly the "headings" case §6 reserves Nastaliq for — applied here
-   once, centrally, rather than adding .font-nastaliq to every Title across 30+ screens. Deliberately
-   stops at h3: level 4/5 titles are card/section sub-headers (closer to UI text than a "heading" in
-   the brand sense) and stay in the functional IBM Plex Sans Arabic. Body text is never touched —
-   this selector only matches heading tags. */
+/* Urdu page headings (AntD Typography.Title level 1-3) render in Nastaliq — wider line box so
+   the descenders/tail glyphs don't clip. Body text stays in the functional face. */
 [dir='rtl'] h1.ant-typography,
 [dir='rtl'] h2.ant-typography,
 [dir='rtl'] h3.ant-typography {
-  font-family: 'Noto Nastaliq Urdu', 'IBM Plex Sans Arabic', serif;
+  font-family: var(--font-urdu);
   line-height: 1.95;
 }
 
 #root {
   min-height: 100vh;
+}
+
+/* Shared container — the header AND every section use this so their edges align (Phase 2). */
+.container {
+  width: 100%;
+  max-width: var(--container-max);
+  margin-inline: auto;
+  padding-inline: var(--sp-6);
+}
+@media (max-width: 767px) {
+  .container {
+    padding-inline: var(--sp-4);
+  }
+}
+
+/* Visually hidden but available to assistive tech (skip-link targets, icon-only labels). */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Section rhythm — vertical breathing room + tone backgrounds (Phases 4-8 alternate the tones). */
+.section {
+  padding-block: clamp(56px, 8vw, 96px);
+}
+.section--cream {
+  background: var(--bg-canvas);
+}
+.section--white {
+  background: var(--bg-surface);
+}
+.section--mint {
+  background: var(--brand-primary-soft);
+}
+
+/* ── Phase 2 primitives ────────────────────────────────────────────────────────────────────── */
+
+/* Header inner row — shared by the contained (Buyer) and full-width (Seller/Admin) headers. */
+.app-header-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  height: 100%;
+}
+
+/* Section heading row: text column inline-start, optional action inline-end. */
+.section-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-6);
+}
+.section-head-text {
+  flex: 1;
+  min-width: 0;
+}
+.section-title {
+  position: relative;
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: var(--fs-section);
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--text-primary);
+  padding-bottom: var(--sp-3);
+}
+/* Saffron underline accent — 48×4, rounded, pinned to the inline-start edge. */
+.section-title::after {
+  content: '';
+  position: absolute;
+  inset-inline-start: 0;
+  bottom: 0;
+  width: 48px;
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-marigold);
+}
+.section-subtitle {
+  margin: var(--sp-1) 0 0;
+  font-size: var(--fs-base);
+  color: var(--text-secondary);
+}
+.section-action {
+  flex-shrink: 0;
+}
+/* Trailing "All categories →" style link in a section header. */
+.section-action-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--brand-primary);
+  font-size: var(--fs-base);
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.section-action-link:hover {
+  text-decoration: underline;
+}
+.section-action-link:hover .arrow-icon {
+  transform: translateX(3px);
+}
+[dir='rtl'] .section-action-link:hover .arrow-icon {
+  transform: translateX(-3px) scaleX(-1);
+}
+
+/* Direction-aware arrow (lucide icons don't mirror on their own). */
+.arrow-icon {
+  transition: transform var(--dur-base) var(--ease);
+}
+[dir='rtl'] .arrow-icon {
+  transform: scaleX(-1);
+}
+
+/* Buttons — 48px (≥44) touch target, brand variants, lift-on-hover / press-in. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  height: 48px;
+  min-height: 44px;
+  padding-inline: var(--sp-6);
+  border: 2px solid transparent;
+  border-radius: var(--radius-button);
+  font-family: var(--font-body);
+  font-size: var(--fs-base);
+  font-weight: 600;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    transform var(--dur-fast) var(--ease-soft),
+    box-shadow var(--dur-fast) var(--ease-soft),
+    background-color var(--dur-fast) var(--ease-soft),
+    border-color var(--dur-fast) var(--ease-soft),
+    color var(--dur-fast) var(--ease-soft);
+}
+.btn__icon {
+  display: inline-flex;
+  align-items: center;
+}
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+.btn:active {
+  transform: scale(0.97);
+}
+.btn:disabled,
+.btn[aria-disabled='true'] {
+  cursor: not-allowed;
+  opacity: 0.55;
+  transform: none;
+  box-shadow: none;
+  pointer-events: none;
+}
+.btn--primary {
+  background: var(--brand-primary);
+  color: #fff;
+}
+.btn--primary:hover {
+  background: var(--brand-primary-hover);
+}
+.btn--cta {
+  background: var(--accent-marigold);
+  color: var(--text-primary);
+}
+.btn--cta:hover {
+  background: var(--accent-marigold-strong);
+}
+.btn--outline {
+  background: transparent;
+  color: var(--brand-primary);
+  border-color: var(--brand-primary);
+}
+.btn--outline:hover {
+  background: var(--brand-primary-soft);
+}
+.btn--ghost {
+  background: transparent;
+  color: var(--brand-primary);
+}
+.btn--ghost:hover {
+  background: var(--brand-primary-soft);
+}
+.btn--outline-light {
+  background: transparent;
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.7);
+}
+.btn--outline-light:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: #fff;
+}
+.btn--full {
+  width: 100%;
+}
+.btn--lg {
+  height: 56px;
+  padding-inline: var(--sp-8);
+  font-size: var(--fs-lg);
+}
+.btn--sm {
+  height: 40px;
+  min-height: 40px;
+  padding-inline: var(--sp-4);
+  font-size: var(--fs-sm);
+}
+.btn--danger-ghost {
+  background: transparent;
+  color: var(--error);
+}
+.btn--danger-ghost:hover {
+  background: var(--error-soft);
+}
+.btn__spinner {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 999px;
+  animation: karobarai-spin 0.6s linear infinite;
+}
+@keyframes karobarai-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.btn--loading {
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .btn__spinner {
+    animation-duration: 1.4s;
+  }
+}
+
+/* Status badges (NEW / -X% / COD / Verified). */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  height: 24px;
+  padding-inline: var(--sp-3);
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+}
+.badge--new {
+  background: var(--accent-marigold);
+  color: var(--text-primary);
+}
+.badge--sale {
+  background: var(--accent-2);
+  color: #fff;
+}
+.badge--cod {
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary);
+}
+.badge--verified {
+  background: transparent;
+  color: var(--brand-primary);
+  padding-inline: 0;
+}
+.badge--low-stock {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+.badge--out-of-stock {
+  background: var(--bg-sunken);
+  color: var(--text-tertiary);
+}
+
+/* Shimmer placeholder (animation supplied by .karobarai-skeleton-shimmer). */
+.skeleton {
+  display: block;
+  background: var(--bg-sunken);
+  overflow: hidden;
+}
+
+/* Scroll-reveal (Phase 9) — opacity/transform only; static and fully visible under reduced motion. */
+.reveal {
+  opacity: 0;
+  transform: translateY(16px);
+  transition:
+    opacity var(--dur-slow) var(--ease-soft),
+    transform var(--dur-slow) var(--ease-soft);
+}
+.reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 /* Accessibility foundation (UIUX §23) — centralized so every current and future component
@@ -415,26 +795,170 @@ body {
   box-shadow: var(--shadow-md);
 }
 
-/* ProductCard's image interaction (E2, UIUX §26 "micro-interactions... purposeful, brief, calm") —
-   a small, contained zoom on hover, not a decorative flourish: it's the same "this is a real
-   photo you can look closer at" affordance most product photography uses. Scoped to the media
-   wrapper's own <img>, transform-only (no layout thrash), stripped to instant by the
-   prefers-reduced-motion rule above. */
-.karobarai-product-card-media img {
-  transition: transform var(--dur-base) var(--ease);
+/* CategoryGrid tiles — equal-height white cards in a 4×2 desktop grid, each with a tinted icon
+   disc, the localized name (2-line clamp) + the other language as a sub-label, and a trailing
+   arrow that slides in on hover/focus (Phase 5). */
+.cat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--sp-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
-.karobarai-product-card:hover .karobarai-product-card-media img {
-  transform: scale(1.05);
+.cat-grid > li {
+  display: flex;
 }
-
-/* CategoryGrid tiles (E2) — icon color shifts to brand green on hover/focus, paired with the
-   existing card shadow lift so the tile itself, not just an underline, signals interactivity. */
-.karobarai-category-tile-icon {
-  transition: color var(--dur-fast) var(--ease);
+.cat-tile {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  width: 100%;
+  height: 100%;
+  padding: var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  text-decoration: none;
+  transition:
+    transform var(--dur-base) var(--ease-soft),
+    box-shadow var(--dur-base) var(--ease-soft),
+    border-color var(--dur-base) var(--ease-soft);
 }
-.karobarai-category-tile:hover .karobarai-category-tile-icon,
-.karobarai-category-tile:focus-visible .karobarai-category-tile-icon {
+.cat-tile:hover,
+.cat-tile:focus-visible {
+  transform: translateY(-6px);
+  box-shadow: var(--shadow-lg);
+  border-color: transparent;
+}
+.cat-tile__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-pill);
+  background: var(--cat-tint-bg, var(--brand-primary-soft));
+  color: var(--cat-tint-fg, var(--brand-primary));
+  transition: transform var(--dur-base) var(--ease-soft);
+}
+.cat-tile:hover .cat-tile__icon,
+.cat-tile:focus-visible .cat-tile__icon {
+  transform: scale(1.08);
+}
+.cat-tile__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.cat-tile__name {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: var(--fs-base);
+  font-weight: 600;
+  line-height: 1.3;
+}
+.cat-tile__sub {
+  overflow: hidden;
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cat-tile__arrow {
+  display: inline-flex;
+  flex-shrink: 0;
   color: var(--brand-primary);
+  opacity: 0;
+  transform: translateX(6px);
+  transition:
+    opacity var(--dur-base) var(--ease-soft),
+    transform var(--dur-base) var(--ease-soft);
+}
+.cat-tile:hover .cat-tile__arrow,
+.cat-tile:focus-visible .cat-tile__arrow {
+  transform: translateX(0);
+  opacity: 1;
+}
+[dir='rtl'] .cat-tile__arrow {
+  transform: translateX(-6px);
+}
+[dir='rtl'] .cat-tile:hover .cat-tile__arrow,
+[dir='rtl'] .cat-tile:focus-visible .cat-tile__arrow {
+  transform: translateX(0);
+}
+.cat-tile--beauty {
+  --cat-tint-bg: var(--cat-beauty-bg);
+  --cat-tint-fg: var(--cat-beauty-fg);
+}
+.cat-tile--books {
+  --cat-tint-bg: var(--cat-books-bg);
+  --cat-tint-fg: var(--cat-books-fg);
+}
+.cat-tile--electronics {
+  --cat-tint-bg: var(--cat-electronics-bg);
+  --cat-tint-fg: var(--cat-electronics-fg);
+}
+.cat-tile--fashion {
+  --cat-tint-bg: var(--cat-fashion-bg);
+  --cat-tint-fg: var(--cat-fashion-fg);
+}
+.cat-tile--grocery {
+  --cat-tint-bg: var(--cat-grocery-bg);
+  --cat-tint-fg: var(--cat-grocery-fg);
+}
+.cat-tile--home {
+  --cat-tint-bg: var(--cat-home-bg);
+  --cat-tint-fg: var(--cat-home-fg);
+}
+.cat-tile--mobile {
+  --cat-tint-bg: var(--cat-mobile-bg);
+  --cat-tint-fg: var(--cat-mobile-fg);
+}
+.cat-tile--sports {
+  --cat-tint-bg: var(--cat-sports-bg);
+  --cat-tint-fg: var(--cat-sports-fg);
+}
+.cat-tile--skeleton {
+  pointer-events: none;
+}
+.cat-tile__icon.cat-tile__icon {
+  /* Skeleton disc: shimmer supplies motion; use the neutral sunken tint. */
+  background: var(--bg-sunken);
+}
+@media (max-width: 991px) {
+  .cat-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+@media (max-width: 767px) {
+  .cat-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--sp-3);
+  }
+}
+@media (max-width: 479px) {
+  .cat-tile {
+    flex-direction: column;
+    gap: var(--sp-2);
+    padding: var(--sp-3);
+    text-align: center;
+  }
+  .cat-tile__body {
+    align-items: center;
+  }
+  .cat-tile__arrow {
+    display: none;
+  }
+  .cat-tile__sub {
+    white-space: normal;
+  }
 }
 
 /* AI Store Builder signature moment (UIUX §22, §25) — AIRevealPanel's staggered field entrance.
@@ -499,15 +1023,16 @@ body {
   }
 }
 
-/* Shared content area (§8: max content width 1200px centered; §9 page margins 24 desktop/16
-   mobile) — every role layout renders its pages inside this, so all 36 screens (Phase D/E)
-   inherit consistent width/margins/bottom-safe-area for free rather than each page reinventing
-   its own container. */
+/* Shared content area (§8: max content width centered; §9 page margins 24 desktop/16 mobile) —
+   every role layout renders its pages inside this, so all 36 screens (Phase D/E) inherit
+   consistent width/margins/bottom-safe-area for free rather than each page reinventing its own
+   container. Max width tracks the shared `--container-max` token so the Buyer header/footer
+   `.container` and this column share identical edges (Phase 2). */
 .karobarai-content-area {
   flex: 1;
   min-width: 0;
   width: 100%;
-  max-width: 1200px;
+  max-width: var(--container-max);
   margin-inline: auto;
   padding: var(--sp-6);
 }
@@ -519,623 +1044,1171 @@ body {
   }
 }
 
-/* Auth screens (SCR-A01–A04) — split-panel layout for AuthLayout + AuthSlidePanel, shared by
- * Register/OTP/Login/Forgot/Reset. Everything here is scoped under .karobarai-auth-shell (or a
- * child of it) so it restyles Input/Button/Segmented ONLY inside the auth flow — a deliberate
- * pill-and-shadow visual system for this one flow, not a global control-radius change.
- *
- * Local token layer (--auth-*): light-mode values below just alias the app's existing tokens
- * (--bg-canvas/--bg-surface/--border), so light mode is unaffected. The `[data-theme='dark']`
- * block further down overrides them with a deliberate deep-green dark palette — the app's
- * *generic* dark theme (--bg-canvas: near-black #15130f) is intentionally NOT reused here, since
- * a generic near-black background is exactly the "black + neon green" look this system rejects.
- * Three tiers give real tonal depth: --auth-canvas (page, darkest) < --auth-surface (panel/card)
- * < --auth-elevated (inputs) — each a visible step lighter, all in the same green family.
- * The --auth-tint-* ramp is separate: illustration-only decoration, not page structure.
- */
-.karobarai-auth-shell {
-  display: flex;
-  min-height: 100vh;
-  background: var(--auth-canvas);
-  --auth-canvas: var(--bg-canvas);
-  --auth-surface: var(--bg-surface);
-  --auth-elevated: var(--bg-surface);
-  --auth-border: var(--border);
-  /* Light mode now uses the same deep forest green dark mode uses for its *background*
-   * (--auth-canvas/#0a2417 below, and its --auth-surface/--auth-elevated steps) — not the
-   * brighter #3fa877 accent green dark mode uses for buttons. Unconditional (not scoped to a
-   * theme) so light and dark end up on the identical deep shade. Every `var(--brand-primary*)`
-   * reference already written throughout the auth CSS below (links, buttons, the ghost button,
-   * focus rings, segmented selected state) — plus --auth-tint-700/900, themselves defined in
-   * terms of these — picks this up automatically via the cascade; no need to touch each usage
-   * individually. Hover lightens a step (toward --auth-elevated's tone), active darkens further. */
-  --brand-primary: #0a2417;
-  --brand-primary-hover: #16392a;
-  --brand-primary-active: #051810;
-  --auth-tint-100: var(--brand-primary-soft);
-  --auth-tint-300: #a9cdb9;
-  --auth-tint-500: #5f9a7c;
-  --auth-tint-700: var(--brand-primary);
-  --auth-tint-900: var(--brand-primary-active);
-}
-[data-theme='dark'] .karobarai-auth-shell {
-  /* The base rule above now sets --brand-primary etc. unconditionally (to the deep green light
-   * mode borrows from dark mode's *background*) — without restating dark mode's own accent here,
-   * that override would win in dark mode too, making every button/link the exact same color as
-   * dark mode's own page background: invisible. Restoring dark mode's real accent explicitly. */
-  --brand-primary: #3fa877;
-  --brand-primary-hover: #52c28d;
-  --brand-primary-active: #2f8f66;
-  --auth-canvas: #0a2417;
-  --auth-surface: #0f2e1e;
-  --auth-elevated: #16392a;
-  --auth-border: #2c4f3f;
-  --auth-tint-100: #1c4a34;
-  --auth-tint-300: #2d6b4c;
-  --auth-tint-500: #4b9370;
-  --auth-tint-700: #3fa877;
-  --auth-tint-900: #6fd1a0;
+/* `<main>` is focused programmatically by the skip link — don't paint a ring for that. */
+.karobarai-content-area:focus {
+  outline: none;
 }
 
-.karobarai-auth-panel {
-  /* Proportional, not a fixed px width — the standard pattern for this layout (Stripe, Linear,
-   * Vercel-style split auth screens): both halves scale together as the viewport grows, so
-   * there's never a "panel stays put while a fixed-width form drifts toward one edge with a
-   * widening dead gap" mismatch. Bounded so it neither gets cramped on a laptop nor absurd on
-   * an ultrawide monitor. */
-  width: 42%;
-  min-width: 400px;
-  max-width: 640px;
-  flex-shrink: 0;
-  position: relative;
-  overflow: hidden;
-  /* Same tone as the shell/form-side canvas — the two sides read as one page with two content
-   * areas, not two separately-colored halves. Separation comes from the seam shadow + content,
-   * not a background-color jump. */
-  background: var(--auth-canvas);
-  display: flex;
-  flex-direction: column;
-  padding: 56px 64px;
-  color: var(--text-primary);
-}
-/* ONE quiet texture — a low-opacity dot grid, faded top and bottom — replaces what was
- * previously a stack of a blurred gradient blob + this same grid + a fake browser-mockup
- * illustration + a sparkle accent. Four competing decorative systems read as generic; one
- * restrained one reads as considered (taste correction — see AuthSlidePanel.tsx header). */
-.karobarai-auth-panel-dots {
+/* ── Phase 3: Buyer storefront navbar ─────────────────────────────────────────── */
+
+/* "Skip to content" — first focusable element in AppShell; jumps keyboard users past the nav. */
+.skip-link {
   position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background-image: radial-gradient(var(--auth-tint-300) 1.4px, transparent 1.4px);
-  background-size: 28px 28px;
-  opacity: 0.28;
-  mask-image: linear-gradient(to bottom, transparent 0%, black 30%, black 75%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 30%, black 75%, transparent 100%);
+  inset-block-start: -60px;
+  inset-inline-start: var(--sp-4);
+  z-index: 2000;
+  padding: var(--sp-3) var(--sp-5);
+  border-radius: var(--radius-md);
+  background: var(--brand-primary);
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+  transition: inset-block-start var(--dur-fast) var(--ease-soft);
 }
-[data-theme='dark'] .karobarai-auth-panel-dots {
-  opacity: 0.4;
-}
-
-/* While the cursor is anywhere over the panel, freeze the slide rotation and pagination in
- * place; it resumes (not restarts — animation-play-state preserves elapsed time) the moment the
- * cursor leaves. The panel itself is the interaction boundary, per spec. No JS needed. */
-.karobarai-auth-panel:hover .karobarai-auth-slide,
-.karobarai-auth-panel:hover .karobarai-auth-dot,
-.karobarai-auth-panel:hover .karobarai-auth-mark {
-  animation-play-state: paused;
+.skip-link:focus {
+  inset-block-start: var(--sp-4);
 }
 
-.karobarai-auth-brand {
+.storefront-header {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: var(--z-sticky);
+}
+
+/* Announcement strip — emerald band above the nav, dismissible per session. */
+.announce {
+  background: var(--announce-bg);
+  color: var(--announce-fg);
+}
+.announce__inner {
   position: relative;
   display: flex;
   align-items: center;
+  justify-content: center;
+  min-height: 36px;
+}
+.announce__text {
+  margin: 0;
+  font-size: var(--fs-sm);
+  text-align: center;
+}
+.announce__close {
+  position: absolute;
+  inset-inline-end: var(--sp-6);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--announce-fg);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-soft);
+}
+.announce__close:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.storefront-nav {
+  background: var(--bg-surface);
+  border-block-end: 1px solid var(--border);
+  transition:
+    background var(--dur-base) var(--ease-soft),
+    box-shadow var(--dur-base) var(--ease-soft),
+    backdrop-filter var(--dur-base) var(--ease-soft);
+}
+.storefront-nav__row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  height: 80px;
+  transition: height var(--dur-base) var(--ease-soft);
+}
+.storefront-header.is-scrolled .storefront-nav__row {
+  height: 64px;
+}
+.storefront-header.is-scrolled .storefront-nav {
+  background: var(--header-blur-bg);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  box-shadow: var(--shadow-sm);
+}
+.storefront-nav__search {
+  flex: 1;
+  min-width: 0;
+  max-width: 560px;
+}
+.storefront-nav__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-inline-start: auto;
+}
+
+/* Brand lockup — inline SVG mark + wordmark with a gradient "AI". */
+.storefront-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-shrink: 0;
+  color: var(--text-primary);
+  text-decoration: none;
+}
+.storefront-logo__mark {
+  display: block;
+}
+.storefront-logo__word {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: var(--fs-2xl);
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+.storefront-logo__ai {
+  margin-inline-start: 1px;
+  background: linear-gradient(90deg, var(--brand-primary), var(--accent-marigold));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+/* Square icon affordance (menu / search / cart) — ≥44px touch target. */
+.icon-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--ease-soft),
+    color var(--dur-fast) var(--ease-soft);
+}
+.icon-btn:hover {
+  background: var(--bg-sunken);
+  color: var(--brand-primary);
+}
+.cart-btn__badge {
+  position: absolute;
+  inset-inline-end: 2px;
+  inset-block-start: 4px;
+  min-width: 18px;
+  height: 18px;
+  padding-inline: 5px;
+  border-radius: var(--radius-pill);
+  background: var(--error);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+  text-align: center;
+}
+@keyframes cart-pop {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.35);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.cart-btn.is-pop .cart-btn__badge {
+  animation: cart-pop 500ms var(--ease-soft);
+}
+
+/* Search pill: the affix-wrapper (which owns the border) becomes a 48px rounded field, so the
+   clear + camera + submit live inline at the trailing edge. */
+.storefront-search .ant-input-affix-wrapper {
+  height: 48px;
+  border-radius: var(--radius-pill);
+  padding-inline-start: var(--sp-5);
+  padding-inline-end: var(--sp-2);
+}
+.storefront-search .ant-input-affix-wrapper .ant-input {
+  background: transparent;
+}
+.storefront-search__suffix {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+.storefront-search__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--ease-soft),
+    color var(--dur-fast) var(--ease-soft);
+}
+.storefront-search__icon:hover:not(:disabled) {
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary);
+}
+.storefront-search__icon:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Mobile drawer navigation. */
+.storefront-drawer__nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+.storefront-drawer__link {
+  display: flex;
+  align-items: center;
   gap: var(--sp-3);
+  min-height: 48px;
+  padding-inline: var(--sp-3);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: var(--fs-lg);
+  text-decoration: none;
+  transition:
+    background var(--dur-fast) var(--ease-soft),
+    color var(--dur-fast) var(--ease-soft);
 }
-.karobarai-auth-brand svg {
-  filter: drop-shadow(0 2px 6px rgba(28, 24, 17, 0.18));
+.storefront-drawer__link:hover {
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary);
 }
-.karobarai-auth-brand-bg {
-  fill: var(--auth-tint-100);
+.storefront-drawer__section {
+  margin-block-start: var(--sp-5);
 }
-.karobarai-auth-brand-fg1 {
-  fill: var(--auth-tint-700);
+
+/* "Become a Seller" — saffron border (the accent) with ink text to stay ≥4.5:1 on cream. */
+.btn--outline-saffron {
+  background: transparent;
+  color: var(--text-primary);
+  border-color: var(--accent-marigold);
 }
-.karobarai-auth-brand-fg2 {
-  fill: var(--auth-tint-900);
+.btn--outline-saffron:hover {
+  background: var(--accent-marigold-soft);
+  border-color: var(--accent-marigold-strong);
 }
-.karobarai-auth-brand-dot {
-  fill: var(--accent-marigold);
+
+/* Role-agnostic responsive helpers: buyer chrome shows desktop actions ≥768px, mobile affordances
+   below it. */
+@media (min-width: 768px) {
+  .buyer-mobile {
+    display: none !important;
+  }
 }
-.karobarai-auth-brand-word {
+@media (max-width: 767px) {
+  .buyer-desktop {
+    display: none !important;
+  }
+}
+
+/* ── Phase 4: Home hero + trust strip ─────────────────────────────────────────── */
+
+.hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: calc(var(--radius-card) + 8px);
+  background: linear-gradient(135deg, var(--hero-from) 0%, var(--hero-to) 100%);
+  color: #fff;
+}
+
+/* Ajrak-inspired geometric tile, faintly overlaid; decorative and non-interactive. */
+.hero__ajrak {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.07;
+  pointer-events: none;
+}
+
+.hero__inner {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1.05fr 0.95fr;
+  gap: var(--sp-8);
+  align-items: center;
+  min-height: 520px;
+  padding: clamp(var(--sp-8), 5vw, var(--sp-16)) clamp(var(--sp-6), 4vw, var(--sp-16));
+}
+
+.hero__copy {
+  max-width: 560px;
+}
+
+.hero__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4);
+  border-radius: var(--radius-pill);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: var(--hero-to);
+  color: #fff;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+.hero__title {
+  margin: var(--sp-5) 0 0;
+  font-family: var(--font-heading);
+  font-size: var(--fs-hero);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: #fff;
+}
+
+.hero__sub {
+  margin: var(--sp-5) 0 0;
+  max-width: 46ch;
+  font-size: var(--fs-lg);
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.hero__ctas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  margin-block-start: var(--sp-8);
+}
+
+.hero__meta {
+  margin: var(--sp-5) 0 0;
+  font-size: var(--fs-sm);
+  color: rgba(255, 255, 255, 0.82);
+}
+
+/* Collage — three mildly rotated category tiles, decorative only. */
+.hero__collage {
+  position: relative;
+  height: 380px;
+}
+.hero-card {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  width: 168px;
+  padding: var(--sp-3);
+  border-radius: var(--radius-card);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-lg);
+}
+.hero-card__img {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 132px;
+  border-radius: var(--radius-image);
+}
+.hero-card__label {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.hero-card--fashion {
+  inset-block-start: 4px;
+  inset-inline-start: 6%;
+  transform: rotate(-4deg);
+  z-index: 2;
+}
+.hero-card--fashion .hero-card__img {
+  background: var(--cat-fashion-bg);
+  color: var(--cat-fashion-fg);
+}
+.hero-card--mobile {
+  inset-block-start: 56px;
+  inset-inline-end: 4%;
+  transform: rotate(3deg);
+  z-index: 3;
+}
+.hero-card--mobile .hero-card__img {
+  background: var(--cat-mobile-bg);
+  color: var(--cat-mobile-fg);
+}
+.hero-card--electronics {
+  inset-block-end: 4px;
+  inset-inline-start: 30%;
+  transform: rotate(-2deg);
+  z-index: 1;
+}
+.hero-card--electronics .hero-card__img {
+  background: var(--cat-electronics-bg);
+  color: var(--cat-electronics-fg);
+}
+.hero-float {
+  position: absolute;
+  inset-block-end: 24px;
+  inset-inline-end: 0;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4);
+  border-radius: var(--radius-pill);
+  background: var(--accent-marigold);
+  color: var(--text-primary);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  box-shadow: var(--shadow-md);
+}
+
+/* Trust strip — white card straddling the hero's bottom edge. */
+.trust {
+  position: relative;
+  z-index: 2;
+  margin-block: calc(var(--sp-6) * -1) var(--sp-8);
+  border-radius: var(--radius-card);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-lg);
+}
+.trust__list {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.trust__item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-5) var(--sp-5);
+}
+.trust__item + .trust__item {
+  border-inline-start: 1px solid var(--border);
+}
+.trust__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary);
+}
+.trust__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.trust__label {
+  font-size: var(--fs-base);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.trust__sub {
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+}
+
+/* Urdu headings in the hero/sections render in Nastaliq (the shared heading face has no Urdu). */
+html[lang='ur'] .hero__title {
+  font-family: var(--font-urdu);
+  line-height: 1.8;
+  letter-spacing: 0;
+}
+html[lang='ur'] .section-title {
+  font-family: var(--font-urdu);
+  line-height: 1.7;
+}
+
+@media (max-width: 991px) {
+  .hero__inner {
+    grid-template-columns: 1fr;
+    min-height: 0;
+    padding-block: clamp(var(--sp-8), 6vw, var(--sp-12));
+  }
+  .hero__copy {
+    max-width: none;
+  }
+  .hero__collage {
+    height: 300px;
+  }
+}
+
+@media (max-width: 767px) {
+  .trust__list {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .trust__item + .trust__item {
+    border-inline-start: 0;
+  }
+  .trust__item:nth-child(2n) {
+    border-inline-start: 1px solid var(--border);
+  }
+  .trust__item:nth-child(n + 3) {
+    border-block-start: 1px solid var(--border);
+  }
+}
+
+@media (max-width: 480px) {
+  .hero__collage {
+    display: none;
+  }
+  .hero__inner {
+    padding-block: var(--sp-10);
+  }
+  .hero__ctas {
+    flex-direction: column;
+  }
+  .hero__ctas .btn {
+    width: 100%;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PHASE 6 — product cards, featured rail, new arrivals
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Explicit column rhythm (4 / 3 / 2) instead of auto-fill minmax: at a wide content column the
+   minmax grid packed in too many 150px cards. Shared by new arrivals, featured fallback and the
+   B02 search grid — one source of truth for "how wide is a product card". */
+.product-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--sp-4);
+}
+@media (max-width: 1199px) {
+  .product-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+@media (max-width: 767px) {
+  .product-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.product-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.product-card__media {
+  position: relative;
+}
+.product-card__media img {
+  transition: transform var(--dur-base) var(--ease);
+}
+.product-card:hover .product-card__media img,
+.product-card:focus-within .product-card__media img {
+  transform: scale(1.05);
+}
+.product-card__badges {
+  position: absolute;
+  inset-block-start: var(--sp-2);
+  inset-inline-start: var(--sp-2);
+  z-index: 2;
+  display: inline-flex;
+  gap: var(--sp-1);
+}
+.product-card__stock {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-image);
+  background: rgba(26, 43, 37, 0.34);
+}
+.product-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  flex: 1;
+  padding-block-start: var(--sp-3);
+}
+.product-card__title {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin: 0;
+  font-size: var(--fs-base);
+  font-weight: 600;
+  line-height: 1.4;
+}
+.product-card__link {
+  color: var(--text-primary);
+  text-decoration: none;
+}
+/* Stretched link: the title anchor covers the whole card so the card is one big tap target, while
+   the quick-add button (a sibling, not a child) stays independently clickable above it. */
+.product-card__link::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: var(--radius-card);
+}
+.product-card__price {
+  margin-block-start: auto;
+}
+.product-card__quick-add {
+  display: none;
+  position: absolute;
+  inset-inline: var(--sp-2);
+  inset-block-end: var(--sp-2);
+  z-index: 3;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  border: 0;
+  border-radius: var(--radius-button);
+  background: var(--bg-surface);
+  color: var(--brand-primary);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(calc(100% + var(--sp-2)));
+  transition:
+    opacity var(--dur-base) var(--ease-soft),
+    transform var(--dur-base) var(--ease-soft);
+}
+.product-card__quick-add:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+/* Desktop pointers only — on touch this control is hidden and tapping the card opens the product. */
+@media (hover: hover) and (pointer: fine) {
+  .product-card__quick-add {
+    display: inline-flex;
+  }
+  .product-card:hover .product-card__quick-add,
+  .product-card:focus-within .product-card__quick-add {
+    opacity: 1;
+    transform: none;
+  }
+}
+/* Skeleton card mirrors the real card's footprint. */
+.product-card--skeleton {
+  padding: var(--sp-3);
+  gap: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--bg-surface);
+  overflow: hidden;
+}
+.product-card--skeleton > .karobarai-skeleton-shimmer {
+  border-radius: var(--radius-image);
+}
+.product-card--skeleton .product-card__body {
+  padding-block-start: 0;
+}
+
+/* Featured rail — native scroll-snap, arrows only for fine pointers. */
+.featured {
+  position: relative;
+}
+.featured__track {
+  display: flex;
+  gap: var(--sp-4);
+  margin: 0;
+  padding: 0 0 var(--sp-2);
+  list-style: none;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.featured__track::-webkit-scrollbar {
+  display: none;
+}
+.featured__item {
+  flex: 0 0 auto;
+  width: 240px;
+  scroll-snap-align: start;
+}
+.featured__arrow {
+  position: absolute;
+  inset-block-start: 96px;
+  z-index: 3;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+  transition: box-shadow var(--dur-fast) var(--ease-soft);
+}
+.featured__arrow:hover {
+  box-shadow: var(--shadow-lg);
+}
+.featured__arrow:disabled {
+  opacity: 0.4;
+  cursor: default;
+  box-shadow: var(--shadow-sm);
+}
+.featured__arrow--prev {
+  inset-inline-start: calc(var(--sp-3) * -1);
+}
+.featured__arrow--next {
+  inset-inline-end: calc(var(--sp-3) * -1);
+}
+[dir='rtl'] .featured__arrow svg {
+  transform: scaleX(-1);
+}
+@media (hover: hover) and (pointer: fine) {
+  .featured__arrow {
+    display: inline-flex;
+  }
+}
+@media (max-width: 767px) {
+  .featured__item {
+    width: 200px;
+  }
+}
+
+.new-arrivals__more {
+  display: flex;
+  justify-content: center;
+  margin-block-start: var(--sp-8);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PHASE 7 — marketing: how it works, sell-with-AI banner, payment strip
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* How it works — three numbered cards, one row, collapsing to a stack. */
+.how {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-6);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.how__step {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-6);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--bg-canvas);
+}
+.how__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary);
+}
+.how__index {
+  position: absolute;
+  inset-block-start: var(--sp-5);
+  inset-inline-end: var(--sp-6);
+  font-family: var(--font-heading);
+  font-size: var(--fs-3xl);
+  font-weight: 800;
+  line-height: 1;
+  color: var(--accent-marigold);
+  opacity: 0.55;
+}
+.how__title {
+  margin: 0;
+  font-size: var(--fs-lg);
+  color: var(--text-primary);
+}
+.how__body {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+/* Sell-with-AI banner — emerald→saffron; copy stays over the emerald stop. */
+.ai-banner {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: var(--sp-8);
+  align-items: center;
+  margin-block-start: var(--sp-8);
+  padding: clamp(var(--sp-8), 4vw, var(--sp-16));
+  border-radius: calc(var(--radius-card) + 8px);
+  background: linear-gradient(120deg, var(--hero-from) 0%, var(--hero-to) 55%, var(--accent-marigold-strong) 140%);
+  color: #fff;
+  overflow: hidden;
+}
+.ai-banner__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4);
+  border-radius: var(--radius-pill);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+.ai-banner__title {
+  margin: var(--sp-5) 0 0;
+  font-family: var(--font-heading);
+  font-size: var(--fs-section);
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  color: #fff;
+}
+.ai-banner__sub {
+  margin: var(--sp-4) 0 0;
+  max-width: 46ch;
+  font-size: var(--fs-lg);
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.9);
+}
+.ai-banner__ctas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  margin-block-start: var(--sp-8);
+}
+
+/* Decorative mock listing card. */
+.ai-banner__art {
+  position: relative;
+  height: 260px;
+}
+.ai-card {
+  position: absolute;
+  inset-block-start: 12px;
+  inset-inline-start: 10%;
+  width: 220px;
+  padding: var(--sp-3);
+  border-radius: var(--radius-card);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-lg);
+}
+.ai-card__img {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 148px;
+  border-radius: var(--radius-image);
+  background: var(--cat-fashion-bg);
+  color: var(--cat-fashion-fg);
+}
+.ai-card__lines {
+  display: grid;
+  gap: var(--sp-2);
+  margin-block-start: var(--sp-3);
+}
+.ai-card__line {
+  height: 10px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-sunken);
+}
+.ai-card__line--short {
+  width: 60%;
+}
+.ai-banner__chip {
+  position: absolute;
+  inset-block-end: 18px;
+  inset-inline-end: 4%;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4);
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface);
+  color: var(--brand-primary);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  box-shadow: var(--shadow-lg);
+}
+
+/* Payment options strip. */
+.payments__inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-4);
+  text-align: center;
+}
+.payments__title {
+  margin: 0;
+  font-family: var(--font-heading);
   font-size: var(--fs-xl);
   font-weight: 700;
   color: var(--text-primary);
 }
-
-.karobarai-auth-stage {
-  position: relative;
-  flex: 1;
-  margin-top: var(--sp-2);
-}
-.karobarai-auth-slide {
-  position: absolute;
-  inset: 0;
+.payments__list {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  flex-wrap: wrap;
   justify-content: center;
-  opacity: 0;
-  animation: karobarai-auth-fade-slide 12s infinite;
-}
-.karobarai-auth-slide.s1 {
-  animation-delay: 0s;
-}
-.karobarai-auth-slide.s2 {
-  animation-delay: 4s;
-}
-.karobarai-auth-slide.s3 {
-  animation-delay: 8s;
-}
-@keyframes karobarai-auth-fade-slide {
-  0% {
-    opacity: 0;
-    transform: translateY(14px);
-  }
-  4% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  29% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  34% {
-    opacity: 0;
-    transform: translateY(-14px);
-  }
-  100% {
-    opacity: 0;
-    transform: translateY(-14px);
-  }
-}
-/* One small, abstract line mark per slide (drawn in AuthSlidePanel.tsx) — stroke-based, same
- * icon language as the rest of the app, never a fake dashboard/browser/card composition. */
-.karobarai-auth-mark {
-  width: 44px;
-  height: 44px;
-  margin-bottom: 28px;
-  color: var(--auth-tint-700);
-  /* The idle motion from the old illustration set (sparkle pulse, ping ring, bar grow, badge
-   * float) is back, per request — just retargeted at what's actually on the panel now, one
-   * quiet breathing pulse on the mark itself, instead of reintroducing the busy illustration
-   * content those animations used to belong to. */
-  animation: karobarai-auth-mark-float 2.6s ease-in-out infinite;
-}
-@keyframes karobarai-auth-mark-float {
-  0%,
-  100% {
-    transform: translateY(0) scale(1);
-  }
-  50% {
-    transform: translateY(-8px) scale(1.1);
-  }
-}
-.karobarai-auth-slide-headline {
-  /* Deliberately larger than the type scale's --fs-4xl (36px) — this is the panel's one
-   * confident editorial statement, not a caption next to a graphic. */
-  font-size: 46px;
-  font-weight: 700;
-  letter-spacing: -0.5px;
-  line-height: 1.08;
-  margin: 0 0 14px;
-  max-width: 420px;
-  color: var(--text-primary);
-}
-.karobarai-auth-slide-sub {
-  font-size: 16px;
-  line-height: 1.5;
-  color: var(--text-secondary);
+  gap: var(--sp-3);
   margin: 0;
-  max-width: 360px;
+  padding: 0;
+  list-style: none;
 }
-
-.karobarai-auth-dots {
-  display: flex;
+.payments__item {
+  display: inline-flex;
   align-items: center;
   gap: var(--sp-2);
-  margin-top: var(--sp-6);
-}
-.karobarai-auth-dot {
-  height: 4px;
+  padding: var(--sp-2) var(--sp-4);
+  border: 1px solid var(--border);
   border-radius: var(--radius-pill);
-  background: var(--auth-tint-300);
-  width: 22px;
-  animation: karobarai-auth-dot-pulse 12s infinite;
-}
-.karobarai-auth-dot.d1 {
-  animation-delay: 0s;
-}
-.karobarai-auth-dot.d2 {
-  animation-delay: 4s;
-}
-.karobarai-auth-dot.d3 {
-  animation-delay: 8s;
-}
-@keyframes karobarai-auth-dot-pulse {
-  0% {
-    width: 22px;
-    background: var(--auth-tint-300);
-  }
-  4% {
-    width: 34px;
-    background: var(--auth-tint-900);
-  }
-  29% {
-    width: 34px;
-    background: var(--auth-tint-900);
-  }
-  34% {
-    width: 22px;
-    background: var(--auth-tint-300);
-  }
-  100% {
-    width: 22px;
-    background: var(--auth-tint-300);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .karobarai-auth-slide,
-  .karobarai-auth-dot,
-  .karobarai-auth-mark {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-  }
-}
-
-/* Mobile keeps the illustration panel — it must never be removed — but as a compact banner
- * above the form rather than a full-height column: fixed width becomes full-width, height
- * shrinks to a fixed compact band, and everything inside scales down to fit it. Visual order
- * (header row -> panel -> form) is set purely via flex `order` below; DOM order is unchanged so
- * desktop's layout (where header-row is hidden anyway) needs no changes. */
-@media (max-width: 767px) {
-  .karobarai-auth-panel {
-    order: 2;
-    width: 100%;
-    min-width: 0;
-    max-width: none;
-    height: 190px;
-    flex-shrink: 0;
-    padding: var(--sp-4) var(--sp-5);
-  }
-  /* The header row already shows the KarobarAI wordmark — avoid showing it a second time
-   * inside the compact panel banner. */
-  .karobarai-auth-panel .karobarai-auth-brand {
-    display: none;
-  }
-  .karobarai-auth-mark {
-    width: 30px;
-    height: 30px;
-    margin-bottom: var(--sp-2);
-  }
-  .karobarai-auth-slide-headline {
-    font-size: 22px;
-    letter-spacing: -0.2px;
-    margin: 0 0 2px;
-    max-width: 260px;
-  }
-  .karobarai-auth-slide-sub {
-    font-size: var(--fs-xs);
-    max-width: 240px;
-  }
-  .karobarai-auth-dots {
-    margin-top: var(--sp-2);
-  }
-  .karobarai-auth-dot {
-    width: 16px;
-    animation-name: karobarai-auth-dot-pulse-mobile;
-  }
-  @keyframes karobarai-auth-dot-pulse-mobile {
-    0%,
-    100% {
-      width: 16px;
-      background: var(--auth-tint-300);
-    }
-    4%,
-    29% {
-      width: 24px;
-      background: var(--auth-tint-900);
-    }
-    34% {
-      width: 16px;
-      background: var(--auth-tint-300);
-    }
-  }
-}
-/* Short phones (SE-class, ~568-640px tall) — claw back space for the form on the densest screen
- * (Register) by compacting the panel further still. Graphics stay, just smaller — never removed. */
-@media (max-width: 767px) and (max-height: 650px) {
-  .karobarai-auth-panel {
-    height: 128px;
-    padding: var(--sp-3) var(--sp-4);
-  }
-  .karobarai-auth-mark {
-    width: 24px;
-    height: 24px;
-    margin-bottom: 2px;
-  }
-  .karobarai-auth-slide-sub {
-    display: none;
-  }
-  .karobarai-auth-dots {
-    margin-top: var(--sp-1);
-  }
-}
-
-/* Form side: header row (back link + language switch), the bigger heading, and the pill
- * control system (Input/Button/Segmented restyled, scoped to this subtree only). */
-.karobarai-auth-form-side {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  padding: var(--sp-8) var(--sp-12) var(--sp-12);
-  overflow-y: auto;
-}
-.karobarai-auth-topbar {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: var(--sp-5);
-}
-/* "Back to Home" — icon-only circular button, used on both desktop (topbar) and mobile
- * (header row). A prominent 44px circle rather than an inline "<- Back to Home" text link. */
-.karobarai-auth-shell .karobarai-auth-back-btn {
-  width: 44px;
-  height: 44px;
-  border-radius: var(--radius-pill);
-  background: var(--auth-elevated);
-  box-shadow: var(--shadow-sm);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  background: var(--bg-surface);
   color: var(--text-primary);
-  flex-shrink: 0;
-  transition:
-    background-color var(--dur-fast) var(--ease),
-    color var(--dur-fast) var(--ease),
-    box-shadow var(--dur-fast) var(--ease);
-}
-.karobarai-auth-shell .karobarai-auth-back-btn:hover {
-  background: var(--brand-primary-soft);
-  color: var(--brand-primary-hover);
-  box-shadow: var(--shadow-md);
-}
-.karobarai-auth-form-wrap {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-}
-.karobarai-auth-card {
-  width: 100%;
-  max-width: 400px;
-  animation: karobarai-auth-card-rise var(--dur-slow) var(--ease) both;
-}
-@keyframes karobarai-auth-card-rise {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .karobarai-auth-card {
-    animation-duration: 0.01ms !important;
-  }
-}
-.karobarai-auth-title.ant-typography {
-  font-size: 38px;
-  font-weight: 700;
-  letter-spacing: -0.3px;
-  line-height: 1.1;
-}
-.karobarai-auth-eyebrow-icon {
-  display: none;
-}
-
-/* Mobile: fixed-viewport header row (logo start, back + language grouped end) replacing the
- * desktop topbar. Visual order is Header -> Graphics (.karobarai-auth-panel, restyled compact
- * further up) -> Form, set via `order` below — DOM order is untouched. The eyebrow-icon badge
- * (a stand-in for when the panel used to be hidden on mobile) is retired now that the real
- * panel is back; a second icon above the heading would just duplicate the graphics above it. */
-.karobarai-auth-header-row {
-  display: none;
-}
-@media (max-width: 767px) {
-  .karobarai-auth-shell {
-    flex-direction: column;
-    height: 100dvh;
-    min-height: 0;
-    overflow: hidden;
-    padding-inline: 0;
-  }
-  .karobarai-auth-header-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-shrink: 0;
-    order: 1;
-    padding: var(--sp-4) var(--sp-5) 0;
-  }
-  .karobarai-auth-header-row .karobarai-auth-brand svg {
-    width: 24px;
-    height: 24px;
-  }
-  .karobarai-auth-header-row .karobarai-auth-brand-word {
-    font-size: var(--fs-sm);
-  }
-  .karobarai-auth-header-actions {
-    display: flex;
-    align-items: center;
-    gap: var(--sp-2);
-  }
-  /* The EN/UR Segmented must read as part of the same control group as the 44px back button
-   * (already sized to the accessibility floor) — match its height rather than shrinking the
-   * button down to the Segmented's small size. */
-  .karobarai-auth-header-actions .ant-segmented {
-    min-height: 44px;
-    display: flex;
-    align-items: center;
-    box-shadow: var(--shadow-sm);
-  }
-  .karobarai-auth-header-actions .ant-segmented-item-label {
-    min-height: 32px;
-    display: flex;
-    align-items: center;
-    padding-inline: var(--sp-3);
-  }
-  .karobarai-auth-topbar {
-    display: none;
-  }
-  .karobarai-auth-form-side {
-    flex: 1;
-    min-height: 0;
-    order: 3;
-    padding: var(--sp-4) var(--sp-5) var(--sp-6);
-  }
-  .karobarai-auth-eyebrow-icon {
-    display: none !important;
-  }
-  .karobarai-auth-title.ant-typography {
-    font-size: 26px;
-  }
-}
-
-/* Auth-shell links (plain react-router <Link>s — "Forgot password?", footer "Register"/"Log in",
- * etc.) never got an explicit color, so they fell back to the browser's default link blue/purple
- * — the exact "random decorative color" this system forbids. One rule fixes every instance.
- * .karobarai-auth-back-btn is deliberately more specific (two classes) so it keeps winning this
- * cascade — it's an icon-only button, not a text link, and needs --text-primary instead. */
-.karobarai-auth-shell a {
-  color: var(--brand-primary);
-}
-.karobarai-auth-shell a:hover {
-  color: var(--brand-primary-hover);
-}
-
-/* Pill control system — Input/Button/Segmented/OTP restyled only inside .karobarai-auth-shell.
- * Background/border pulled from the --auth-elevated/--auth-border tier (not AntD's own
- * colorBgContainer/colorBorder) so inputs stay in the same green-tonal family as the rest of the
- * auth shell in dark mode, instead of AntD's generic near-black-brown container color. */
-.karobarai-auth-shell .ant-input,
-.karobarai-auth-shell .ant-input-affix-wrapper {
-  border-radius: var(--radius-pill);
-  padding-inline: var(--sp-5);
-  background: var(--auth-elevated);
-  border-color: var(--auth-border);
-}
-.karobarai-auth-shell .ant-input-affix-wrapper .ant-input {
-  background: transparent;
-}
-.karobarai-auth-shell .ant-input-affix-wrapper .ant-input {
-  padding-inline: 0;
-}
-.karobarai-auth-shell .ant-btn {
-  border-radius: var(--radius-pill);
-  transition:
-    transform var(--dur-fast) var(--ease),
-    box-shadow var(--dur-fast) var(--ease),
-    background-color var(--dur-fast) var(--ease),
-    border-color var(--dur-fast) var(--ease),
-    color var(--dur-fast) var(--ease);
-}
-.karobarai-auth-shell .ant-btn-primary {
-  /* AntD bakes colorPrimary into a literal hex at build time — it never reads a CSS variable —
-   * so the shared brighter green above needs restating here explicitly, or the button alone
-   * would silently stay on the old darker AntD-default green while everything else moved. */
-  background: var(--brand-primary);
-  box-shadow: var(--shadow-md);
-}
-.karobarai-auth-shell .ant-btn-primary:not(:disabled):hover {
-  background: var(--brand-primary-hover);
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-lg);
-}
-.karobarai-auth-shell .ant-btn-primary:not(:disabled):active {
-  background: var(--brand-primary-active);
-  transform: translateY(0) scale(0.97);
-  box-shadow: var(--shadow-sm);
-}
-/* Buyer/Seller, Mobile/Email, EN/UR — all the same AntD Segmented, so one fix covers all three.
- * AntD's default selected-state visual is a separate `.ant-segmented-thumb` element that slides
- * (translateX) behind the selected item on every change. That sliding motion is removed per
- * spec — the selected item gets its own solid brand-green fill directly instead, with only
- * `background-color`/`color` transitioning.
- *
- * IMPORTANT: the thumb must stay in normal rendering (not `display:none`) — AntD's Segmented
- * only commits the `.ant-segmented-item-selected` class once the thumb's own CSS transition
- * fires its `transitionend` callback. `display:none` removes it from layout entirely, that
- * callback never fires, and the selected item's color permanently fails to apply — exactly the
- * "toggle goes colorless after clicking" bug this caused the first time. Instead the thumb keeps
- * animating (invisibly) and is just stripped of every visual property, so nothing is seen
- * sliding while the completion signal AntD depends on still fires normally. */
-.karobarai-auth-shell .ant-segmented {
-  border-radius: var(--radius-pill);
-  background: var(--auth-elevated);
-}
-.karobarai-auth-shell .ant-segmented .ant-segmented-item {
-  border-radius: var(--radius-pill);
-  transition:
-    background-color 200ms var(--ease),
-    color 200ms var(--ease);
-}
-.karobarai-auth-shell .ant-segmented-thumb {
-  background: transparent !important;
-  box-shadow: none !important;
-  border: none !important;
-}
-.karobarai-auth-shell .ant-segmented-item-selected {
-  background: var(--brand-primary);
-}
-.karobarai-auth-shell .ant-segmented-item-selected .ant-segmented-item-label {
-  color: #ffffff;
-}
-.karobarai-auth-shell .ant-segmented-item:not(.ant-segmented-item-selected):hover {
-  background: var(--auth-surface);
-}
-.karobarai-auth-shell .ant-otp .ant-input {
-  border-radius: var(--radius-lg);
-  background: var(--auth-elevated);
-  border-color: var(--auth-border);
-  transition:
-    border-color var(--dur-fast) var(--ease),
-    box-shadow var(--dur-fast) var(--ease),
-    transform var(--dur-fast) var(--ease);
-}
-.karobarai-auth-shell .ant-otp .ant-input:not(:placeholder-shown) {
-  border-color: var(--brand-primary);
-  transform: translateY(-1px);
-}
-
-/* Ghost/outline button (Forgot Password's "Back to log in") — an outlined pill instead of a
- * plain text link, per an explicit design request. */
-.karobarai-auth-btn-ghost.ant-btn {
-  background: transparent;
-  border: 1.5px solid var(--brand-primary);
-  color: var(--brand-primary-hover);
+  font-size: var(--fs-sm);
   font-weight: 600;
 }
-.karobarai-auth-btn-ghost.ant-btn:not(:disabled):hover {
-  background: var(--brand-primary-soft);
-  border-color: var(--brand-primary-hover);
-  color: var(--brand-primary-hover);
+.payments__item svg {
+  color: var(--brand-primary);
 }
-.karobarai-auth-btn-ghost.ant-btn:not(:disabled):active {
-  background: var(--brand-primary-soft);
-  border-color: var(--brand-primary-active);
-  color: var(--brand-primary-active);
+.payments__note {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
 }
+
+/* Urdu headings in the marketing blocks (native face has no Nastaliq). */
+html[lang='ur'] .how__title,
+html[lang='ur'] .ai-banner__title,
+html[lang='ur'] .payments__title {
+  font-family: var(--font-urdu);
+  line-height: 1.9;
+}
+
+@media (max-width: 991px) {
+  .how {
+    grid-template-columns: 1fr;
+  }
+  .ai-banner {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 480px) {
+  .ai-banner__art {
+    display: none;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PHASE 8 — storefront footer + floating WhatsApp
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.site-footer {
+  background: var(--bg-surface);
+  border-block-start: 1px solid var(--border);
+}
+.site-footer__inner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-8) var(--sp-16);
+  justify-content: space-between;
+  padding-block: var(--sp-12);
+}
+.site-footer__brand {
+  max-width: 320px;
+}
+.site-footer__tagline {
+  margin: var(--sp-4) 0 0;
+  font-size: var(--fs-sm);
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+.site-footer__cols {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-8) var(--sp-12);
+}
+.site-footer__col {
+  min-width: 120px;
+}
+.site-footer__col-title {
+  margin: 0 0 var(--sp-3);
+  font-family: var(--font-heading);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.site-footer__list {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.site-footer__list a {
+  font-size: var(--fs-sm);
+  color: var(--text-primary);
+  text-decoration: none;
+}
+.site-footer__list a:hover {
+  color: var(--brand-primary);
+  text-decoration: underline;
+}
+.site-footer__bar {
+  background: var(--bg-canvas);
+  border-block-start: 1px solid var(--border);
+}
+.site-footer__bar-inner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1) var(--sp-6);
+  justify-content: space-between;
+  padding-block: var(--sp-4);
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+}
+
+/* Floating WhatsApp action — uses the brand success-green token, not a raw third-party hex. */
+.whatsapp-fab {
+  position: fixed;
+  inset-inline-end: var(--sp-6);
+  bottom: calc(var(--sp-6) + env(safe-area-inset-bottom, 0px));
+  z-index: var(--z-sticky);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  height: 48px;
+  padding-inline: var(--sp-5);
+  border-radius: var(--radius-pill);
+  background: var(--success);
+  color: #fff;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: var(--shadow-lg);
+  transition:
+    transform var(--dur-fast) var(--ease-soft),
+    box-shadow var(--dur-fast) var(--ease-soft);
+}
+.whatsapp-fab:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 36px rgba(26, 43, 37, 0.18);
+}
+
+/* Urdu text inside the footer/fab. */
+html[lang='ur'] .site-footer__col-title,
+html[lang='ur'] .whatsapp-fab {
+  font-family: var(--font-urdu);
+}
+
+@media (max-width: 767px) {
+  /* Leave room above the fixed bottom tab bar so the footer's last row is reachable. */
+  .site-footer {
+    padding-block-end: calc(60px + env(safe-area-inset-bottom, 0px));
+  }
+  .site-footer__inner {
+    gap: var(--sp-8);
+    padding-block: var(--sp-10);
+  }
+  .whatsapp-fab {
+    inset-inline-end: var(--sp-4);
+    bottom: calc(64px + var(--sp-4) + env(safe-area-inset-bottom, 0px));
+    width: 48px;
+    padding-inline: 0;
+    justify-content: center;
+  }
+  .whatsapp-fab__label {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .whatsapp-fab {
+    transition: none;
+  }
+  .whatsapp-fab:hover {
+    transform: none;
+  }
+}
+
+/* ============================================================================
+   Phase 1 (Batch-1 Buyer Purchase Journey) — shared-component chrome.
+   - Breadcrumb RTL flip, sticky action bar, bottom-sheet polish, dev gallery.
+   ============================================================================ */
+
+/* Breadcrumb chevrons point toward the next crumb; in RTL they must mirror. */
+[dir='rtl'] .breadcrumb-sep {
+  transform: scaleX(-1);
+}
+
+/* Sticky summary/action bar pinned to the viewport bottom (cart, product, checkout). */
+.sticky-action-bar {
+  position: sticky;
+  z-index: var(--z-sticky);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--bg-surface);
+  border-block-start: 1px solid var(--border);
+  box-shadow: var(--shadow-lg);
+}
+
+/* AntD Drawer used as a mobile sheet — rounded top, safe-area aware. */
+.karobarai-sheet .ant-drawer-content {
+  border-start-start-radius: var(--radius-xl);
+  border-start-end-radius: var(--radius-xl);
+}
+.karobarai-sheet .ant-drawer-header {
+  border-block-end: 1px solid var(--border);
+  padding: var(--sp-4);
+}
+.karobarai-sheet .ant-drawer-title {
+  font-family: var(--font-heading);
+  font-weight: 700;
+}
+.karobarai-sheet .ant-drawer-footer {
+  padding: var(--sp-3) var(--sp-4) calc(var(--sp-3) + env(safe-area-inset-bottom, 0px));
+  border-block-start: 1px solid var(--border);
+}
+
+/* Dev-only component gallery (/dev/ui). */
+.dev-gallery {
+  max-width: var(--container-max);
+  margin-inline: auto;
+  padding: var(--sp-8) var(--sp-4) var(--sp-16);
+}
+.dev-gallery__group {
+  margin-block-end: var(--sp-12);
+}
+.dev-gallery__grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-4);
+}
+
+

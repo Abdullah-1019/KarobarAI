@@ -1,14 +1,12 @@
 import { useState } from 'react';
-import { Alert, Button, Input, Typography } from 'antd';
-import { LockKeyhole } from 'lucide-react';
+import { AlertCircle, Check, CheckCircle2, LockKeyhole, X } from 'lucide-react';
 import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { resetPasswordSchema } from '@karobarai/shared';
-import { PasswordStrengthMeter } from '../../components';
 import { ApiError } from '../../api';
-import { AuthLayout } from './AuthLayout';
+import { AuthLayout, AuthResult, FormAlert, PasswordField, PrimaryButton } from '../../components';
 import { resetPassword } from './authApi';
 import { formatAuthError } from './authErrors';
 
@@ -17,11 +15,9 @@ interface FormValues {
   confirmPassword: string;
 }
 
-// SCR-A04 (second half), route `/reset-password?token=`. On success, a reset revokes every
-// session for the account, not just this browser (HO-F1-Auth.md) — the success state must say so
-// explicitly, otherwise a user with another tab/device open sees a surprise logout.
 export function ResetPasswordPage() {
   const { t } = useTranslation(['auth', 'common']);
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token') ?? '';
 
@@ -39,6 +35,9 @@ export function ResetPasswordPage() {
   } = useForm<FormValues>({ defaultValues: { newPassword: '', confirmPassword: '' } });
 
   const newPassword = watch('newPassword');
+  const confirmPassword = watch('confirmPassword');
+  const showMatch = newPassword.length > 0 && confirmPassword.length > 0;
+  const matched = newPassword === confirmPassword;
 
   const onSubmit = handleSubmit(async (values) => {
     setSubmitError(null);
@@ -72,89 +71,93 @@ export function ResetPasswordPage() {
 
   if (done) {
     return (
-      <AuthLayout title={t('auth:resetPassword.successTitle')} icon={LockKeyhole}>
-        <Alert
-          type="success"
-          showIcon
+      <AuthLayout>
+        <AuthResult
+          variant="success"
+          icon={CheckCircle2}
+          title={t('auth:resetPassword.successTitle')}
           description={t('auth:resetPassword.successSignedOutEverywhere')}
-          style={{ marginBottom: 'var(--sp-4)' }}
-        />
-        <Link to="/login">{t('auth:login.title')}</Link>
+        >
+          <PrimaryButton onClick={() => navigate('/login')}>{t('auth:resetPassword.backToLogin')}</PrimaryButton>
+        </AuthResult>
       </AuthLayout>
     );
   }
 
-  if (tokenInvalid) {
+  if (tokenInvalid || !token) {
+    const isMissing = !token;
     return (
-      <AuthLayout title={t('auth:resetPassword.title')} icon={LockKeyhole}>
-        <Alert type="error" showIcon message={t('auth:resetPassword.tokenInvalid')} style={{ marginBottom: 'var(--sp-4)' }} />
-        <Link to="/forgot-password">{t('auth:resetPassword.requestNewLink')}</Link>
-      </AuthLayout>
-    );
-  }
-
-  if (!token) {
-    return (
-      <AuthLayout title={t('auth:resetPassword.title')} icon={LockKeyhole}>
-        <Alert type="warning" showIcon message={t('auth:resetPassword.missingToken')} style={{ marginBottom: 'var(--sp-4)' }} />
-        <Link to="/forgot-password">{t('auth:resetPassword.requestNewLink')}</Link>
+      <AuthLayout>
+        <AuthResult
+          variant="error"
+          icon={AlertCircle}
+          title={t('auth:resetPassword.title')}
+          description={isMissing ? t('auth:resetPassword.missingToken') : t('auth:resetPassword.tokenInvalid')}
+        >
+          <PrimaryButton onClick={() => navigate('/forgot-password')}>
+            {t('auth:resetPassword.requestNewLink')}
+          </PrimaryButton>
+        </AuthResult>
       </AuthLayout>
     );
   }
 
   return (
-    <AuthLayout title={t('auth:resetPassword.title')} icon={LockKeyhole}>
-      {submitError && <Alert type="error" message={submitError} showIcon style={{ marginBottom: 'var(--sp-4)' }} />}
+    <AuthLayout
+      title={t('auth:resetPassword.title')}
+      subtitle={t('auth:resetPassword.subtitle')}
+      icon={LockKeyhole}
+    >
+      {submitError && <FormAlert variant="error">{submitError}</FormAlert>}
 
-      <form onSubmit={onSubmit}>
-        <div style={{ marginBottom: 'var(--sp-4)' }}>
-          <label htmlFor="reset-new-password">{t('auth:resetPassword.newPasswordLabel')}</label>
-          <Controller
-            name="newPassword"
-            control={control}
-            render={({ field }) => (
-              <Input.Password
-                {...field}
-                id="reset-new-password"
-                size="large"
-                aria-invalid={!!errors.newPassword}
-                aria-describedby={errors.newPassword ? 'reset-new-password-error' : undefined}
-              />
-            )}
-          />
-          <PasswordStrengthMeter password={newPassword ?? ''} />
-          {errors.newPassword && (
-            <Typography.Text id="reset-new-password-error" type="danger">
-              {errors.newPassword.message}
-            </Typography.Text>
+      <form onSubmit={onSubmit} noValidate>
+        <Controller
+          name="newPassword"
+          control={control}
+          render={({ field }) => (
+            <PasswordField
+              id="reset-new-password"
+              name="newPassword"
+              label={t('auth:resetPassword.newPasswordLabel')}
+              value={field.value}
+              onChange={field.onChange}
+              onBlur={field.onBlur}
+              error={errors.newPassword?.message}
+              autoComplete="new-password"
+              showStrength
+              showChecklist
+              autoFocus
+            />
           )}
-        </div>
+        />
 
-        <div style={{ marginBottom: 'var(--sp-4)' }}>
-          <label htmlFor="reset-confirm-password">{t('auth:resetPassword.confirmPasswordLabel')}</label>
-          <Controller
-            name="confirmPassword"
-            control={control}
-            render={({ field }) => (
-              <Input.Password
-                {...field}
-                id="reset-confirm-password"
-                size="large"
-                aria-invalid={!!errors.confirmPassword}
-                aria-describedby={errors.confirmPassword ? 'reset-confirm-password-error' : undefined}
-              />
-            )}
-          />
-          {errors.confirmPassword && (
-            <Typography.Text id="reset-confirm-password-error" type="danger">
-              {errors.confirmPassword.message}
-            </Typography.Text>
+        <Controller
+          name="confirmPassword"
+          control={control}
+          render={({ field }) => (
+            <PasswordField
+              id="reset-confirm-password"
+              name="confirmPassword"
+              label={t('auth:resetPassword.confirmPasswordLabel')}
+              value={field.value}
+              onChange={field.onChange}
+              onBlur={field.onBlur}
+              error={errors.confirmPassword?.message}
+              autoComplete="new-password"
+            />
           )}
-        </div>
+        />
 
-        <Button type="primary" htmlType="submit" size="large" block loading={submitting}>
+        {showMatch && !errors.confirmPassword && (
+          <p className={matched ? 'kaMatch kaMatch--ok' : 'kaMatch kaMatch--bad'}>
+            {matched ? <Check size={14} aria-hidden="true" /> : <X size={14} aria-hidden="true" />}
+            {matched ? t('auth:resetPassword.passwordsMatch') : t('auth:resetPassword.passwordsMismatch')}
+          </p>
+        )}
+
+        <PrimaryButton type="submit" loading={submitting}>
           {t('auth:resetPassword.submit')}
-        </Button>
+        </PrimaryButton>
       </form>
     </AuthLayout>
   );

@@ -6,14 +6,19 @@
     <title>KarobarAI</title>
     <link rel="icon" type="image/svg+xml" href="/pwa-icon.svg" />
 
-    <!-- UIUX §6: IBM Plex Sans / Plex Sans Arabic for UI+body (both scripts), preloaded;
-         Noto Nastaliq Urdu is heading-only and loaded lazily (not preloaded). -->
+    <!-- Brand typography: Plus Jakarta Sans (headings) + Inter (body) are the two critical faces and
+         are preloaded; IBM Plex Sans/Arabic is kept as a non-preloaded stylesheet for the existing
+         auth/legacy surfaces; Noto Nastaliq Urdu (Urdu) loads lazily (non-critical). -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       rel="preload"
       as="style"
-      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@700;800&display=swap"
+    />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@700;800&display=swap"
     />
     <link
       rel="stylesheet"

@@ -11,7 +11,7 @@ import { formatReturnsError } from './returnsErrors';
 import { ReturnStatusTag } from './ReturnStatusTag';
 
 // SCR-S07 — same useInfiniteQuery + "Load more" pattern as features/orders/OrderListPage.tsx.
-// Active queue (MANUAL_REVIEW) by default; ?history=true widens to every status on the backend.
+// Active queue includes manual review and AI acceptances awaiting seller review.
 export function SellerReturnsPage() {
   const { t } = useTranslation(['returns']);
   const [history, setHistory] = useState(false);
@@ -30,7 +30,7 @@ export function SellerReturnsPage() {
       title: t('sellerList.columnOrder'),
       dataIndex: 'id',
       key: 'id',
-      render: (id: string, record: ReturnListItemDTO) => <Link to={`/seller/returns/${id}`}>{record.orderId}</Link>,
+      render: (id: string, record: ReturnListItemDTO) => <Link to={`/seller/returns/${id}`}>{record.orderNumber ? `Order #${record.orderNumber}` : record.orderId}</Link>,
     },
     { title: t('sellerList.columnReason'), dataIndex: 'reason', key: 'reason' },
     {
@@ -43,6 +43,14 @@ export function SellerReturnsPage() {
       dataIndex: 'status',
       key: 'status',
       render: (status: ReturnListItemDTO['status']) => <ReturnStatusTag status={status} />,
+    },
+    {
+      title: t('sellerList.columnAction'), key: 'action',
+      render: (_: unknown, record: ReturnListItemDTO) => <Link to={`/seller/returns/${record.id}`}>
+        <Button type={record.status === 'UNDER_DISPUTE' ? 'primary' : 'default'} size="small">
+          {record.status === 'UNDER_DISPUTE' ? t('sellerList.reviewAppeal') : t('sellerList.viewReturn')}
+        </Button>
+      </Link>,
     },
     {
       title: t('sellerList.columnCreatedAt'),

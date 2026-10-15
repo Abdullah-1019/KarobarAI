@@ -1,12 +1,15 @@
 import type { AuditTrailEntryDTO, CreateReturnInput, ReturnDetailDTO, ReturnListDTO, ReturnListItemDTO } from '@karobarai/shared';
 import type { Prisma, ReturnStatus, UserRole } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
+import { createAuditLog } from '../../core/audit';
 
 import { getStorageAdapter } from '../../adapters/storage';
 import { BusinessRuleError, ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../../core/errors/AppError';
 import { prisma } from '../../core/prisma';
 import { canTransition } from '../../core/state-machines/return.state-machine';
 import { validateImageFile } from '../../core/upload/imageValidation';
+import { deletePrivateEvidence, savePrivateEvidence } from './private-evidence.storage';
+import { enqueueReturnInspection } from './return-inspection.service';
 import { enqueueNotification } from '../notification';
 import * as repo from './returns.repository';
 import type { ReturnDetailRow } from './returns.repository';
@@ -18,8 +21,7 @@ import type { ReturnDetailRow } from './returns.repository';
 // convention was this session's own choice, not a hard rule; this module follows its own doc).
 
 async function getReturnWindowDays(): Promise<number> {
-  const row = await prisma.platformConfig.findUnique({ where: { configKey: 'return_window_days' } });
-  return row ? Number(row.value) : 14;
+  return 1;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -35,16 +37,13 @@ export async function checkEligibility(orderPublicId: string, buyerId: bigint) {
   if (order.buyerId !== buyerId) {
     throw new ForbiddenError('This order does not belong to you', undefined, 'RETURN_NOT_OWNED');
   }
-  if (order.status !== 'DELIVERED' && order.status !== 'COMPLETED') {
-    throw new BusinessRuleError('Order is not yet delivered', { status: order.status }, 'RETURN_WINDOW_CLOSED');
-  }
-  const existing = await repo.findReturnByOrderId(order.orderId);
-  if (existing) {
-    throw new ConflictError('A return already exists for this order', undefined, 'RETURN_ALREADY_EXISTS');
+  if (order.status !== 'COMPLETED' || !order.buyerConfirmedAt) {
+    throw new BusinessRuleError('Buyer receipt must be confirmed before a return',
+      { status: order.status }, 'RETURN_WINDOW_CLOSED');
   }
   const windowDays = await getReturnWindowDays();
-  const deliveredAt = order.deliveredAt;
-  if (!deliveredAt || Date.now() > deliveredAt.getTime() + windowDays * 24 * 60 * 60 * 1000) {
+  const confirmedAt = order.buyerConfirmedAt;
+  if (Date.now() > confirmedAt.getTime() + windowDays * 24 * 60 * 60 * 1000) {
     throw new BusinessRuleError('The return window for this order has closed', undefined, 'RETURN_WINDOW_CLOSED');
   }
   return order;
@@ -52,15 +51,26 @@ export async function checkEligibility(orderPublicId: string, buyerId: bigint) {
 
 export async function createReturn(buyerId: bigint, input: CreateReturnInput): Promise<ReturnDetailDTO> {
   const order = await checkEligibility(input.orderId, buyerId);
+  const items = await prisma.orderItem.findMany({
+    where: { orderId: order.orderId }, include: { product: { select: { publicId: true } } },
+  });
+  const selected = input.productId ? items.find((item) => item.product.publicId === input.productId)
+    : items.length === 1 ? items[0] : undefined;
+  if (input.productId && !selected) throw new ValidationError('Product is not in this order', undefined, 'RETURN_ITEM_INVALID');
+  if (!selected) throw new ValidationError('Select an item from this order', undefined, 'RETURN_ITEM_REQUIRED');
+  const existing = await repo.findReturnForItem(order.orderId, selected.orderItemId);
+  if (existing) throw new ConflictError('A return already exists for this item', undefined, 'RETURN_ALREADY_EXISTS');
 
   let created;
   try {
-    created = await repo.createReturn({ orderId: order.orderId, sellerId: order.sellerId, reason: input.reason });
+    created = await repo.createReturn({ orderId: order.orderId, sellerId: order.sellerId,
+      reason: input.reasonCode === 'OTHER' ? `OTHER: ${input.otherReason}` : input.reasonCode,
+      orderItemId: selected.orderItemId });
   } catch (err) {
     // Defense in depth (Task 2's Engineering Decision): the pre-check above closes the normal
-    // window, but returns.order_id's UNIQUE constraint is the final backstop against a race.
+    // window, but returns.order_item_id's UNIQUE constraint is the final backstop against a race.
     if (err instanceof Object && 'code' in err && (err as Prisma.PrismaClientKnownRequestError).code === 'P2002') {
-      throw new ConflictError('A return already exists for this order', undefined, 'RETURN_ALREADY_EXISTS');
+      throw new ConflictError('A return already exists for this item', undefined, 'RETURN_ALREADY_EXISTS');
     }
     throw err;
   }
@@ -105,16 +115,98 @@ async function findAuditTrail(returnId: bigint): Promise<AuditTrailEntryDTO[]> {
   return rows.map((r) => ({ action: r.action, reason: r.reason, createdAt: r.createdAt.toISOString() }));
 }
 
-export function toDetailDTO(row: ReturnDetailRow, auditTrail?: AuditTrailEntryDTO[]): ReturnDetailDTO {
+export function toDetailDTO(row: ReturnDetailRow, auditTrail?: AuditTrailEntryDTO[], sellerOverrideReason: string | null = null): ReturnDetailDTO {
+  const isComparison = row.inspection?.policyVersion === 'dinov2_comparison_v1';
+  const metadata = isComparison && row.inspection?.predictions && !Array.isArray(row.inspection.predictions)
+    ? row.inspection.predictions as Record<string, unknown> : {};
+  const rawAiDecision = metadata.aiDecision;
+  const aiDecision = rawAiDecision && typeof rawAiDecision === 'object' && !Array.isArray(rawAiDecision)
+    && 'status' in rawAiDecision && ['APPROVED', 'REJECTED', 'MANUAL_REVIEW'].includes(String(rawAiDecision.status))
+    && 'reason' in rawAiDecision && typeof rawAiDecision.reason === 'string'
+    && 'acceptThreshold' in rawAiDecision && typeof rawAiDecision.acceptThreshold === 'number'
+    && 'reviewThreshold' in rawAiDecision && typeof rawAiDecision.reviewThreshold === 'number'
+    && 'decidedAt' in rawAiDecision && typeof rawAiDecision.decidedAt === 'string'
+    ? rawAiDecision as NonNullable<NonNullable<ReturnDetailDTO['inspection']>['aiDecision']> : null;
+  const snapshot = Array.isArray(metadata.referenceImages) ? metadata.referenceImages : null;
+  const referenceImages = snapshot && snapshot.every((item) => typeof item === 'object' && item !== null
+    && 'id' in item && typeof item.id === 'string' && 'url' in item && typeof item.url === 'string')
+    ? snapshot as Array<{ id: string; url: string }>
+    : row.orderItem?.product.images.map((image) => ({ id: image.imageId.toString(), url: image.cdnUrl })) ?? [];
+  const returnShipment = row.shipments.find((shipment) => shipment.leg === 'RETURN');
   return {
     id: row.returnId.toString(),
     orderId: row.order.publicId,
+    orderNumber: row.order.orderNumber.toString(),
+    productId: row.orderItem?.product.publicId ?? null,
+    productName: row.orderItem?.titleSnapshot ?? null,
+    itemQuantity: row.orderItem?.quantity ?? null,
+    productImage: row.orderItem?.product.images[0]?.cdnUrl ?? null,
+    itemResolution: row.orderItem?.resolution ?? null,
+    inspection: row.inspection ? {
+      state: row.inspection.state,
+      status: isComparison ? row.inspection.outcome : null,
+      similarityScore: isComparison ? row.inspection.confidence : null,
+      reasonCode: isComparison && typeof metadata.reasonCode === 'string' ? metadata.reasonCode : null,
+      referenceImageCount: typeof metadata.referenceImageCount === 'number' ? metadata.referenceImageCount
+        : referenceImages.length,
+      returnImageCount: typeof metadata.returnImageCount === 'number' ? metadata.returnImageCount : row.images.length,
+      pairs: Array.isArray(metadata.pairs) ? metadata.pairs as Array<{ index: number; similarityScore: number }> : [],
+      evidenceSufficient: metadata.evidenceSufficient === true,
+      comparisonAvailable: row.inspection.comparisonAvailable,
+      policyVersion: row.inspection.policyVersion,
+      provider: row.inspection.provider,
+      model: row.inspection.model,
+      revision: typeof metadata.revision === 'string' ? metadata.revision : null,
+      processedAt: row.inspection.completedAt?.toISOString() ?? null,
+      aiDecision,
+    } : null,
+    referenceImages,
     status: row.status,
     reason: row.reason,
     decision: row.decision,
-    images: row.images.map((img) => ({ id: img.returnImageId.toString(), cdnUrl: img.cdnUrl })),
+    decisionSource: sellerOverrideReason ? 'SELLER' : aiDecision && row.decision === aiDecision.status
+      ? 'AI' : row.decision ? 'SELLER' : null,
+    sellerOverrideReason,
+    returnShipping: {
+      status: returnShipment?.status
+        ?? (row.status === 'PICKUP_BOOKED' ? 'BOOKING_DETAILS_UNAVAILABLE' : 'NOT_BOOKED'),
+      courier: returnShipment?.courier ?? null,
+      bookingReference: returnShipment?.bookingReference ?? null,
+      trackingNumber: returnShipment?.trackingId ?? null,
+      trackingUrl: null,
+      estimatedPickupAt: null,
+      estimatedDeliveryAt: returnShipment?.bookedAt && returnShipment.quoteEtaHours
+        ? new Date(returnShipment.bookedAt.getTime() + returnShipment.quoteEtaHours * 3_600_000).toISOString() : null,
+    },
+    shipments: row.shipments.map((shipment) => ({
+      leg: shipment.leg, status: shipment.status, simulated: shipment.source === 'SIMULATED',
+      courier: shipment.courier, bookingReference: shipment.bookingReference,
+      trackingNumber: shipment.trackingId, bookedAt: shipment.bookedAt?.toISOString() ?? null,
+      estimatedDeliveryAt: shipment.bookedAt && shipment.quoteEtaHours
+        ? new Date(shipment.bookedAt.getTime() + shipment.quoteEtaHours * 3_600_000).toISOString() : null,
+      deliveredAt: shipment.deliveredAt?.toISOString() ?? null,
+      events: shipment.events.map((event) => ({ status: event.status,
+        description: event.description, eventTime: event.eventTime.toISOString() })),
+    })),
+    fulfillment: row.fulfillment ? {
+      status: row.fulfillment.status, receiptCondition: row.fulfillment.receiptCondition,
+      receiptConfirmedAt: row.fulfillment.receiptConfirmedAt?.toISOString() ?? null,
+      replacementBuyerConfirmedAt: row.fulfillment.replacementBuyerConfirmedAt?.toISOString() ?? null,
+      replacementPackedAt: row.fulfillment.replacementPackedAt?.toISOString() ?? null,
+      inventoryReconciledAt: row.fulfillment.inventoryReconciledAt?.toISOString() ?? null,
+      replacementProductId: row.fulfillment.replacementProduct?.publicId ?? null,
+      replacementProductName: row.fulfillment.replacementProduct?.titleEn ?? null,
+      refundProposalStatus: row.fulfillment.refundProposalStatus,
+      refundProposalReason: row.fulfillment.refundProposalReason,
+      refundProposedAt: row.fulfillment.refundProposedAt?.toISOString() ?? null,
+      buyerRespondedAt: row.fulfillment.buyerRespondedAt?.toISOString() ?? null,
+    } : null,
+    images: row.images.map((img) => ({ id: img.returnImageId.toString(), cdnUrl: img.storageKey
+      ? `/api/v1/returns/${row.returnId}/images/${img.returnImageId}/content` : img.cdnUrl })),
     dispute: row.dispute
-      ? { status: row.dispute.status, adminReason: row.dispute.adminReason, resolvedAt: row.dispute.resolvedAt?.toISOString() ?? null }
+      ? { status: row.dispute.status, buyerReason: row.dispute.buyerReason,
+        resolutionReason: row.dispute.adminReason, adminReason: row.dispute.adminReason,
+        resolvedAt: row.dispute.resolvedAt?.toISOString() ?? null }
       : null,
     refundStatus: row.status === 'REFUND_ISSUED' ? 'ISSUED' : 'NOT_ISSUED',
     refundedAt: row.refundedAt ? row.refundedAt.toISOString() : null,
@@ -131,7 +223,36 @@ export async function getReturnDetail(
 ): Promise<ReturnDetailDTO> {
   const row = await getOwnedReturn(returnId, requester);
   const auditTrail = includeAuditTrail ? await findAuditTrail(returnId) : undefined;
-  return toDetailDTO(row, auditTrail);
+  const override = row.status === 'REJECTED' && row.inspection
+    ? await prisma.auditLog.findFirst({ where: { entity: 'returns', entityId: returnId,
+      reason: { startsWith: 'Seller override of AI acceptance: ' } },
+    orderBy: { createdAt: 'desc' }, select: { reason: true } }) : null;
+  const detail = toDetailDTO(row, auditTrail, override?.reason?.replace(/^Seller override of AI acceptance: /, '') ?? null);
+  if (row.decision) {
+    const latestHumanDecision = await prisma.auditLog.findFirst({
+      where: { entity: 'returns', entityId: returnId, actorId: { not: null },
+        action: { in: ['MODERATION', 'DISPUTE_RESOLVE'] },
+        after: { path: ['status'], equals: row.decision } },
+      orderBy: { createdAt: 'desc' }, select: { actorId: true, reason: true },
+    });
+    detail.decisionSource = latestHumanDecision
+      ? latestHumanDecision.actorId === row.sellerId ? 'SELLER' : 'ADMIN'
+        : detail.inspection?.aiDecision?.status === row.decision ? 'AI' : null;
+    detail.decisionReason = detail.sellerOverrideReason ?? latestHumanDecision?.reason ?? null;
+  }
+  if (requester.role === 'BUYER') {
+    if (row.fulfillment?.status === 'EXCHANGE_COMPLETED' && row.fulfillment.replacementProductId) {
+      const review = await prisma.review.findUnique({ where: { buyerId_productId: {
+        buyerId: requester.userId, productId: row.fulfillment.replacementProductId,
+      } }, select: { rating: true, comment: true } });
+      detail.exchangeFeedback = review;
+    }
+    // Buyers receive the canonical decision and timeline, not provider internals or raw scores.
+    detail.inspection = row.inspection ? { ...detail.inspection!, similarityScore: null,
+      reasonCode: null, pairs: [], policyVersion: '', provider: null, model: null,
+      revision: null, aiDecision: null } : null;
+  }
+  return detail;
 }
 
 export function parseReturnId(raw: string): bigint {
@@ -144,6 +265,10 @@ export function parseReturnId(raw: string): bigint {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const MIN_RETURN_IMAGES = 3;
+
+function requiredImageCount(row: ReturnDetailRow): number {
+  return row.orderItem?.product.images.length || MIN_RETURN_IMAGES;
+}
 
 export async function uploadReturnImages(
   returnId: bigint,
@@ -158,12 +283,21 @@ export async function uploadReturnImages(
   if (row.status !== 'INITIATED') {
     throw new BusinessRuleError('Images can only be attached while the return is INITIATED', { status: row.status }, 'RETURN_INVALID_STATE');
   }
+  const maxImages = row.orderItemId ? requiredImageCount(row) : 10;
+  if (!files.length || row.images.length + files.length > maxImages) {
+    throw new ValidationError(`Submit no more than ${maxImages} return images`, undefined, 'RETURN_IMAGE_LIMIT');
+  }
 
   const storage = getStorageAdapter();
   for (const file of files) {
     const mimeType = validateImageFile(file, 'RETURN_IMAGE_TOO_LARGE', 'RETURN_IMAGE_INVALID_FILE');
     const ext = mimeType.split('/')[1];
     const key = `returns/${returnId}/${randomUUID()}.${ext}`;
+    if (row.orderItemId) {
+      await savePrivateEvidence(key, file.buffer, mimeType);
+      await repo.createReturnImage(returnId, '', key);
+      continue;
+    }
     // eslint-disable-next-line no-await-in-loop -- sequential uploads, consistent with Feature 4's product-image upload loop
     const uploaded = await storage.upload({ key, buffer: file.buffer, contentType: mimeType });
     // eslint-disable-next-line no-await-in-loop -- one row per file, order doesn't matter but must not race
@@ -185,6 +319,7 @@ export async function deleteReturnImage(returnId: bigint, imageId: bigint, buyer
   const image = row.images.find((img) => img.returnImageId === imageId);
   if (!image) throw new NotFoundError('Image not found on this return', undefined, 'RETURN_IMAGE_NOT_FOUND');
 
+  if (image.storageKey) await deletePrivateEvidence(image.storageKey);
   await repo.deleteReturnImage(imageId);
   return getReturnDetail(returnId, { userId: buyerId, role: 'BUYER' });
 }
@@ -208,7 +343,7 @@ export async function transitionReturnStatus(
         'RETURN_INVALID_STATE',
       );
     }
-    await repo.updateReturnStatus(client, returnId, targetStatus, extra);
+    await repo.updateReturnStatus(client, returnId, targetStatus, extra, current.status);
   };
 
   if (tx) {
@@ -227,18 +362,35 @@ export async function submitReturn(returnId: bigint, buyerId: bigint): Promise<R
   if (row.status !== 'INITIATED') {
     throw new BusinessRuleError('Return has already been submitted', { status: row.status }, 'RETURN_INVALID_STATE');
   }
-  if (row.images.length < MIN_RETURN_IMAGES) {
+  const required = requiredImageCount(row);
+  if (row.images.length !== required) {
     throw new BusinessRuleError(
-      `At least ${MIN_RETURN_IMAGES} images are required to submit a return`,
-      { imageCount: row.images.length },
+      `Exactly ${required} return image(s) are required for the displayed listing references`,
+      { imageCount: row.images.length, required },
       'RETURN_IMAGES_INSUFFICIENT',
     );
   }
 
-  // Task 3.5 — two sequential transitions in one call: INITIATED -> IMAGES_SUBMITTED, then
-  // immediately -> MANUAL_REVIEW (MVP never enters UNDER_AI_REVIEW, D3/Task 3.6).
-  await transitionReturnStatus(returnId, 'IMAGES_SUBMITTED');
-  await transitionReturnStatus(returnId, 'MANUAL_REVIEW');
+  // Commit submission and the inspection claim together, so neither can be stranded
+  // between IMAGES_SUBMITTED and its review destination.
+  const inspect = Boolean(row.orderItemId && row.orderItem?.product.images.length && row.images.every((image) => image.storageKey));
+  await prisma.$transaction(async (tx) => {
+    await transitionReturnStatus(returnId, 'IMAGES_SUBMITTED', undefined, tx);
+    await transitionReturnStatus(returnId, inspect ? 'UNDER_AI_REVIEW' : 'MANUAL_REVIEW', undefined, tx);
+    if (inspect) await tx.returnInspection.create({ data: { returnId, state: 'PENDING',
+      policyVersion: 'dinov2_comparison_v1',
+      categorySlug: row.orderItem?.categorySlugSnapshot ?? null,
+      predictions: { referenceImages: row.orderItem!.product.images.map((image) => ({
+        id: image.imageId.toString(), url: image.cdnUrl,
+      })) },
+    } });
+  });
+  if (inspect) {
+    await enqueueReturnInspection(returnId).catch(async () => {
+      await prisma.returnInspection.update({ where: { returnId }, data: { state: 'FAILED', outcome: 'PROVIDER_ERROR', errorCode: 'QUEUE_UNAVAILABLE', completedAt: new Date() } });
+      await transitionReturnStatus(returnId, 'MANUAL_REVIEW');
+    });
+  }
 
   await enqueueNotification({
     userId: row.sellerId.toString(),
@@ -257,7 +409,7 @@ export async function submitReturn(returnId: bigint, buyerId: bigint): Promise<R
 // surface — see the handoff doc's "gap found" section.
 // ─────────────────────────────────────────────────────────────────────────────
 
-export async function appealReturn(returnId: bigint, buyerId: bigint): Promise<ReturnDetailDTO> {
+export async function appealReturn(returnId: bigint, buyerId: bigint, reason: string): Promise<ReturnDetailDTO> {
   const row = await repo.findReturnById(returnId);
   if (!row) throw new NotFoundError('Return not found', undefined, 'RETURN_NOT_FOUND');
   if (row.order.buyerId !== buyerId) {
@@ -266,11 +418,23 @@ export async function appealReturn(returnId: bigint, buyerId: bigint): Promise<R
   if (row.status !== 'REJECTED') {
     throw new BusinessRuleError('Only a rejected return can be appealed', { status: row.status }, 'RETURN_INVALID_STATE');
   }
+  if (row.dispute) throw new ConflictError('This return has already been appealed', undefined, 'RETURN_APPEAL_EXISTS');
 
   await prisma.$transaction(async (tx) => {
-    await repo.createDispute(returnId, tx);
+    await tx.$queryRaw`SELECT return_id FROM returns WHERE return_id = ${returnId} FOR UPDATE`;
+    const current = await tx.return.findUniqueOrThrow({ where: { returnId } });
+    if (current.status !== 'REJECTED') throw new BusinessRuleError(
+      'Return decision changed; refresh before appealing', undefined, 'RETURN_INVALID_STATE');
+    await repo.createDispute(returnId, reason.trim(), tx);
     await transitionReturnStatus(returnId, 'UNDER_DISPUTE', undefined, tx);
+    await createAuditLog({ actorId: buyerId, action: 'MODERATION', entity: 'returns', entityId: returnId,
+      reason: 'Buyer submitted an appeal', before: { status: 'REJECTED' },
+      after: { status: 'UNDER_DISPUTE' } }, tx);
   });
+
+  await enqueueNotification({ userId: row.sellerId.toString(), type: 'RETURN_APPEAL_SUBMITTED',
+    orderId: row.order.publicId, vars: { orderId: row.order.publicId } },
+  `return-${returnId}-appeal-seller`).catch(() => undefined);
 
   return getReturnDetail(returnId, { userId: buyerId, role: 'BUYER' });
 }
@@ -285,11 +449,17 @@ function toListItemDTO(row: {
   reason: string;
   createdAt: Date;
   images: { returnImageId: bigint }[];
-  order: { publicId: string };
+  order: { publicId: string; orderNumber?: bigint };
+  orderItem?: { titleSnapshot: string; product: { images: { cdnUrl: string }[] } } | null;
+  fulfillment?: { status: string } | null;
 }): ReturnListItemDTO {
   return {
     id: row.returnId.toString(),
     orderId: row.order.publicId,
+    orderNumber: row.order.orderNumber?.toString(),
+    productName: row.orderItem?.titleSnapshot ?? null,
+    productImage: row.orderItem?.product.images[0]?.cdnUrl ?? null,
+    fulfillmentStatus: row.fulfillment?.status ?? null,
     status: row.status,
     reason: row.reason,
     imageCount: row.images.length,

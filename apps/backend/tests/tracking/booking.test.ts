@@ -29,12 +29,13 @@ async function setUpScoredOrder(overrides: Parameters<typeof createTestOrder>[3]
   const product = await createTestProduct(seller.userId);
   const order = await createTestOrder(buyer.userId, seller.userId, product, { status: 'PAYMENT_CONFIRMED', ...overrides });
   await trackingService.initializeShipment(order.orderId);
+  await prisma.order.update({ where: { orderId: order.orderId }, data: { status: 'PACKED' } });
   const quotes = await prisma.courierQuote.findMany({ where: { orderId: order.orderId }, orderBy: { score: 'desc' } });
   return { seller, buyer, product, order, quotes };
 }
 
 describe('POST /api/v1/orders/:id/book-courier (Task 4 — happy path + override)', () => {
-  it('booking the top-scored courier succeeds: status -> PROCESSING, courier/tracking_no set, not flagged as override', async () => {
+  it('booking the top-scored courier keeps the packed status until handover', async () => {
     const { seller, order, quotes } = await setUpScoredOrder();
     const topScored = quotes[0]!.courier;
 
@@ -44,7 +45,7 @@ describe('POST /api/v1/orders/:id/book-courier (Task 4 — happy path + override
       .send({ courierCode: topScored });
 
     expect(res.status).toBe(200);
-    expect(res.body.data.status).toBe('PROCESSING');
+    expect(res.body.data.status).toBe('PACKED');
 
     const row = await prisma.order.findUniqueOrThrow({ where: { orderId: order.orderId } });
     expect(row.courier).toBe(topScored);

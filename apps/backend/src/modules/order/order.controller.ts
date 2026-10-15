@@ -58,6 +58,19 @@ export const getOrderDetailHandler = asyncHandler(async (req, res) => {
   res.status(200).json(ok(order));
 });
 
+export const confirmBuyerReceiptHandler = asyncHandler(async (req, res) => {
+  const buyerId = await resolveUserId(req.user!.sub);
+  await orderService.confirmBuyerReceipt(req.params.id ?? '', buyerId);
+  res.status(200).json(ok(await orderService.getOrderById(req.params.id ?? '', { userId: buyerId, role: 'BUYER' })));
+});
+
+export const advanceSellerFulfillmentHandler = asyncHandler(async (req, res) => {
+  const sellerId = await resolveUserId(req.user!.sub);
+  await orderService.advanceSellerFulfillment(req.params.id ?? '', sellerId, req.body.stage);
+  res.status(200).json(ok(await orderService.getOrderById(req.params.id ?? '',
+    { userId: sellerId, role: 'SELLER' })));
+});
+
 export const reconcileOrderPaymentHandler = asyncHandler(async (req, res) => {
   const buyerId = await resolveUserId(req.user!.sub);
   await reconcileStripeOrderFromProvider(req.params.id ?? '', buyerId);

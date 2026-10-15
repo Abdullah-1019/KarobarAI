@@ -8,8 +8,9 @@ import { Modal, PriceDisplay, STATUS_VARIANT_COLOR, SkeletonLoader, StatusTag, t
 import type { StatusVariant } from '../../components';
 import { CourierRecommendationCard, TrackingTimeline } from '../tracking';
 import { getAuthenticatedTracking, trackingQueryKey } from '../tracking/trackingApi';
+import { ReturnStatusTag } from '../returns/ReturnStatusTag';
 import { ORDER_STATUS_VARIANT, OrderStatusTag } from './OrderStatusTag';
-import { cancelOrder, getOrder, orderQueryKey, viewInvoice } from './ordersApi';
+import { advanceSellerFulfillment, cancelOrder, confirmOrderReceipt, getOrder, orderQueryKey, viewInvoice } from './ordersApi';
 import { formatOrdersError } from './ordersErrors';
 
 interface OrderDetailPageProps {
@@ -36,6 +37,7 @@ export function OrderDetailPage({ scope }: OrderDetailPageProps) {
   const { id = '' } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [deliveryModalOpen, setDeliveryModalOpen] = useState(false);
 
   const { data: order, isPending, isError, error } = useQuery({
     queryKey: orderQueryKey(id),
@@ -61,6 +63,21 @@ export function OrderDetailPage({ scope }: OrderDetailPageProps) {
     },
     onError: (err) => toast.error(formatOrdersError(t, err)),
   });
+  const receiptMutation = useMutation({
+    mutationFn: () => confirmOrderReceipt(id),
+    onSuccess: (updated) => queryClient.setQueryData(orderQueryKey(id), updated),
+    onError: (err) => toast.error(formatOrdersError(t, err)),
+  });
+  const fulfillmentMutation = useMutation({
+    mutationFn: (stage: 'PROCESSING' | 'PACKED' | 'HANDED_OVER_TO_COURIER' | 'DELIVERED') =>
+      advanceSellerFulfillment(id, stage),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(orderQueryKey(id), updated);
+      void queryClient.invalidateQueries({ queryKey: trackingQueryKey(id) });
+      setDeliveryModalOpen(false);
+    },
+    onError: (err) => toast.error(formatOrdersError(t, err)),
+  });
 
   if (isPending) {
     return (
@@ -82,7 +99,7 @@ export function OrderDetailPage({ scope }: OrderDetailPageProps) {
     <div style={{ maxWidth: 720, margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Typography.Title level={3} style={{ margin: 0 }}>
-          {t('detail.title', { id: order.id })}
+          {order.orderNumber ? `Order #${order.orderNumber}` : t('detail.title', { id: order.id })}
         </Typography.Title>
         <OrderStatusTag status={order.status} />
       </div>
@@ -90,17 +107,34 @@ export function OrderDetailPage({ scope }: OrderDetailPageProps) {
         {t('detail.placedOn', { date: new Date(order.placedAt).toLocaleDateString() })} ·{' '}
         {t('detail.itemCount', { count: order.items.length })}
       </Typography.Text>
+      <Typography.Text type="secondary">{t('detail.referenceId')}: {order.id}</Typography.Text>
 
       <Card title={t('detail.items')} style={{ marginTop: 'var(--sp-4)' }}>
         {order.items.map((item) => (
           <div key={item.productId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: 'var(--sp-2) 0' }}>
             <span>
               {item.titleSnapshot} × {item.quantity}
+              {item.resolution && item.resolution !== 'PURCHASED' && <StatusTag variant="info"
+                label={t(`detail.itemResolution.${item.resolution}`)} />}
             </span>
             <PriceDisplay amount={Number(item.unitPrice) * item.quantity} size="sm" />
           </div>
         ))}
       </Card>
+
+      {scope === 'seller' && order.returnCases.length > 0 &&
+        <Card title={t('detail.returnCases')} style={{ marginTop: 'var(--sp-4)' }}>
+          {order.returnCases.map((returnCase) => <div key={returnCase.id}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--sp-3)',
+              flexWrap: 'wrap', padding: 'var(--sp-2) 0' }}>
+            <span>{returnCase.productName ?? t('detail.returnCaseFallback')} <ReturnStatusTag status={returnCase.status} /></span>
+            <Link to={`/seller/returns/${returnCase.id}`}>
+              <Button type={returnCase.status === 'UNDER_DISPUTE' ? 'primary' : 'default'}>
+                {returnCase.status === 'UNDER_DISPUTE' ? t('detail.reviewAppeal') : t('detail.viewReturn')}
+              </Button>
+            </Link>
+          </div>)}
+        </Card>}
 
       <Card title={t('detail.payment')} style={{ marginTop: 'var(--sp-4)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
@@ -151,9 +185,30 @@ export function OrderDetailPage({ scope }: OrderDetailPageProps) {
         </Typography.Text>
       </Card>
 
-      {scope === 'seller' && (order.status === 'PAYMENT_CONFIRMED' || Boolean(tracking?.courier)) && (
+      {scope === 'seller' && order.status === 'PAYMENT_CONFIRMED' &&
+        <Button type="primary" loading={fulfillmentMutation.isPending}
+          onClick={() => fulfillmentMutation.mutate('PROCESSING')}>
+          {t('detail.startProcessing')}
+        </Button>}
+      {scope === 'seller' && order.status === 'PROCESSING' &&
+        <Button type="primary" loading={fulfillmentMutation.isPending}
+          onClick={() => fulfillmentMutation.mutate('PACKED')}>
+          {t('detail.markPacked')}
+        </Button>}
+      {scope === 'seller' && order.status === 'PACKED' && tracking?.courier &&
+        <Button type="primary" loading={fulfillmentMutation.isPending}
+          onClick={() => fulfillmentMutation.mutate('HANDED_OVER_TO_COURIER')}>
+          {t('detail.handoverCourier')}
+        </Button>}
+      {scope === 'seller' && tracking?.simulated === true && tracking.courier &&
+        ['HANDED_OVER_TO_COURIER', 'PICKED_UP', 'IN_TRANSIT', 'OUT_FOR_DELIVERY'].includes(order.status) &&
+        <Button type="primary" loading={fulfillmentMutation.isPending}
+          onClick={() => setDeliveryModalOpen(true)}>
+          {t('detail.markSimulatedDelivered')}
+        </Button>}
+      {scope === 'seller' && (order.status === 'PACKED' || Boolean(tracking?.courier)) && (
         <div style={{ marginTop: 'var(--sp-4)' }}>
-          <CourierRecommendationCard orderId={id} eligible={order.status === 'PAYMENT_CONFIRMED' && !tracking?.courier} />
+          <CourierRecommendationCard orderId={id} eligible={order.status === 'PACKED' && !tracking?.courier} />
         </div>
       )}
 
@@ -176,6 +231,10 @@ export function OrderDetailPage({ scope }: OrderDetailPageProps) {
             {t('detail.cancel')}
           </Button>
         )}
+        {scope === 'buyer' && order.status === 'DELIVERED' && <Button type="primary"
+          loading={receiptMutation.isPending} onClick={() => receiptMutation.mutate()}>
+          {t('detail.confirmReceipt')}
+        </Button>}
       </div>
 
       <Modal
@@ -187,6 +246,15 @@ export function OrderDetailPage({ scope }: OrderDetailPageProps) {
         okButtonProps={{ danger: true }}
       >
         {t('detail.cancelConfirmContent')}
+      </Modal>
+      <Modal
+        open={deliveryModalOpen}
+        title={t('detail.deliveryConfirmTitle')}
+        onCancel={() => setDeliveryModalOpen(false)}
+        onOk={() => fulfillmentMutation.mutate('DELIVERED')}
+        confirmLoading={fulfillmentMutation.isPending}
+      >
+        {t('detail.deliveryConfirmContent')}
       </Modal>
     </div>
   );

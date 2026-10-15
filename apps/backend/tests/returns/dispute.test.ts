@@ -33,7 +33,9 @@ async function createReturnFixture(status: 'MANUAL_REVIEW' | 'REJECTED' | 'UNDER
     courier: 'TCS',
     trackingNo: 'MOCK-TCS-1',
   });
-  const ret = await prisma.return.create({ data: { orderId: order.orderId, sellerId: seller.userId, reason: 'x', status } });
+  const orderItem = await prisma.orderItem.findFirstOrThrow({ where: { orderId: order.orderId } });
+  const ret = await prisma.return.create({ data: { orderId: order.orderId,
+    orderItemId: orderItem.orderItemId, sellerId: seller.userId, reason: 'x', status } });
   if (status === 'UNDER_DISPUTE') {
     // Mirrors what appealReturn() always does in real usage — creates the Dispute row in the
     // same transaction as the status transition, a pairing decideReturn() now checks directly
@@ -49,11 +51,13 @@ describe('POST /api/v1/returns/:id/appeal (buyer appeal — gap found and closed
 
     const res = await request(app)
       .post(`/api/v1/returns/${ret.returnId}/appeal`)
-      .set('Authorization', `Bearer ${buyer.accessToken}`);
+      .set('Authorization', `Bearer ${buyer.accessToken}`)
+      .send({ reason: 'I believe this decision overlooked the photos' });
 
     expect(res.status).toBe(200);
     expect(res.body.data.status).toBe('UNDER_DISPUTE');
-    expect(res.body.data.dispute).toMatchObject({ status: 'OPEN' });
+    expect(res.body.data.dispute).toMatchObject({ status: 'OPEN',
+      buyerReason: 'I believe this decision overlooked the photos' });
 
     const dispute = await prisma.dispute.findUniqueOrThrow({ where: { returnId: ret.returnId } });
     expect(dispute.status).toBe('OPEN');
@@ -63,7 +67,8 @@ describe('POST /api/v1/returns/:id/appeal (buyer appeal — gap found and closed
     const { buyer, ret } = await createReturnFixture('MANUAL_REVIEW');
     const res = await request(app)
       .post(`/api/v1/returns/${ret.returnId}/appeal`)
-      .set('Authorization', `Bearer ${buyer.accessToken}`);
+      .set('Authorization', `Bearer ${buyer.accessToken}`)
+      .send({ reason: 'Please review' });
     expect(res.status).toBe(422);
     expect(res.body.error.code).toBe('RETURN_INVALID_STATE');
   });
@@ -73,8 +78,70 @@ describe('POST /api/v1/returns/:id/appeal (buyer appeal — gap found and closed
     const stranger = await createTestUser('BUYER');
     const res = await request(app)
       .post(`/api/v1/returns/${ret.returnId}/appeal`)
-      .set('Authorization', `Bearer ${stranger.accessToken}`);
+      .set('Authorization', `Bearer ${stranger.accessToken}`)
+      .send({ reason: 'Please review' });
     expect(res.status).toBe(403);
+  });
+});
+
+describe('seller resolution of buyer appeals', () => {
+  it('routes an appeal to the owning seller, who can accept it without admin action', async () => {
+    const { seller, buyer, ret } = await createReturnFixture('REJECTED');
+    const appeal = await request(app).post(`/api/v1/returns/${ret.returnId}/appeal`)
+      .set('Authorization', `Bearer ${buyer.accessToken}`)
+      .send({ reason: 'The listing photos show this is the purchased item' });
+    expect(appeal.status).toBe(200);
+    const queue = await request(app).get('/api/v1/seller/returns')
+      .set('Authorization', `Bearer ${seller.accessToken}`);
+    expect(queue.body.data.items.some((item: { id: string }) => item.id === ret.returnId.toString())).toBe(true);
+    const resolved = await request(app).post(`/api/v1/seller/returns/${ret.returnId}/decision`)
+      .set('Authorization', `Bearer ${seller.accessToken}`)
+      .send({ decision: 'APPROVED', reason: 'Photos match the listing' });
+    expect(resolved.status).toBe(200);
+    expect(resolved.body.data.status).toBe('APPROVED');
+    expect(resolved.body.data.dispute.status).toBe('RESOLVED_APPROVED');
+    expect(resolved.body.data.decisionSource).toBe('SELLER');
+    expect(await prisma.returnFulfillment.count({ where: { returnId: ret.returnId } })).toBe(1);
+    const awaitingCourier = await request(app).get('/api/v1/seller/returns')
+      .set('Authorization', `Bearer ${seller.accessToken}`);
+    expect(awaitingCourier.body.data.items.some((item: { id: string }) =>
+      item.id === ret.returnId.toString())).toBe(true);
+    const booked = await request(app).post(`/api/v1/seller/returns/${ret.returnId}/book-return-courier`)
+      .set('Authorization', `Bearer ${seller.accessToken}`);
+    expect(booked.status).toBe(200);
+    expect(booked.body.data.shipments[0]).toMatchObject({ leg: 'RETURN', simulated: true });
+  });
+
+  it('rejects a cross-store appeal decision and an empty resolution reason', async () => {
+    const { seller, buyer, ret } = await createReturnFixture('REJECTED');
+    await request(app).post(`/api/v1/returns/${ret.returnId}/appeal`)
+      .set('Authorization', `Bearer ${buyer.accessToken}`).send({ reason: 'Please review' });
+    const otherSeller = await createTestUser('SELLER', { onboarded: true });
+    const path = `/api/v1/seller/returns/${ret.returnId}/decision`;
+    expect((await request(app).post(path).set('Authorization', `Bearer ${otherSeller.accessToken}`)
+      .send({ decision: 'APPROVED', reason: 'Looks fine' })).status).toBe(403);
+    expect((await request(app).post(path).set('Authorization', `Bearer ${seller.accessToken}`)
+      .send({ decision: 'REJECTED', reason: '  ' })).status).toBe(400);
+    expect((await prisma.return.findUniqueOrThrow({ where: { returnId: ret.returnId } })).status)
+      .toBe('UNDER_DISPUTE');
+  });
+
+  it('accepts only one concurrent seller decision on an appeal', async () => {
+    const { seller, buyer, ret } = await createReturnFixture('REJECTED');
+    await request(app).post(`/api/v1/returns/${ret.returnId}/appeal`)
+      .set('Authorization', `Bearer ${buyer.accessToken}`)
+      .send({ reason: 'Please reconsider the listed photos' });
+    const path = `/api/v1/seller/returns/${ret.returnId}/decision`;
+    const decide = (decision: 'APPROVED' | 'REJECTED') => request(app).post(path)
+      .set('Authorization', `Bearer ${seller.accessToken}`)
+      .send({ decision, reason: `Seller decision: ${decision}` });
+    const responses = await Promise.all([decide('APPROVED'), decide('REJECTED')]);
+    expect(responses.map((response) => response.status).sort()).toEqual([200, 422]);
+    const saved = await prisma.return.findUniqueOrThrow({ where: { returnId: ret.returnId },
+      include: { dispute: true } });
+    expect(saved.dispute?.status).toMatch(/^RESOLVED_/);
+    expect(await prisma.auditLog.count({ where: { entity: 'returns', entityId: ret.returnId,
+      action: 'DISPUTE_RESOLVE' } })).toBe(1);
   });
 });
 
@@ -127,7 +194,8 @@ describe('POST /api/v1/admin/returns/:id/decision (Task 5.3/5.4/5.5/5.6)', () =>
       .send({ decision: 'APPROVED', reason: 'Buyer evidence is convincing' });
 
     expect(res.status).toBe(200);
-    expect(res.body.data.status).toBe('PICKUP_BOOKED');
+    expect(res.body.data.status).toBe('APPROVED');
+    expect(res.body.data.decisionSource).toBe('ADMIN');
 
     const dispute = await prisma.dispute.findUniqueOrThrow({ where: { returnId: ret.returnId } });
     expect(dispute.status).toBe('RESOLVED_APPROVED');
@@ -153,6 +221,7 @@ describe('POST /api/v1/admin/returns/:id/decision (Task 5.3/5.4/5.5/5.6)', () =>
 
     expect(res.status).toBe(200);
     expect(res.body.data.status).toBe('CLOSED');
+    expect(res.body.data.decisionReason).toBe('Insufficient evidence');
 
     const dispute = await prisma.dispute.findUniqueOrThrow({ where: { returnId: ret.returnId } });
     expect(dispute.status).toBe('RESOLVED_REJECTED');
@@ -169,6 +238,7 @@ describe('POST /api/v1/admin/returns/:id/decision (Task 5.3/5.4/5.5/5.6)', () =>
 
     expect(res.status).toBe(200);
     expect(res.body.data.status).toBe('CLOSED');
+    expect(res.body.data.decisionReason).toBe('Not eligible per policy');
   });
 
   it('every admin decision writes exactly one audit_logs row (action=DISPUTE_RESOLVE)', async () => {

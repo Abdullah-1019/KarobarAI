@@ -63,6 +63,7 @@ export const router = createBrowserRouter([
           { path: '/returns', element: <BuyerReturnsPage /> },
           { path: '/orders/:id/return', element: <ReturnWizardPage /> },
           { path: '/orders/:id/return/status', element: <ReturnStatusPage /> },
+          { path: '/orders/:id/return/:returnId/status', element: <ReturnStatusPage /> },
           { path: '/buyer/profile', element: <ProfilePage /> },
           { path: '/buyer/profile/settings', element: <SettingsPage /> },
           { path: '/buyer/profile/change-password', element: <ChangePasswordPage /> },

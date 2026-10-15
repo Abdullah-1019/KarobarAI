@@ -84,7 +84,8 @@ async function getHighReturnProducts(sellerId: bigint, limit: number) {
   const [returned, delivered] = await Promise.all([
     prisma.orderItem.groupBy({
       by: ['productId'],
-      where: { order: { sellerId, status: { in: ['DELIVERED', 'COMPLETED'] }, return: { isNot: null } } },
+      where: { order: { sellerId, status: { in: ['DELIVERED', 'COMPLETED'] } },
+        returnCases: { some: { sellerId } } },
       _sum: { quantity: true },
     }),
     prisma.orderItem.groupBy({

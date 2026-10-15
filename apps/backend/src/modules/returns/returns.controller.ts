@@ -59,6 +59,6 @@ export const submitReturnHandler = asyncHandler(async (req, res) => {
 export const appealReturnHandler = asyncHandler(async (req, res) => {
   const buyerId = await resolveUserId(req.user!.sub);
   const returnId = returnsService.parseReturnId(req.params.id ?? '');
-  const result = await returnsService.appealReturn(returnId, buyerId);
+  const result = await returnsService.appealReturn(returnId, buyerId, req.body.reason);
   res.status(200).json(ok(result));
 });

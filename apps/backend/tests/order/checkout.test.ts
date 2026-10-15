@@ -57,6 +57,22 @@ function checkoutRequest(accessToken: string, body: object, idempotencyKey = ran
 }
 
 describe('POST /api/v1/checkout (Task 7 — happy path)', () => {
+  it('captures the database category at purchase for later return-provider routing', async () => {
+    const seller = await createTestUser('SELLER', { onboarded: true });
+    const buyer = await createTestUser('BUYER');
+    const clothing = await prisma.category.findUniqueOrThrow({ where: { slug: 'clothing' } });
+    const product = await createTestProduct(seller.userId, { titleEn: 'Plain garment',
+      categoryId: clothing.categoryId, price: 200, stock: 3, status: 'LIVE' });
+    const address = await createAddress(buyer.userId);
+    await addToCart(buyer.accessToken, product.publicId, 1);
+    const result = await checkoutRequest(buyer.accessToken, {
+      addressId: address.addressId.toString(), paymentMethod: 'COD',
+    });
+    expect(result.status).toBe(201);
+    const item = await prisma.orderItem.findFirstOrThrow({ where: { productId: product.productId } });
+    expect(item.categorySlugSnapshot).toBe('clothing');
+  });
+
   it('rejects disabled JazzCash before creating an order or decrementing stock', async () => {
     const seller = await createTestUser('SELLER', { onboarded: true });
     const buyer = await createTestUser('BUYER');

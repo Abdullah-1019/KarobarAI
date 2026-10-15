@@ -54,6 +54,11 @@ export const config = {
   // service must fetch the same object through Docker DNS. Leave unset for native/local callers.
   aiServiceImageBaseUrl: process.env.AI_SERVICE_IMAGE_BASE_URL || '',
   aiServiceTimeoutMs: Number(process.env.AI_SERVICE_TIMEOUT_MS ?? 600_000),
+  returnDecisions: {
+    enabled: (process.env.RETURN_AUTO_DECISIONS_ENABLED ?? 'true').toLowerCase() === 'true',
+    acceptThreshold: Number(process.env.AUTO_ACCEPT_THRESHOLD ?? 0.80),
+    reviewThreshold: Number(process.env.AUTO_REVIEW_THRESHOLD ?? 0.60),
+  },
   jwt: {
     privateKey: unescapePem(process.env.JWT_PRIVATE_KEY),
     publicKey: unescapePem(process.env.JWT_PUBLIC_KEY),

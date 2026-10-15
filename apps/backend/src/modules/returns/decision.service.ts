@@ -1,9 +1,6 @@
-import { getCourierAdapter } from '../../adapters/courier';
 import { createAuditLog } from '../../core/audit';
-import { BusinessRuleError, NotFoundError } from '../../core/errors/AppError';
-import { logger } from '../../core/logger';
+import { BusinessRuleError, ForbiddenError, NotFoundError } from '../../core/errors/AppError';
 import { prisma } from '../../core/prisma';
-import { refundOrderPayment } from '../payment/payment.service';
 import { enqueueNotification } from '../notification';
 import * as repo from './returns.repository';
 import { transitionReturnStatus } from './returns.service';
@@ -22,58 +19,6 @@ import { transitionReturnStatus } from './returns.service';
 // the mock always succeeds, and no source document asks for return-pickup-specific retry logic;
 // a real failure here logs and leaves the return at APPROVED for manual attention, rather than
 // silently swallowing it or inventing a retry policy nothing specifies.
-export async function bookReturnPickupAndTriggerRefund(returnId: bigint): Promise<void> {
-  const row = await repo.findReturnById(returnId);
-  if (!row) return;
-
-  try {
-    await getCourierAdapter().book({
-      courier: row.order.courier ?? 'TCS',
-      orderId: row.order.publicId,
-      destinationCity: row.order.shipCity,
-    });
-    await transitionReturnStatus(returnId, 'PICKUP_BOOKED');
-  } catch (err) {
-    logger.error(
-      { err, returnId: returnId.toString() },
-      '[returns] return-pickup booking failed — return stays APPROVED, needs manual attention',
-    );
-    return;
-  }
-
-  await triggerRefund(returnId);
-}
-
-// Task 6.2 — idempotent by construction: only ever proceeds from PICKUP_BOOKED, so a redelivered/
-// duplicate call after the first success is a safe no-op (status is no longer PICKUP_BOOKED).
-export async function triggerRefund(returnId: bigint): Promise<void> {
-  const row = await repo.findReturnById(returnId);
-  if (!row || row.status !== 'PICKUP_BOOKED') return;
-
-  try {
-    const refundConfirmed = (await refundOrderPayment(
-      row.order.publicId,
-      row.order.totalAmount.toString(),
-      `return-refund-${returnId}`,
-    )).success;
-    if (refundConfirmed) {
-      await transitionReturnStatus(returnId, 'REFUND_ISSUED', { refundedAt: new Date() });
-      await enqueueNotification({
-        userId: row.order.buyerId.toString(),
-        type: 'REFUND_ISSUED',
-        orderId: row.order.publicId,
-        vars: { orderId: row.order.publicId },
-      }).catch(() => undefined);
-    }
-  } catch (err) {
-    // Task 6.5 — no new return_status value for failure; stays PICKUP_BOOKED, admin-filterable.
-    logger.error(
-      { err, returnId: returnId.toString() },
-      '[returns] refund trigger failed — return stays PICKUP_BOOKED, visible to admin as stuck',
-    );
-  }
-}
-
 export interface DecisionActor {
   userId: bigint;
   role: 'SELLER' | 'ADMIN' | 'SUPPORT';
@@ -88,31 +33,50 @@ export async function decideReturn(
 ): Promise<void> {
   const row = await repo.findReturnById(returnId);
   if (!row) throw new NotFoundError('Return not found', undefined, 'RETURN_NOT_FOUND');
-  if (row.status !== 'MANUAL_REVIEW' && row.status !== 'UNDER_DISPUTE') {
-    throw new BusinessRuleError('Return is not awaiting a decision', { status: row.status }, 'RETURN_INVALID_STATE');
-  }
-  // Checked against the actual Dispute row, not row.status === 'UNDER_DISPUTE' — the status is
-  // set alongside dispute creation by appealReturn() in real usage, but resolveDispute() itself
-  // must not assume that pairing always holds; querying the real related record is the correct
-  // and more robust check.
-  const wasDisputed = row.dispute !== null;
   const isAdminDecision = actor.role !== 'SELLER';
 
   await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT return_id FROM returns WHERE return_id = ${returnId} FOR UPDATE`;
+    const current = await tx.return.findUniqueOrThrow({ where: { returnId },
+      include: { inspection: true, dispute: true } });
+    if (actor.role === 'SELLER' && current.sellerId !== actor.userId) throw new ForbiddenError(
+      'This return does not belong to you', undefined, 'RETURN_NOT_OWNED');
+    const metadata = current.inspection?.predictions;
+    const originalAiDecision = metadata && typeof metadata === 'object' && !Array.isArray(metadata)
+      && 'aiDecision' in metadata && metadata.aiDecision && typeof metadata.aiDecision === 'object'
+      && !Array.isArray(metadata.aiDecision) ? metadata.aiDecision : null;
+    const isAiAcceptanceOverride = actor.role === 'SELLER' && current.status === 'APPROVED'
+      && decision === 'REJECTED' && originalAiDecision !== null
+      && 'status' in originalAiDecision && originalAiDecision.status === 'APPROVED';
+    if (current.status !== 'MANUAL_REVIEW' && current.status !== 'UNDER_DISPUTE' && !isAiAcceptanceOverride) {
+      throw new BusinessRuleError('Return is not awaiting a decision', { status: current.status }, 'RETURN_INVALID_STATE');
+    }
+    if ((current.status === 'UNDER_DISPUTE' || isAiAcceptanceOverride) && !reason?.trim()) {
+      throw new BusinessRuleError('A decision reason is required', undefined, 'RETURN_DECISION_REASON_REQUIRED');
+    }
+    if (isAiAcceptanceOverride) {
+      const claimedShipment = await tx.returnShipment.findUnique({ where: { returnId_leg: { returnId, leg: 'RETURN' } } });
+      if (claimedShipment) throw new BusinessRuleError(
+        'Courier booking has started; shipment reconciliation is required before an override',
+        undefined, 'RETURN_BOOKING_UNCERTAIN');
+    }
     await transitionReturnStatus(returnId, decision, { decision, decidedAt: new Date() }, tx);
+    if (decision === 'APPROVED') {
+      await tx.returnFulfillment.upsert({ where: { returnId }, create: { returnId }, update: {} });
+    }
     await createAuditLog(
       {
         actorId: actor.userId,
         action: auditAction,
         entity: 'returns',
         entityId: returnId,
-        reason: reason ?? null,
-        before: { status: row.status },
-        after: { status: decision },
+        reason: isAiAcceptanceOverride ? `Seller override of AI acceptance: ${reason!.trim()}` : reason ?? null,
+        before: { status: current.status },
+        after: { status: decision, ...(isAiAcceptanceOverride ? { override: true } : {}) },
       },
       tx,
     );
-    if (wasDisputed) {
+    if (current.status === 'UNDER_DISPUTE' && current.dispute) {
       await repo.resolveDispute(
         tx,
         returnId,
@@ -124,7 +88,7 @@ export async function decideReturn(
     // Task 5.5 — admin's rejection is always final (BR-008), whether the case arrived via a
     // formal dispute or a plain MANUAL_REVIEW escalation; a *seller's* rejection never auto-
     // closes, since the buyer still has the appeal window (REJECTED -> UNDER_DISPUTE).
-    if (decision === 'REJECTED' && isAdminDecision) {
+    if (decision === 'REJECTED' && (isAdminDecision || current.status === 'UNDER_DISPUTE')) {
       await transitionReturnStatus(returnId, 'CLOSED', undefined, tx);
     }
   });
@@ -148,7 +112,7 @@ export async function decideReturn(
     }).catch(() => undefined);
   }
 
-  if (decision === 'APPROVED') {
-    await bookReturnPickupAndTriggerRefund(returnId);
-  }
+  // AI-reviewed cases require a separate, deliberate fulfillment/refund step.
+  // A vision observation never authorizes an automatic financial operation.
+  // Approval records a decision only. Courier booking and refunds require separate actions.
 }

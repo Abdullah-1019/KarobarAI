@@ -114,7 +114,10 @@ describe('Feature 18 seller assistant boundaries', () => {
     mockPrisma.product.findMany.mockResolvedValue([{ productId: 1n, publicId: 'product-1', titleEn: 'Item', titleUr: null }]);
     const returnRates = await executeSellerTool(context, { type: 'get_high_return_products', payload: { limit: 5 } });
     expect(returnRates).toEqual([{ productId: 'product-1', titleEn: 'Item', titleUr: null, returnedUnits: 2, deliveredUnits: 4, returnRatePercent: 50 }]);
-    expect(mockPrisma.orderItem.groupBy).toHaveBeenNthCalledWith(1, expect.objectContaining({ where: { order: { sellerId, status: { in: ['DELIVERED', 'COMPLETED'] }, return: { isNot: null } } } }));
+    expect(mockPrisma.orderItem.groupBy).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      where: { order: { sellerId, status: { in: ['DELIVERED', 'COMPLETED'] } },
+        returnCases: { some: { sellerId } } },
+    }));
 
     mockPrisma.review.groupBy.mockResolvedValue([
       { productId: 1n, _avg: { rating: 2 }, _count: { _all: 1 } },

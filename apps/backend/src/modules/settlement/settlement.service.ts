@@ -7,14 +7,8 @@ import { prisma } from '../../core/prisma';
 import * as repo from './settlement.repository';
 import type { SettlementEligibleOrder } from './settlement.repository';
 
-// Duplicated ~3-line predicate, same conscious choice Feature 10's returns.service.ts and
-// Feature 7's order.service.ts already made independently rather than sharing one helper across
-// modules — see returns.service.ts's own comment on this.
-async function getReturnWindowDays(): Promise<number> {
-  const row = await prisma.platformConfig.findUnique({ where: { configKey: 'return_window_days' } });
-  return row ? Number(row.value) : 14;
-}
-
+// Settlement uses the buyer-confirmed 24-hour return window and waits for item-level
+// returns to close before creating a settlement.
 async function createSettlementForOrder(order: SettlementEligibleOrder): Promise<void> {
   const gross = order.subtotal; // gross = orders.subtotal per Schema §14.2, never shipping_fee
   const commission = gross.times(order.commissionRateSnapshot).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
@@ -36,9 +30,9 @@ async function createSettlementForOrder(order: SettlementEligibleOrder): Promise
 // two poll cycles overlap and both see the same eligible order — Settlement.orderId's unique
 // constraint rejects the second) must not fail the whole cycle for every other order.
 export async function runSettlementCycle(): Promise<void> {
-  const windowDays = await getReturnWindowDays();
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - windowDays);
+  // Match the buyer's fixed one-time, 24-hour return entitlement. Courier delivery alone
+  // cannot start settlement while the buyer has not confirmed receipt.
+  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
   const eligible = await repo.findSettlementEligibleOrders(cutoff);
   await Promise.all(

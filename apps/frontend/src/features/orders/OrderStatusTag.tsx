@@ -9,6 +9,8 @@ export const ORDER_STATUS_VARIANT: Record<OrderStatus, StatusVariant> = {
   PAYMENT_PENDING: 'neutral',
   PAYMENT_CONFIRMED: 'info',
   PROCESSING: 'info',
+  PACKED: 'info',
+  HANDED_OVER_TO_COURIER: 'info',
   PICKED_UP: 'info',
   IN_TRANSIT: 'info',
   OUT_FOR_DELIVERY: 'warning',

@@ -6,9 +6,12 @@ describe('return.state-machine canTransition (Task 1.3 — adversarial)', () => 
     ['IMAGES_SUBMITTED', 'MANUAL_REVIEW'],
     ['IMAGES_SUBMITTED', 'UNDER_AI_REVIEW'],
     ['UNDER_AI_REVIEW', 'MANUAL_REVIEW'],
+    ['UNDER_AI_REVIEW', 'APPROVED'],
+    ['UNDER_AI_REVIEW', 'REJECTED'],
     ['MANUAL_REVIEW', 'APPROVED'],
     ['MANUAL_REVIEW', 'REJECTED'],
     ['APPROVED', 'PICKUP_BOOKED'],
+    ['APPROVED', 'REJECTED'], // service permits only seller override of an AI acceptance
     ['PICKUP_BOOKED', 'REFUND_ISSUED'],
     ['REJECTED', 'UNDER_DISPUTE'],
     ['REJECTED', 'CLOSED'],
@@ -24,7 +27,6 @@ describe('return.state-machine canTransition (Task 1.3 — adversarial)', () => 
     ['MANUAL_REVIEW', 'PICKUP_BOOKED'],
     ['MANUAL_REVIEW', 'CLOSED'],
     ['APPROVED', 'REFUND_ISSUED'],
-    ['APPROVED', 'REJECTED'],
     ['PICKUP_BOOKED', 'CLOSED'],
     ['UNDER_DISPUTE', 'CLOSED'], // must go through REJECTED first
     ['CLOSED', 'MANUAL_REVIEW'],

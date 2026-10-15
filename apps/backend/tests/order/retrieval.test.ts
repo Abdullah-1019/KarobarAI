@@ -97,40 +97,55 @@ describe('GET /api/v1/orders (Task 2/4 — buyer list)', () => {
   });
 
   describe('Task 3.4 — return-eligibility gate', () => {
-    it('a DELIVERED order within the return window with no existing return is eligible', async () => {
+    it('a buyer-confirmed order within 24 hours with no existing return is eligible', async () => {
       const seller = await createTestUser('SELLER', { onboarded: true });
       const buyer = await createTestUser('BUYER');
       const product = await createTestProduct(seller.userId);
       await createTestOrder(buyer.userId, seller.userId, product, {
-        status: 'DELIVERED',
+        status: 'COMPLETED',
         deliveredAt: new Date(),
+        buyerConfirmedAt: new Date(),
       });
 
       const res = await request(app).get('/api/v1/orders').set('Authorization', `Bearer ${buyer.accessToken}`);
       expect(res.body.data.items[0].returnEligible).toBe(true);
     });
 
-    it('a DELIVERED order past the return window is not eligible', async () => {
+    it('courier delivery alone does not open the return window', async () => {
+      const seller = await createTestUser('SELLER', { onboarded: true });
+      const buyer = await createTestUser('BUYER');
+      const product = await createTestProduct(seller.userId);
+      await createTestOrder(buyer.userId, seller.userId, product, {
+        status: 'DELIVERED', deliveredAt: new Date(),
+      });
+      const res = await request(app).get('/api/v1/orders')
+        .set('Authorization', `Bearer ${buyer.accessToken}`);
+      expect(res.body.data.items[0].returnEligible).toBe(false);
+    });
+
+    it('a buyer-confirmed order past 24 hours is not eligible', async () => {
       const seller = await createTestUser('SELLER', { onboarded: true });
       const buyer = await createTestUser('BUYER');
       const product = await createTestProduct(seller.userId);
       const twentyDaysAgo = new Date(Date.now() - 20 * 24 * 60 * 60 * 1000);
       await createTestOrder(buyer.userId, seller.userId, product, {
-        status: 'DELIVERED',
+        status: 'COMPLETED',
         deliveredAt: twentyDaysAgo,
+        buyerConfirmedAt: twentyDaysAgo,
       });
 
       const res = await request(app).get('/api/v1/orders').set('Authorization', `Bearer ${buyer.accessToken}`);
       expect(res.body.data.items[0].returnEligible).toBe(false);
     });
 
-    it('a DELIVERED order that already has a Return row is not eligible', async () => {
+    it('a buyer-confirmed order that already has a Return row is not eligible', async () => {
       const seller = await createTestUser('SELLER', { onboarded: true });
       const buyer = await createTestUser('BUYER');
       const product = await createTestProduct(seller.userId);
       const order = await createTestOrder(buyer.userId, seller.userId, product, {
-        status: 'DELIVERED',
+        status: 'COMPLETED',
         deliveredAt: new Date(),
+        buyerConfirmedAt: new Date(),
       });
       await prisma.return.create({
         data: { orderId: order.orderId, sellerId: seller.userId, reason: 'Not as described' },
@@ -189,6 +204,55 @@ describe('GET /api/v1/seller/orders (Task 2/4 — seller list)', () => {
 });
 
 describe('GET /api/v1/orders/:id (Task 2.3 — tri-mode ownership + detail shape)', () => {
+  it('links an appealed return to the owning seller order without exposing it to another seller', async () => {
+    const seller = await createTestUser('SELLER', { onboarded: true });
+    const otherSeller = await createTestUser('SELLER', { onboarded: true });
+    const buyer = await createTestUser('BUYER');
+    const product = await createTestProduct(seller.userId, { titleEn: 'Appealed shirt' });
+    const order = await createTestOrder(buyer.userId, seller.userId, product,
+      { status: 'DELIVERED', deliveredAt: new Date() });
+    const item = await prisma.orderItem.findFirstOrThrow({ where: { orderId: order.orderId } });
+    const ret = await prisma.return.create({ data: { orderId: order.orderId,
+      orderItemId: item.orderItemId, sellerId: seller.userId, reason: 'Other', status: 'UNDER_DISPUTE' } });
+    await prisma.dispute.create({ data: { returnId: ret.returnId, buyerReason: 'Please reconsider' } });
+
+    const path = `/api/v1/orders/${order.publicId}`;
+    const own = await request(app).get(path).set('Authorization', `Bearer ${seller.accessToken}`);
+    expect(own.status).toBe(200);
+    expect(own.body.data.returnCases).toEqual([{
+      id: ret.returnId.toString(), status: 'UNDER_DISPUTE', productName: 'Appealed shirt',
+    }]);
+    const unrelated = await request(app).get(path)
+      .set('Authorization', `Bearer ${otherSeller.accessToken}`);
+    expect(unrelated.status).toBe(403);
+  });
+
+  it('marks only the previously returned item in a multi-item order ineligible', async () => {
+    const seller = await createTestUser('SELLER', { onboarded: true });
+    const buyer = await createTestUser('BUYER');
+    const returnedProduct = await createTestProduct(seller.userId);
+    const availableProduct = await createTestProduct(seller.userId);
+    const order = await createTestOrder(buyer.userId, seller.userId, returnedProduct, {
+      status: 'COMPLETED', deliveredAt: new Date(), buyerConfirmedAt: new Date(),
+    });
+    const returnedItem = await prisma.orderItem.findFirstOrThrow({ where: { orderId: order.orderId } });
+    await prisma.orderItem.create({ data: {
+      orderId: order.orderId, productId: availableProduct.productId,
+      titleSnapshot: availableProduct.titleEn, unitPrice: availableProduct.price, quantity: 1,
+    } });
+    await prisma.return.create({ data: {
+      orderId: order.orderId, orderItemId: returnedItem.orderItemId,
+      sellerId: seller.userId, reason: 'Previous return',
+    } });
+
+    const res = await request(app).get(`/api/v1/orders/${order.publicId}`)
+      .set('Authorization', `Bearer ${buyer.accessToken}`);
+    expect(res.status).toBe(200);
+    const items = res.body.data.items as Array<{ productId: string; returnEligible: boolean }>;
+    expect(items.find((item) => item.productId === returnedProduct.publicId)?.returnEligible).toBe(false);
+    expect(items.find((item) => item.productId === availableProduct.publicId)?.returnEligible).toBe(true);
+  });
+
   it('the owning buyer can view the order; commission is absent', async () => {
     const seller = await createTestUser('SELLER', { onboarded: true });
     const buyer = await createTestUser('BUYER');

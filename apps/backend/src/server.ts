@@ -28,6 +28,8 @@ import { checkoutRouter, orderRouter, sellerOrderRouter } from './modules/order'
 import { profileRouter } from './modules/profile';
 import { paymentRouter, stripeWebhookRouter } from './modules/payment';
 import { adminReturnsRouter, returnsRouter, sellerReturnsRouter } from './modules/returns';
+import { startReturnInspectionWorker } from './modules/returns/return-inspection.service';
+import { startReturnShipmentPollJob } from './modules/returns/return-fulfillment.service';
 import { startSettlementPollJob } from './modules/settlement';
 import {
   authenticatedTrackingRouter,
@@ -112,5 +114,7 @@ if (require.main === module) {
   startTrackingPollJob().catch((err) => logger.error({ err }, 'failed to start tracking poll job'));
   startNotificationConsumer();
   startProductEmbeddingWorker();
+  startReturnInspectionWorker();
+  startReturnShipmentPollJob().catch((err) => logger.error({ err }, 'failed to start return tracking poll job'));
   startSettlementPollJob().catch((err) => logger.error({ err }, 'failed to start settlement poll job'));
 }

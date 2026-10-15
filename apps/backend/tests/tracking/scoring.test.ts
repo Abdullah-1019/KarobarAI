@@ -63,9 +63,11 @@ describe('initializeShipment / scoreCouriers (Task 2/3 — courier scoring)', ()
       paymentMethod: 'JAZZCASH',
     });
 
-    await prisma.platformConfig.update({
+    await prisma.platformConfig.upsert({
       where: { configKey: 'courier_weights' },
-      data: { value: { cost: 1, time: 0, reliability: 0, coverage: 0 } },
+      create: { configKey: 'courier_weights', value: { cost: 1, time: 0, reliability: 0, coverage: 0 },
+        description: 'Test scoring weights' },
+      update: { value: { cost: 1, time: 0, reliability: 0, coverage: 0 } },
     });
 
     await trackingService.initializeShipment(order.orderId);

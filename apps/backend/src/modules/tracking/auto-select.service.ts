@@ -6,7 +6,7 @@ import { config } from '../../core/config';
 import { BusinessRuleError, ConflictError } from '../../core/errors/AppError';
 import { logger } from '../../core/logger';
 import { prisma } from '../../core/prisma';
-import { getOwnedOrderRow, transitionOrderStatus } from '../order/order.service';
+import { getOwnedOrderRow } from '../order/order.service';
 import { evaluateCourierQuotes } from './tracking.service';
 
 // The mock adapter has no merchant account. A typed definitive failure means the adapter
@@ -69,7 +69,7 @@ async function recordOutcome(orderId: bigint, status: 'FAILED' | 'UNCERTAIN', co
 }
 
 function assertEligible(status: string, courier: string | null) {
-  if (status !== 'PAYMENT_CONFIRMED') {
+  if (status !== 'PACKED') {
     throw new BusinessRuleError('Order is not ready for courier booking', { status }, 'ORDER_NOT_COURIER_ELIGIBLE');
   }
   if (courier) throw new ConflictError('Order already has a booked courier', undefined, 'COURIER_ALREADY_BOOKED');
@@ -81,13 +81,6 @@ export async function autoSelectCourier(orderPublicId: string, sellerId: bigint,
   }
   const order = await getOwnedOrderRow(orderPublicId, { userId: sellerId, role: 'SELLER' });
   const existing = await prisma.courierShipment.findUnique({ where: { orderId: order.orderId } });
-  if (existing?.status === 'BOOKED' && order.status === 'PAYMENT_CONFIRMED'
-    && existing.courier === order.courier && existing.trackingId === order.trackingNo) {
-    // The durable booking committed, but a previous PROCESSING transition failed. Resume only
-    // this local status step; never send a second booking request to the provider.
-    await transitionOrderStatus(order.orderId, 'PROCESSING', 'system',
-      `Simulated courier booked: ${existing.courier}`);
-  }
   if (existing && ['BOOKED', 'PICKED_UP', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'DELIVERED'].includes(existing.status)) {
     return getAutoSelection(orderPublicId, sellerId);
   }
@@ -192,7 +185,7 @@ export async function autoSelectCourier(orderPublicId: string, sellerId: bigint,
       });
       if (updated.count !== 1) throw new Error('Courier claim changed after booking');
       const orderUpdated = await tx.order.updateMany({
-        where: { orderId: order.orderId, status: 'PAYMENT_CONFIRMED', courier: null },
+        where: { orderId: order.orderId, status: 'PACKED', courier: null },
         data: { courier: winner.courier, trackingNo: booked.trackingNo,
           courierOverridden: wasOverride },
       });
@@ -207,12 +200,6 @@ export async function autoSelectCourier(orderPublicId: string, sellerId: bigint,
     throw new ConflictError('Courier booking must be reconciled before retrying', undefined, 'COURIER_OUTCOME_UNCERTAIN');
   }
 
-  try {
-    await transitionOrderStatus(order.orderId, 'PROCESSING', 'system', `Simulated courier booked: ${winner.courier}`);
-  } catch (error) {
-    logger.error({ error, orderId: order.orderId.toString() }, 'Booked courier status transition needs reconciliation');
-    throw new ConflictError('Shipment is recorded, but order status needs reconciliation', undefined, 'COURIER_STATUS_SYNC_PENDING');
-  }
   return getAutoSelection(orderPublicId, sellerId);
 }
 

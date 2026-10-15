@@ -56,7 +56,7 @@ export function OrderListPage({ scope }: OrderListPageProps) {
       key: 'id',
       render: (id: string, record: OrderListItemDTO) => (
         <Link to={`${detailBase}/${id}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
-          {id}
+          {record.orderNumber ? `Order #${record.orderNumber}` : id}
           {record.status === 'PENDING_MANUAL_LOGISTICS' && (
             <StatusTag variant="warning" label={t('list.pendingLogistics')} />
           )}
@@ -142,7 +142,7 @@ export function OrderListPage({ scope }: OrderListPageProps) {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 'var(--sp-2)' }}>
                   <div>
                     <Link to={`${detailBase}/${item.id}`} style={{ fontWeight: 500 }}>
-                      {item.id}
+                      {item.orderNumber ? `Order #${item.orderNumber}` : item.id}
                     </Link>
                     <Typography.Text type="secondary" style={{ display: 'block', fontSize: 'var(--fs-xs)' }}>
                       {new Date(item.placedAt).toLocaleDateString()}

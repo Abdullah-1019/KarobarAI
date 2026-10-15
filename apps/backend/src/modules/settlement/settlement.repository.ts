@@ -13,19 +13,19 @@ export interface SettlementEligibleOrder {
   commissionRateSnapshot: Prisma.Decimal;
 }
 
-// An order is settlement-eligible once its return window has closed with nothing left to
-// refund: delivered, no Settlement row yet (Settlement.orderId is unique — this is also the
+// An order is settlement-eligible once its receipt-based return window has closed with nothing left to
+// refund: buyer-confirmed receipt, no Settlement row yet (Settlement.orderId is unique — this is also the
 // idempotency guard against double-creating on the next poll cycle), and either no return was
-// ever filed or the one that was ended in CLOSED (rejected/abandoned, no refund paid) rather
+// ever filed or every item-level return ended in CLOSED (rejected/abandoned, no refund paid) rather
 // than REFUND_ISSUED (already refunded — must never be settled) or any still-active return
 // status (settlement waits for the return to resolve one way or the other).
 export async function findSettlementEligibleOrders(cutoff: Date): Promise<SettlementEligibleOrder[]> {
   return prisma.order.findMany({
     where: {
-      status: { in: ['DELIVERED', 'COMPLETED'] },
-      deliveredAt: { lte: cutoff },
+      status: 'COMPLETED',
+      buyerConfirmedAt: { lte: cutoff },
       settlement: null,
-      OR: [{ return: null }, { return: { status: 'CLOSED' } }],
+      OR: [{ returns: { none: {} } }, { returns: { every: { status: 'CLOSED' } } }],
     },
     select: { orderId: true, sellerId: true, subtotal: true, commissionRateSnapshot: true },
   });

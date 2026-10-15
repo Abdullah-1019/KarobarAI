@@ -3,9 +3,19 @@ import { z } from 'zod';
 export const createReturnSchema = z
   .object({
     orderId: z.string().min(1), // the order's publicId
-    reason: z.string().min(1).max(200),
+    reasonCode: z.enum(['WRONG_ITEM', 'DAMAGED', 'NOT_AS_DESCRIBED', 'CHANGED_MIND', 'OTHER']),
+    otherReason: z.string().trim().min(1).max(200).optional(),
+    productId: z.string().uuid().optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((data, ctx) => {
+    if (data.reasonCode === 'OTHER' && !data.otherReason) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['otherReason'], message: 'Explain the other return reason' });
+    }
+    if (data.reasonCode !== 'OTHER' && data.otherReason) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['otherReason'], message: 'Other reason is only allowed for OTHER' });
+    }
+  });
 
 export type CreateReturnInput = z.infer<typeof createReturnSchema>;
 
@@ -14,7 +24,7 @@ export type CreateReturnInput = z.infer<typeof createReturnSchema>;
 export const sellerDecisionSchema = z
   .object({
     decision: z.enum(['APPROVED', 'REJECTED']),
-    reason: z.string().min(1).max(500).optional(),
+    reason: z.string().trim().min(1).max(500).optional(),
   })
   .strict()
   .refine((data) => data.decision !== 'REJECTED' || Boolean(data.reason), {

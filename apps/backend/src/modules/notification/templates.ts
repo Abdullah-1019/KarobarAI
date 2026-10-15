@@ -68,12 +68,72 @@ const TEMPLATES: Record<string, TemplatePair> = {
     en: 'The return for order #{{orderId}} is now under review.',
     ur: 'آرڈر #{{orderId}} کی واپسی کا اب جائزہ لیا جا رہا ہے۔',
   },
+  RETURN_SELLER_REVIEW: {
+    en: 'A return for order #{{orderId}} needs your review.',
+    ur: 'آرڈر #{{orderId}} کی واپسی کے لیے آپ کے جائزے کی ضرورت ہے۔',
+  },
+  RETURN_SELLER_DECISION: {
+    en: 'The return for order #{{orderId}} was {{decision}}. Review the case for next steps.',
+    ur: 'آرڈر #{{orderId}} کی واپسی {{decision}} ہوئی ہے۔ اگلے اقدامات کے لیے کیس دیکھیں۔',
+  },
+  RETURN_APPEAL_SUBMITTED: {
+    en: 'The buyer appealed the return decision for order #{{orderId}}. Please review it.',
+    ur: 'خریدار نے آرڈر #{{orderId}} کی واپسی کے فیصلے پر اپیل کی ہے۔ براہ کرم جائزہ لیں۔',
+  },
   // {{reasonText}} is pre-computed by the caller — empty string on approval, " Reason: X" on
   // rejection — since the template registry only does flat {{var}} interpolation, never
   // conditional logic (Task 2.5's own boundary).
   RETURN_DECISION: {
     en: 'Your return for order #{{orderId}} has been {{decision}}.{{reasonText}}',
     ur: 'آرڈر #{{orderId}} کے لیے آپ کی واپسی {{decision}} کر دی گئی ہے۔{{reasonText}}',
+  },
+  RETURN_ADMIN_REVIEW: {
+    en: 'A return for order #{{orderId}} needs an administrator review.',
+    ur: 'آرڈر #{{orderId}} کی واپسی کے لیے منتظم کا جائزہ درکار ہے۔',
+  },
+  RETURN_COURIER_BOOKED: {
+    en: 'A simulated return courier has been booked for order #{{orderId}}.',
+    ur: 'آرڈر #{{orderId}} کی واپسی کے لیے آزمائشی کورئیر بک ہوا ہے۔',
+  },
+  RETURN_DELIVERED_TO_SELLER: {
+    en: 'The return parcel for order #{{orderId}} has reached the seller. Receipt confirmation is pending.',
+    ur: 'آرڈر #{{orderId}} کا واپس کیا گیا پارسل بیچنے والے تک پہنچ گیا ہے۔ وصولی کی تصدیق باقی ہے۔',
+  },
+  RETURN_RECEIVED: {
+    en: 'The seller has confirmed receipt of the return for order #{{orderId}}.',
+    ur: 'بیچنے والے نے آرڈر #{{orderId}} کی واپسی وصول ہونے کی تصدیق کر دی ہے۔',
+  },
+  RETURN_REPLACEMENT_RESERVED: {
+    en: 'The seller has reserved a replacement for order #{{orderId}}.',
+    ur: 'بیچنے والے نے آرڈر #{{orderId}} کے لیے متبادل چیز محفوظ کر لی ہے۔',
+  },
+  RETURN_REFUND_PROPOSED: {
+    en: 'The seller has proposed a refund instead of an exchange for order #{{orderId}}. Your consent is required.',
+    ur: 'بیچنے والے نے آرڈر #{{orderId}} کے لیے تبادلے کی بجائے رقم واپسی کی تجویز دی ہے۔ آپ کی رضامندی درکار ہے۔',
+  },
+  RETURN_REFUND_RESPONSE: {
+    en: 'The buyer has {{response}} the refund proposal for order #{{orderId}}.',
+    ur: 'خریدار نے آرڈر #{{orderId}} کی رقم واپسی کی تجویز {{response}} کر دی ہے۔',
+  },
+  RETURN_REPLACEMENT_PACKED: {
+    en: 'The replacement parcel for order #{{orderId}} has been packed by the seller.',
+    ur: 'آرڈر #{{orderId}} کا متبادل پارسل بیچنے والے نے پیک کر دیا ہے۔',
+  },
+  RETURN_REPLACEMENT_BOOKED: {
+    en: 'A simulated replacement shipment has been booked for order #{{orderId}}.',
+    ur: 'آرڈر #{{orderId}} کا متبادل پارسل آزمائشی طور پر بک ہو گیا ہے۔',
+  },
+  RETURN_REPLACEMENT_DELIVERED: {
+    en: 'The simulated replacement parcel for order #{{orderId}} is marked delivered. Please confirm receipt.',
+    ur: 'آرڈر #{{orderId}} کا متبادل پارسل موصول ہونے کے طور پر درج ہے۔ براہ کرم وصولی کی تصدیق کریں۔',
+  },
+  RETURN_TRACKING_UPDATED: {
+    en: 'The simulated {{leg}} parcel for order #{{orderId}} is now {{status}}.',
+    ur: 'آرڈر #{{orderId}} کے آزمائشی {{leg}} پارسل کی حالت اب {{status}} ہے۔',
+  },
+  RETURN_EXCHANGE_COMPLETED: {
+    en: 'The replacement for order #{{orderId}} has been delivered. The exchange is complete.',
+    ur: 'آرڈر #{{orderId}} کا متبادل پارسل پہنچ گیا ہے۔ تبادلہ مکمل ہو گیا ہے۔',
   },
   REFUND_ISSUED: {
     en: 'Your refund for order #{{orderId}} has been issued.',

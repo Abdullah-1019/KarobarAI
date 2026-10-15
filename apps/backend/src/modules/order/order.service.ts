@@ -4,6 +4,7 @@ import type { Order, OrderStatus, Prisma, UserRole } from '@prisma/client';
 import type { Queue } from 'bullmq';
 
 import { decryptField } from '../../core/crypto/fieldCipher';
+import { config } from '../../core/config';
 import { BusinessRuleError, ConflictError, ForbiddenError, NotFoundError } from '../../core/errors/AppError';
 import { logger } from '../../core/logger';
 import { prisma } from '../../core/prisma';
@@ -56,6 +57,7 @@ function statusFilterFor(tab: ListOrdersQueryInput['tab']): OrderStatus[] | unde
 function toListDTO(rows: OrderListRow[], hasMore: boolean, counterpartyName: (row: OrderListRow) => string): OrderListDTO {
   const items: OrderListItemDTO[] = rows.map((row) => ({
     id: row.publicId,
+    orderNumber: row.orderNumber.toString(),
     counterpartyName: counterpartyName(row),
     itemCount: row._count.items,
     totalAmount: row.totalAmount.toFixed(2),
@@ -66,31 +68,39 @@ function toListDTO(rows: OrderListRow[], hasMore: boolean, counterpartyName: (ro
   return { items, nextCursor: hasMore && last ? last.orderId.toString() : null };
 }
 
-// Task 3.4 — read-only gate: delivered within platform_config.return_window_days (never
-// hardcoded, same discipline Feature 6 Task 4.3 required for min_order_value_pkr) AND no
-// existing returns row for the order (Return.orderId is unique). Batched, not N+1 — a list page
-// is at most `limit` orders, one extra query total, not one per row.
+// Read-only list gate: buyer-confirmed within 24 hours and at least one purchased item
+// without a return. Legacy item-less returns block the whole order. Query in batches.
 async function getReturnEligibilityByOrderId(orders: OrderListRow[]): Promise<Map<bigint, boolean>> {
-  const deliveredOrderIds = orders.filter((o) => o.status === 'DELIVERED' || o.status === 'COMPLETED').map((o) => o.orderId);
+  const deliveredOrderIds = orders.filter((o) => o.status === 'COMPLETED').map((o) => o.orderId);
   if (deliveredOrderIds.length === 0) return new Map();
 
-  const [configRow, existingReturns, fullOrders] = await Promise.all([
-    prisma.platformConfig.findUnique({ where: { configKey: 'return_window_days' } }),
-    prisma.return.findMany({ where: { orderId: { in: deliveredOrderIds } }, select: { orderId: true } }),
-    prisma.order.findMany({ where: { orderId: { in: deliveredOrderIds } }, select: { orderId: true, deliveredAt: true } }),
+  const [existingReturns, fullOrders, orderItems] = await Promise.all([
+    prisma.return.findMany({ where: { orderId: { in: deliveredOrderIds } },
+      select: { orderId: true, orderItemId: true } }),
+    prisma.order.findMany({ where: { orderId: { in: deliveredOrderIds } }, select: { orderId: true, buyerConfirmedAt: true } }),
+    prisma.orderItem.findMany({ where: { orderId: { in: deliveredOrderIds } },
+      select: { orderId: true, orderItemId: true } }),
   ]);
 
-  const windowDays = configRow ? Number(configRow.value) : 14;
-  const hasReturn = new Set(existingReturns.map((r) => r.orderId.toString()));
-  const deliveredAtById = new Map(fullOrders.map((o) => [o.orderId.toString(), o.deliveredAt]));
+  const returnedItems = new Set(existingReturns.map((r) => r.orderItemId?.toString()).filter(Boolean));
+  const legacyReturnedOrders = new Set(existingReturns.filter((r) => r.orderItemId === null)
+    .map((r) => r.orderId.toString()));
+  const itemsByOrder = new Map<string, bigint[]>();
+  for (const item of orderItems) {
+    const key = item.orderId.toString();
+    itemsByOrder.set(key, [...(itemsByOrder.get(key) ?? []), item.orderItemId]);
+  }
+  const confirmedAtById = new Map(fullOrders.map((o) => [o.orderId.toString(), o.buyerConfirmedAt]));
 
   const result = new Map<bigint, boolean>();
   for (const orderId of deliveredOrderIds) {
-    const deliveredAt = deliveredAtById.get(orderId.toString());
-    const withinWindow = deliveredAt
-      ? Date.now() <= deliveredAt.getTime() + windowDays * 24 * 60 * 60 * 1000
+    const confirmedAt = confirmedAtById.get(orderId.toString());
+    const withinWindow = confirmedAt
+      ? Date.now() <= confirmedAt.getTime() + 24 * 60 * 60 * 1000
       : false;
-    result.set(orderId, withinWindow && !hasReturn.has(orderId.toString()));
+    const itemIds = itemsByOrder.get(orderId.toString()) ?? [];
+    result.set(orderId, withinWindow && !legacyReturnedOrders.has(orderId.toString())
+      && itemIds.some((itemId) => !returnedItems.has(itemId.toString())));
   }
   return result;
 }
@@ -131,6 +141,8 @@ export async function getOrdersForSeller(sellerId: bigint, filters: ListOrdersQu
 
 const ORDER_DETAIL_INCLUDE = {
   items: { include: { product: { select: { publicId: true } } } },
+  returns: { select: { returnId: true, status: true, orderItemId: true,
+    orderItem: { select: { titleSnapshot: true } } } },
   payment: true,
   trackingEvents: { orderBy: { eventTime: 'asc' as const } },
 } satisfies Prisma.OrderInclude;
@@ -165,8 +177,14 @@ export async function getOrderById(
       }
     : null;
 
+  const hasLegacyReturn = order.returns.some((ret) => ret.orderItemId === null);
+  const returnedItemIds = new Set(order.returns.map((ret) => ret.orderItemId?.toString()));
+  const returnWindowOpen = order.status === 'COMPLETED' && order.buyerConfirmedAt !== null
+    && Date.now() <= order.buyerConfirmedAt.getTime() + 86_400_000;
+
   return {
     id: order.publicId,
+    orderNumber: order.orderNumber.toString(),
     status: order.status,
     paymentMethod: order.paymentMethod,
     paymentStatus: order.payment?.status ?? 'PENDING',
@@ -176,9 +194,16 @@ export async function getOrderById(
     commission,
     items: order.items.map((item) => ({
       productId: item.product.publicId,
+      resolution: item.resolution,
+      returnEligible: returnWindowOpen && !hasLegacyReturn
+        && !returnedItemIds.has(item.orderItemId.toString()),
       titleSnapshot: item.titleSnapshot,
       unitPrice: item.unitPrice.toFixed(2),
       quantity: item.quantity,
+    })),
+    returnCases: order.returns.map((ret) => ({
+      id: ret.returnId.toString(), status: ret.status,
+      productName: ret.orderItem?.titleSnapshot ?? null,
     })),
     // Decrypted server-side for an already-authorized viewer only — never sent as ciphertext,
     // and always the order's own snapshot (Schema §4.10), never the buyer's current address.
@@ -222,6 +247,42 @@ export async function getOwnedOrderRow(
   return order;
 }
 
+export async function confirmBuyerReceipt(orderPublicId: string, buyerId: bigint): Promise<void> {
+  const order = await getOwnedOrderRow(orderPublicId, { userId: buyerId, role: 'BUYER' });
+  if (order.buyerId !== buyerId) throw new ForbiddenError('This order does not belong to you', undefined, 'ORDER_NOT_OWNED');
+  if (order.status === 'COMPLETED' && order.buyerConfirmedAt) return;
+  if (order.status !== 'DELIVERED') throw new BusinessRuleError(
+    'The courier has not delivered this order yet', undefined, 'ORDER_RECEIPT_NOT_READY');
+  await transitionOrderStatus(order.orderId, 'COMPLETED', 'buyer', 'Buyer confirmed parcel receipt');
+}
+
+export async function advanceSellerFulfillment(
+  orderPublicId: string, sellerId: bigint,
+  targetStatus: 'PROCESSING' | 'PACKED' | 'HANDED_OVER_TO_COURIER' | 'DELIVERED',
+): Promise<void> {
+  const order = await getOwnedOrderRow(orderPublicId, { userId: sellerId, role: 'SELLER' });
+  if (order.sellerId !== sellerId) throw new ForbiddenError('This order does not belong to you',
+    undefined, 'ORDER_NOT_OWNED');
+  if (targetStatus === 'PROCESSING' && order.paymentMethod !== 'COD') {
+    const payment = await prisma.payment.findUnique({ where: { orderId: order.orderId },
+      select: { status: true } });
+    if (payment?.status !== 'CONFIRMED') throw new BusinessRuleError(
+      'Online payment must be confirmed before processing', undefined, 'ORDER_PAYMENT_NOT_CONFIRMED');
+  }
+  if (targetStatus === 'HANDED_OVER_TO_COURIER') {
+    const shipment = await prisma.courierShipment.findUnique({ where: { orderId: order.orderId } });
+    if (shipment?.status !== 'BOOKED' || !shipment.trackingId || !order.courier) {
+      throw new BusinessRuleError('Book a courier before handover', undefined, 'ORDER_COURIER_NOT_BOOKED');
+    }
+  }
+  await transitionOrderStatus(order.orderId, targetStatus, 'seller',
+    targetStatus === 'HANDED_OVER_TO_COURIER'
+      ? 'Seller handed the parcel to the simulated courier'
+      : targetStatus === 'DELIVERED'
+        ? 'Seller reported simulated courier delivery; buyer receipt is still pending'
+      : `Seller marked order ${targetStatus.toLowerCase()}`);
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Task 6 — Order Status Management. transitionOrderStatus is the SINGLE entry point for every
 // status change in this codebase — nothing else ever writes orders.status directly (TRD §3's
@@ -231,7 +292,7 @@ export async function getOwnedOrderRow(
 export async function transitionOrderStatus(
   orderId: bigint,
   targetStatus: OrderStatus,
-  actor: 'system' | 'seller',
+  actor: 'system' | 'seller' | 'buyer',
   description?: string,
   // Feature 8 addition — every courier-driven milestone its poll job records also doubles as a
   // canonical status transition (its mock adapter's tracking call maps 1:1 onto OrderStatus
@@ -243,10 +304,10 @@ export async function transitionOrderStatus(
 ): Promise<void> {
   const restoredProductIds = new Set<bigint>();
   const committedOrder = await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT order_id FROM orders WHERE order_id = ${orderId} FOR UPDATE`;
     if (targetStatus === 'CANCELLED') {
       // Serialize cancellation with the courier claim. A booking in progress or with an
       // uncertain outcome must be reconciled before inventory can be restored.
-      await tx.$queryRaw`SELECT order_id FROM orders WHERE order_id = ${orderId} FOR UPDATE`;
       const shipment = await tx.courierShipment.findUnique({ where: { orderId } });
       if (shipment && ['EVALUATING', 'BOOKING', 'UNCERTAIN', 'BOOKED'].includes(shipment.status)) {
         throw new ConflictError('Courier booking must be reconciled before cancellation', undefined,
@@ -254,6 +315,24 @@ export async function transitionOrderStatus(
       }
     }
     const order = await tx.order.findUniqueOrThrow({ where: { orderId } });
+
+    if (actor === 'seller' && targetStatus === 'DELIVERED') {
+      if (config.adapterMode !== 'mock') {
+        throw new BusinessRuleError('Seller delivery reporting is available only for simulated couriers',
+          undefined, 'COURIER_SIMULATION_ONLY');
+      }
+      const shipment = await tx.courierShipment.findUnique({ where: { orderId } });
+      if (shipment?.source === 'REAL') {
+        throw new BusinessRuleError('Seller delivery reporting is available only for simulated couriers',
+          undefined, 'COURIER_SIMULATION_ONLY');
+      }
+      if (shipment?.source !== 'SIMULATED' || !shipment.trackingId
+        || !['BOOKED', 'PICKED_UP', 'IN_TRANSIT', 'OUT_FOR_DELIVERY'].includes(shipment.status)
+        || !order.courier) {
+        throw new BusinessRuleError('A booked simulated courier is required to report delivery',
+          undefined, 'ORDER_COURIER_NOT_BOOKED');
+      }
+    }
 
     if (!canTransition(order.status, targetStatus)) {
       throw new BusinessRuleError(
@@ -268,6 +347,7 @@ export async function transitionOrderStatus(
       data: {
         status: targetStatus,
         ...(targetStatus === 'DELIVERED' && { deliveredAt: new Date() }),
+        ...(targetStatus === 'COMPLETED' && actor === 'buyer' && { buyerConfirmedAt: new Date() }),
       },
     });
 
@@ -289,7 +369,7 @@ export async function transitionOrderStatus(
       const shipment = await tx.courierShipment.findUnique({ where: { orderId } });
       if (shipment) {
         const now = new Date();
-        const etaQuote = targetStatus === 'DELIVERED' && shipment.evaluationId
+        const etaQuote = targetStatus === 'DELIVERED' && actor !== 'seller' && shipment.evaluationId
           ? await tx.courierQuote.findFirst({ where: { orderId, evaluationId: shipment.evaluationId, selected: true } })
           : null;
         await tx.courierShipment.update({
@@ -299,7 +379,7 @@ export async function transitionOrderStatus(
             ...(targetStatus === 'PICKED_UP' ? { pickedUpAt: now } : {}),
             ...(targetStatus === 'IN_TRANSIT' ? { inTransitAt: now } : {}),
             ...(targetStatus === 'DELIVERED' ? { deliveredAt: now,
-              onTime: shipment.bookedAt && etaQuote?.etaHours
+              onTime: actor !== 'seller' && shipment.bookedAt && etaQuote?.etaHours
                 ? now.getTime() - shipment.bookedAt.getTime() <= etaQuote.etaHours * 3_600_000 : null } : {}),
             ...(targetStatus === 'CANCELLED' ? { cancelledAt: now } : {}),
           },
@@ -318,12 +398,12 @@ export async function transitionOrderStatus(
       }
     }
 
-    // Entry action — Gap #4: delivery IS the COD payment-confirmation event. The cod_remittances
-    // ledger row itself is never written here (Feature 6 Gap #3 / Feature 7 Gap #4 — deferred to
-    // Feature 8).
-    if (targetStatus === 'DELIVERED' && order.paymentMethod === 'COD') {
+    // Courier/system delivery confirms COD as before. A seller's simulated delivery report does
+    // not prove collection; in that path COD stays pending until the buyer confirms receipt.
+    if (((targetStatus === 'DELIVERED' && actor !== 'seller')
+      || (targetStatus === 'COMPLETED' && actor === 'buyer')) && order.paymentMethod === 'COD') {
       await tx.payment.updateMany({
-        where: { orderId },
+        where: { orderId, status: 'PENDING' },
         data: { status: 'CONFIRMED', confirmedAt: new Date() },
       });
     }

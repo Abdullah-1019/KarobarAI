@@ -79,6 +79,6 @@ export async function findOrderByTrackingToken(token: string): Promise<Order | n
 // the alternative (a permanently stuck pipeline) can't be what was intended.
 export async function findActiveShipmentOrders(): Promise<Order[]> {
   return prisma.order.findMany({
-    where: { status: { in: ['PROCESSING', 'PICKED_UP', 'IN_TRANSIT', 'OUT_FOR_DELIVERY'] } },
+    where: { status: { in: ['HANDED_OVER_TO_COURIER', 'PICKED_UP', 'IN_TRANSIT', 'OUT_FOR_DELIVERY'] } },
   });
 }

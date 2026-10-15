@@ -56,6 +56,7 @@ export function StorefrontLayout() {
           ]
         : [
             { key: 'orders', label: <Link to="/orders">{t('common:nav.orders')}</Link> },
+            { key: 'returns', label: <Link to="/returns">{t('common:nav.myReturns')}</Link> },
             { key: 'profile', label: <Link to="/buyer/profile">{t('common:nav.profile')}</Link> },
             { type: 'divider' },
             { key: 'logout', label: t('common:actions.logout'), onClick: handleLogout },

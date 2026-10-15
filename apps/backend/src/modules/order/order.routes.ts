@@ -1,11 +1,14 @@
 import { Router } from 'express';
+import { z } from 'zod';
 
 import { authenticate } from '../../core/middleware/authenticate';
 import { authorize } from '../../core/middleware/authorize';
 import { validateBody, validateQuery } from '../../core/middleware/validate';
 import {
   cancelOrderHandler,
+  advanceSellerFulfillmentHandler,
   checkoutHandler,
+  confirmBuyerReceiptHandler,
   getOrderDetailHandler,
   getOrderInvoiceHandler,
   listBuyerOrdersHandler,
@@ -104,6 +107,7 @@ orderRouter.get('/', authorize('BUYER'), validateQuery(listOrdersQuerySchema), l
  *         description: Order not found (ORDER_NOT_FOUND)
  */
 orderRouter.get('/:id', getOrderDetailHandler);
+orderRouter.post('/:id/confirm-receipt', authorize('BUYER'), confirmBuyerReceiptHandler);
 // Provider reconciliation never creates or confirms a PaymentIntent. The buyer can request
 // verification of their own pending order; the service rate-limits and validates the real event.
 orderRouter.post('/:id/reconcile-payment', authorize('BUYER'), reconcileOrderPaymentHandler);
@@ -179,3 +183,6 @@ sellerOrderRouter.use(authenticate, authorize('SELLER'));
  *         description: "OrderListDTO — counterpartyName is the order's snapshotted recipient name, not full buyer PII"
  */
 sellerOrderRouter.get('/', validateQuery(listOrdersQuerySchema), listSellerOrdersHandler);
+sellerOrderRouter.post('/:id/fulfillment',
+  validateBody(z.object({ stage: z.enum(['PROCESSING', 'PACKED', 'HANDED_OVER_TO_COURIER', 'DELIVERED']) }).strict()),
+  advanceSellerFulfillmentHandler);

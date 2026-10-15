@@ -11,8 +11,9 @@ export function returnQueryKey(id: string) {
   return ['returns', 'detail', id] as const;
 }
 
-export function createReturn(orderId: string, reason: string): Promise<ReturnDetailDTO> {
-  return unwrap(apiClient.post<ApiEnvelope<ReturnDetailDTO>>('/returns', { orderId, reason }));
+export function createReturn(orderId: string, reasonCode: 'WRONG_ITEM' | 'DAMAGED' | 'NOT_AS_DESCRIBED' | 'CHANGED_MIND' | 'OTHER', productId?: string, otherReason?: string): Promise<ReturnDetailDTO> {
+  return unwrap(apiClient.post<ApiEnvelope<ReturnDetailDTO>>('/returns', { orderId, reasonCode, productId,
+    ...(reasonCode === 'OTHER' ? { otherReason } : {}) }));
 }
 
 export const buyerReturnsQueryKey = ['returns', 'buyer'] as const;
@@ -39,8 +40,12 @@ export function submitReturn(id: string): Promise<ReturnDetailDTO> {
   return unwrap(apiClient.post<ApiEnvelope<ReturnDetailDTO>>(`/returns/${id}/submit`));
 }
 
-export function appealReturn(id: string): Promise<ReturnDetailDTO> {
-  return unwrap(apiClient.post<ApiEnvelope<ReturnDetailDTO>>(`/returns/${id}/appeal`));
+export function appealReturn(id: string, reason: string): Promise<ReturnDetailDTO> {
+  return unwrap(apiClient.post<ApiEnvelope<ReturnDetailDTO>>(`/returns/${id}/appeal`, { reason }));
+}
+
+export function respondToRefundProposal(id: string, accept: boolean): Promise<ReturnDetailDTO> {
+  return unwrap(apiClient.post<ApiEnvelope<ReturnDetailDTO>>(`/returns/${id}/refund-proposal/respond`, { accept }));
 }
 
 // --- Seller ---
@@ -65,4 +70,36 @@ export function sellerDecideReturn(id: string, decision: 'APPROVED' | 'REJECTED'
 
 export function sellerEscalateReturn(id: string): Promise<{ escalated: true }> {
   return unwrap(apiClient.post<ApiEnvelope<{ escalated: true }>>(`/seller/returns/${id}/escalate`));
+}
+
+export function sellerConfirmReturnReceipt(id: string, condition: 'RESELLABLE' | 'DAMAGED' | 'NEEDS_INSPECTION'): Promise<ReturnDetailDTO> {
+  return unwrap(apiClient.post<ApiEnvelope<ReturnDetailDTO>>(`/seller/returns/${id}/confirm-receipt`, { condition }));
+}
+
+export function sellerReserveReplacement(id: string, productId: string): Promise<ReturnDetailDTO> {
+  return unwrap(apiClient.post<ApiEnvelope<ReturnDetailDTO>>(`/seller/returns/${id}/replacement`, { productId }));
+}
+
+export function sellerBookReplacement(id: string): Promise<ReturnDetailDTO> {
+  return unwrap(apiClient.post<ApiEnvelope<ReturnDetailDTO>>(`/seller/returns/${id}/book-replacement`));
+}
+
+export function sellerPackReplacement(id: string): Promise<ReturnDetailDTO> {
+  return unwrap(apiClient.post<ApiEnvelope<ReturnDetailDTO>>(`/seller/returns/${id}/replacement/pack`));
+}
+
+export function sellerBookReturnCourier(id: string): Promise<ReturnDetailDTO> {
+  return unwrap(apiClient.post<ApiEnvelope<ReturnDetailDTO>>(`/seller/returns/${id}/book-return-courier`));
+}
+
+export function confirmReplacementReceipt(id: string): Promise<ReturnDetailDTO> {
+  return unwrap(apiClient.post<ApiEnvelope<ReturnDetailDTO>>(`/returns/${id}/replacement/confirm-receipt`));
+}
+
+export function submitExchangeFeedback(id: string, rating: number, comment: string): Promise<ReturnDetailDTO> {
+  return unwrap(apiClient.post<ApiEnvelope<ReturnDetailDTO>>(`/returns/${id}/exchange-feedback`, { rating, comment }));
+}
+
+export function sellerProposeRefund(id: string, reason: string): Promise<ReturnDetailDTO> {
+  return unwrap(apiClient.post<ApiEnvelope<ReturnDetailDTO>>(`/seller/returns/${id}/refund-proposal`, { reason }));
 }

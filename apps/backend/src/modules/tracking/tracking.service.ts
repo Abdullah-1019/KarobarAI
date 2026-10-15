@@ -150,7 +150,7 @@ export async function refreshCourierRates(orderPublicId: string, sellerId: bigin
 // re-eligible through this automated path — that status is a deliberate terminal-for-this-
 // feature state requiring human (Admin/Support) intervention, not an automatic retry seam.
 function assertCourierSelectionEligible(order: Order): void {
-  if (order.status !== 'PAYMENT_CONFIRMED') {
+  if (order.status !== 'PAYMENT_CONFIRMED' && order.status !== 'PACKED') {
     throw new BusinessRuleError('Order is not eligible for courier selection', { status: order.status }, 'ORDER_NOT_COURIER_ELIGIBLE');
   }
   if (order.courier !== null) {
@@ -182,6 +182,8 @@ const DELIVERY_STAGE_LABELS: Record<OrderStatus, string> = {
   PAYMENT_PENDING: 'Awaiting payment',
   PAYMENT_CONFIRMED: 'Payment confirmed',
   PROCESSING: 'Preparing your order',
+  PACKED: 'Packed and ready for courier booking',
+  HANDED_OVER_TO_COURIER: 'Handed over to simulated courier',
   PENDING_MANUAL_LOGISTICS: 'Arranging courier',
   PICKED_UP: 'Picked up by courier',
   IN_TRANSIT: 'In transit',

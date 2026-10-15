@@ -7,9 +7,7 @@ import { decideReturn } from '../decision.service';
 import * as repo from '../returns.repository';
 import { getOwnedReturn, getReturnDetail, toListItemDTO } from '../returns.service';
 
-// Task 4 — Seller Review. Active queue = MANUAL_REVIEW only; history=true widens to every status
-// tied to the seller's own orders (Task 7.2's extension of this same endpoint).
-const SELLER_ACTIVE_STATUSES: ReturnStatus[] = ['MANUAL_REVIEW'];
+// Every unresolved case belongs to its owning seller, including AI review and appeals.
 
 export async function listSellerReturns(
   sellerId: bigint,
@@ -21,7 +19,15 @@ export async function listSellerReturns(
       sellerId,
       ...(filters.status
         ? { status: filters.status as ReturnStatus }
-        : !filters.history && { status: { in: SELLER_ACTIVE_STATUSES } }),
+        : !filters.history && { OR: [
+          { status: 'MANUAL_REVIEW' },
+          { status: 'UNDER_DISPUTE' },
+          { status: 'APPROVED', fulfillment: { is: { status: 'AWAITING_COURIER' } } },
+          { fulfillment: { is: { status: { in: [
+            'AWAITING_SELLER_RECEIPT', 'REPLACEMENT_PENDING', 'REFUND_DECLINED',
+            'RETURN_IN_TRANSIT', 'REPLACEMENT_PACKED', 'REPLACEMENT_IN_TRANSIT', 'REPLACEMENT_DELIVERED',
+          ] } } } },
+        ] }),
     },
     filters.cursor,
     limit,
@@ -31,12 +37,16 @@ export async function listSellerReturns(
 }
 
 export async function getSellerReturnDetail(sellerId: bigint, returnId: bigint): Promise<ReturnDetailDTO> {
-  return getReturnDetail(returnId, { userId: sellerId, role: 'SELLER' });
+  return getReturnDetail(returnId, { userId: sellerId, role: 'SELLER' }, true);
 }
 
 export async function sellerDecision(sellerId: bigint, returnId: bigint, input: SellerDecisionInput): Promise<ReturnDetailDTO> {
-  await getOwnedReturn(returnId, { userId: sellerId, role: 'SELLER' }); // ownership + existence check
-  await decideReturn(returnId, { userId: sellerId, role: 'SELLER' }, input.decision, input.reason, 'MODERATION');
+  const row = await getOwnedReturn(returnId, { userId: sellerId, role: 'SELLER' });
+  if ((row.inspection || row.status === 'UNDER_DISPUTE' || input.decision === 'REJECTED') && !input.reason?.trim()) {
+    throw new BusinessRuleError('A reason is required for an AI-inspected return decision', undefined, 'RETURN_DECISION_REASON_REQUIRED');
+  }
+  await decideReturn(returnId, { userId: sellerId, role: 'SELLER' }, input.decision, input.reason,
+    row.status === 'UNDER_DISPUTE' ? 'DISPUTE_RESOLVE' : 'MODERATION');
   return getReturnDetail(returnId, { userId: sellerId, role: 'SELLER' });
 }
 

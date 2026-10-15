@@ -16,8 +16,8 @@ const platformConfig = [
   },
   {
     configKey: 'return_window_days',
-    value: 14,
-    description: 'Number of days after delivery a buyer may initiate a return.',
+    value: 1,
+    description: 'The 24-hour return window starts with the buyer’s first confirmed receipt.',
   },
   {
     configKey: 'min_order_value_pkr',
@@ -70,7 +70,16 @@ async function main() {
     });
   }
 
-  console.log(`Seeded ${platformConfig.length} platform_config keys and ${categories.length} categories.`);
+  // The broad fashion category includes shoes and accessories. ReturnsAI needs
+  // an explicit clothing category rather than inferring material from a title.
+  const fashion = await prisma.category.findUniqueOrThrow({ where: { slug: 'fashion-clothing' } });
+  await prisma.category.upsert({
+    where: { slug: 'clothing' },
+    update: { nameEn: 'Clothing', nameUr: 'ملبوسات', parentId: fashion.categoryId },
+    create: { slug: 'clothing', nameEn: 'Clothing', nameUr: 'ملبوسات', parentId: fashion.categoryId },
+  });
+
+  console.log(`Seeded ${platformConfig.length} platform_config keys and ${categories.length + 1} categories.`);
 }
 
 main()

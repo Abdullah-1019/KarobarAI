@@ -9,9 +9,11 @@ const TRANSITIONS: Record<ReturnStatus, ReturnStatus[]> = {
   IMAGES_SUBMITTED: ['UNDER_AI_REVIEW', 'MANUAL_REVIEW'],
   // Reserved for R1.1 (Task 3.6's AiReviewDispatcher stub) — modeled so a later feature can enter
   // this state without a migration, but no MVP code path ever calls this transition.
-  UNDER_AI_REVIEW: ['MANUAL_REVIEW'],
+  UNDER_AI_REVIEW: ['MANUAL_REVIEW', 'APPROVED', 'REJECTED'],
   MANUAL_REVIEW: ['APPROVED', 'REJECTED'],
-  APPROVED: ['PICKUP_BOOKED'],
+  // APPROVED -> REJECTED is restricted to an authorized seller overriding an
+  // AI acceptance; decision.service checks provenance before using this edge.
+  APPROVED: ['PICKUP_BOOKED', 'REJECTED'],
   PICKUP_BOOKED: ['REFUND_ISSUED'],
   // REJECTED -> UNDER_DISPUTE: the buyer's appeal (Task 5's dependency on an appeal path that no
   // task explicitly builds — added as a natural extension of Task 2's buyer-facing surface, see

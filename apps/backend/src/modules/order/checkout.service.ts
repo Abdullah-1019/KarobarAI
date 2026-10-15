@@ -379,7 +379,8 @@ export async function processCheckout(
     const expectedItems = eligibleGroups.flatMap((group) => group.items);
     const persistedItems = await tx.cartItem.findMany({
       where: { cartItemId: { in: expectedItems.map((item) => item.cartItemId) }, cart: { buyerId } },
-      select: { cartItemId: true, productId: true, quantity: true },
+      select: { cartItemId: true, productId: true, quantity: true,
+        product: { select: { category: { select: { slug: true } } } } },
     });
     if (persistedItems.length !== expectedItems.length || expectedItems.some((item) => {
       const current = persistedItems.find((row) => row.cartItemId === item.cartItemId);
@@ -426,6 +427,7 @@ export async function processCheckout(
           orderId: order.orderId,
           productId: item.productId,
           titleSnapshot: item.titleEn,
+          categorySlugSnapshot: persistedItems.find((row) => row.cartItemId === item.cartItemId)?.product.category?.slug ?? null,
           unitPrice: item.unitPrice,
           quantity: item.quantity,
         })),

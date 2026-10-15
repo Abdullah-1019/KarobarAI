@@ -11,13 +11,6 @@ beforeEach(async () => {
   await resetRedis();
 });
 
-afterEach(async () => {
-  // Several tests below override return_window_days directly (no Admin Config Panel UI to go
-  // through yet, matching the existing precedent in tests/cart/cart.test.ts) — restore the
-  // seeded default so later test files' own return-window assumptions aren't affected.
-  await prisma.platformConfig.update({ where: { configKey: 'return_window_days' }, data: { value: 14 } });
-});
-
 afterAll(async () => {
   await prisma.$disconnect();
   await redis.quit();
@@ -35,8 +28,8 @@ describe('runSettlementCycle (gap closure — the first writer of settlements an
     const buyer = await createTestUser('BUYER');
     const product = await createTestProduct(seller.userId, { price: 1000 });
     const order = await createTestOrder(buyer.userId, seller.userId, product, {
-      status: 'DELIVERED',
-      deliveredAt: await daysAgo(20), // > 14-day default window
+      status: 'COMPLETED',
+      deliveredAt: await daysAgo(20), buyerConfirmedAt: await daysAgo(20),
     });
     await prisma.order.update({ where: { orderId: order.orderId }, data: { commissionRateSnapshot: new Prisma.Decimal(0.05) } });
 
@@ -52,13 +45,13 @@ describe('runSettlementCycle (gap closure — the first writer of settlements an
     expect(settlement?.sellerId).toBe(seller.userId);
   });
 
-  it('does not settle a delivered order whose return window has not yet closed', async () => {
+  it('does not settle a buyer-confirmed order whose 24-hour return window remains open', async () => {
     const seller = await createTestUser('SELLER', { onboarded: true });
     const buyer = await createTestUser('BUYER');
     const product = await createTestProduct(seller.userId);
     const order = await createTestOrder(buyer.userId, seller.userId, product, {
-      status: 'DELIVERED',
-      deliveredAt: await daysAgo(3), // well within the 14-day default window
+      status: 'COMPLETED',
+      deliveredAt: await daysAgo(20), buyerConfirmedAt: new Date(),
     });
 
     await runSettlementCycle();
@@ -67,7 +60,7 @@ describe('runSettlementCycle (gap closure — the first writer of settlements an
     expect(settlement).toBeNull();
   });
 
-  it('reads the cutoff from platform_config.return_window_days, not a hardcoded value', async () => {
+  it('does not settle a courier-delivered order before buyer receipt confirmation', async () => {
     const seller = await createTestUser('SELLER', { onboarded: true });
     const buyer = await createTestUser('BUYER');
     const product = await createTestProduct(seller.userId);
@@ -75,19 +68,18 @@ describe('runSettlementCycle (gap closure — the first writer of settlements an
       status: 'DELIVERED',
       deliveredAt: await daysAgo(2),
     });
-    await prisma.platformConfig.update({ where: { configKey: 'return_window_days' }, data: { value: 1 } });
 
     await runSettlementCycle();
 
     const settlement = await prisma.settlement.findUnique({ where: { orderId: order.orderId } });
-    expect(settlement).not.toBeNull();
+    expect(settlement).toBeNull();
   });
 
   it('never settles an order with an open/active return, even if the window has closed', async () => {
     const seller = await createTestUser('SELLER', { onboarded: true });
     const buyer = await createTestUser('BUYER');
     const product = await createTestProduct(seller.userId);
-    const order = await createTestOrder(buyer.userId, seller.userId, product, { status: 'DELIVERED', deliveredAt: await daysAgo(20) });
+    const order = await createTestOrder(buyer.userId, seller.userId, product, { status: 'COMPLETED', deliveredAt: await daysAgo(20), buyerConfirmedAt: await daysAgo(20) });
     await prisma.return.create({ data: { orderId: order.orderId, sellerId: seller.userId, reason: 'x', status: 'MANUAL_REVIEW' } });
 
     await runSettlementCycle();
@@ -96,11 +88,36 @@ describe('runSettlementCycle (gap closure — the first writer of settlements an
     expect(settlement).toBeNull();
   });
 
+  it('waits for every item-scoped return on a multi-item order to close', async () => {
+    const seller = await createTestUser('SELLER', { onboarded: true });
+    const buyer = await createTestUser('BUYER');
+    const first = await createTestProduct(seller.userId);
+    const second = await createTestProduct(seller.userId);
+    const confirmedAt = await daysAgo(2);
+    const order = await createTestOrder(buyer.userId, seller.userId, first, {
+      status: 'COMPLETED', deliveredAt: confirmedAt, buyerConfirmedAt: confirmedAt,
+    });
+    const firstItem = await prisma.orderItem.findFirstOrThrow({ where: { orderId: order.orderId } });
+    const secondItem = await prisma.orderItem.create({ data: { orderId: order.orderId,
+      productId: second.productId, titleSnapshot: second.titleEn,
+      unitPrice: second.price, quantity: 1 } });
+    await prisma.return.create({ data: { orderId: order.orderId, orderItemId: firstItem.orderItemId,
+      sellerId: seller.userId, reason: 'first', status: 'CLOSED' } });
+    const active = await prisma.return.create({ data: { orderId: order.orderId,
+      orderItemId: secondItem.orderItemId, sellerId: seller.userId,
+      reason: 'second', status: 'MANUAL_REVIEW' } });
+    await runSettlementCycle();
+    expect(await prisma.settlement.count({ where: { orderId: order.orderId } })).toBe(0);
+    await prisma.return.update({ where: { returnId: active.returnId }, data: { status: 'CLOSED' } });
+    await runSettlementCycle();
+    expect(await prisma.settlement.count({ where: { orderId: order.orderId } })).toBe(1);
+  });
+
   it('never settles an order whose return already resulted in a refund (REFUND_ISSUED)', async () => {
     const seller = await createTestUser('SELLER', { onboarded: true });
     const buyer = await createTestUser('BUYER');
     const product = await createTestProduct(seller.userId);
-    const order = await createTestOrder(buyer.userId, seller.userId, product, { status: 'DELIVERED', deliveredAt: await daysAgo(20) });
+    const order = await createTestOrder(buyer.userId, seller.userId, product, { status: 'COMPLETED', deliveredAt: await daysAgo(20), buyerConfirmedAt: await daysAgo(20) });
     await prisma.return.create({ data: { orderId: order.orderId, sellerId: seller.userId, reason: 'x', status: 'REFUND_ISSUED' } });
 
     await runSettlementCycle();
@@ -113,7 +130,7 @@ describe('runSettlementCycle (gap closure — the first writer of settlements an
     const seller = await createTestUser('SELLER', { onboarded: true });
     const buyer = await createTestUser('BUYER');
     const product = await createTestProduct(seller.userId, { price: 500 });
-    const order = await createTestOrder(buyer.userId, seller.userId, product, { status: 'DELIVERED', deliveredAt: await daysAgo(20) });
+    const order = await createTestOrder(buyer.userId, seller.userId, product, { status: 'COMPLETED', deliveredAt: await daysAgo(20), buyerConfirmedAt: await daysAgo(20) });
     await prisma.return.create({ data: { orderId: order.orderId, sellerId: seller.userId, reason: 'x', status: 'CLOSED' } });
 
     await runSettlementCycle();
@@ -127,7 +144,7 @@ describe('runSettlementCycle (gap closure — the first writer of settlements an
     const seller = await createTestUser('SELLER', { onboarded: true });
     const buyer = await createTestUser('BUYER');
     const product = await createTestProduct(seller.userId);
-    const order = await createTestOrder(buyer.userId, seller.userId, product, { status: 'DELIVERED', deliveredAt: await daysAgo(20) });
+    const order = await createTestOrder(buyer.userId, seller.userId, product, { status: 'COMPLETED', deliveredAt: await daysAgo(20), buyerConfirmedAt: await daysAgo(20) });
 
     await runSettlementCycle();
     await runSettlementCycle(); // second cycle — must not attempt to re-create or throw
@@ -153,8 +170,8 @@ describe('runSettlementCycle (gap closure — the first writer of settlements an
     const seller = await createTestUser('SELLER', { onboarded: true });
     const buyer = await createTestUser('BUYER');
     const product = await createTestProduct(seller.userId);
-    const orderA = await createTestOrder(buyer.userId, seller.userId, product, { status: 'DELIVERED', deliveredAt: await daysAgo(20) });
-    const orderB = await createTestOrder(buyer.userId, seller.userId, product, { status: 'DELIVERED', deliveredAt: await daysAgo(20) });
+    const orderA = await createTestOrder(buyer.userId, seller.userId, product, { status: 'COMPLETED', deliveredAt: await daysAgo(20), buyerConfirmedAt: await daysAgo(20) });
+    const orderB = await createTestOrder(buyer.userId, seller.userId, product, { status: 'COMPLETED', deliveredAt: await daysAgo(20), buyerConfirmedAt: await daysAgo(20) });
 
     const createSpy = jest.spyOn(prisma.settlement, 'create').mockImplementationOnce(() => {
       throw new Error('simulated race: unique constraint violation');

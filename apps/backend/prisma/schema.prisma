@@ -72,6 +72,8 @@ enum OrderStatus {
   PAYMENT_PENDING
   PAYMENT_CONFIRMED
   PROCESSING
+  PACKED
+  HANDED_OVER_TO_COURIER
   PICKED_UP
   IN_TRANSIT
   OUT_FOR_DELIVERY
@@ -181,6 +183,44 @@ enum ReturnDecision {
   MANUAL
 
   @@map("return_decision")
+}
+
+enum ReturnShipmentLeg {
+  RETURN
+  REPLACEMENT
+}
+
+enum ReturnFulfillmentStatus {
+  AWAITING_COURIER
+  RETURN_IN_TRANSIT
+  AWAITING_SELLER_RECEIPT
+  REPLACEMENT_PENDING
+  REPLACEMENT_PACKED
+  REPLACEMENT_IN_TRANSIT
+  REPLACEMENT_DELIVERED
+  EXCHANGE_COMPLETED
+  REFUND_PROPOSED
+  REFUND_CONSENTED
+  REFUND_DECLINED
+}
+
+enum ReturnReceiptCondition {
+  RESELLABLE
+  DAMAGED
+  NEEDS_INSPECTION
+}
+
+enum ReturnRefundProposalStatus {
+  NONE
+  PENDING_BUYER
+  ACCEPTED
+  DECLINED
+}
+
+enum OrderItemResolution {
+  PURCHASED
+  RETURNED
+  EXCHANGED
 }
 
 enum DisputeStatus {
@@ -435,6 +475,7 @@ model Product {
   orderItems OrderItem[]
   reviews    Review[]
   embedding  ProductEmbedding?
+  replacementFulfillments ReturnFulfillment[]
 
   @@index([sellerId], map: "idx_products_seller")
   @@index([categoryId], map: "idx_products_category")
@@ -546,6 +587,7 @@ model CartItem {
 
 model Order {
   orderId                BigInt        @id @default(autoincrement()) @map("order_id")
+  orderNumber            BigInt        @unique @default(dbgenerated("nextval('order_number_seq'::regclass)")) @map("order_number")
   publicId               String        @unique @default(dbgenerated("gen_random_uuid()")) @map("public_id") @db.Uuid
   trackingToken          String        @unique @default(dbgenerated("gen_random_uuid()")) @map("tracking_token") @db.Uuid
   buyerId                BigInt        @map("buyer_id")
@@ -571,6 +613,7 @@ model Order {
   shipPhone              String        @map("ship_phone") @db.Text
   placedAt               DateTime      @default(now()) @map("placed_at")
   deliveredAt            DateTime?     @map("delivered_at")
+  buyerConfirmedAt       DateTime?     @map("buyer_confirmed_at")
   createdAt              DateTime      @default(now()) @map("created_at")
   updatedAt              DateTime      @updatedAt @map("updated_at")
 
@@ -578,7 +621,7 @@ model Order {
   payment        Payment?
   settlement     Settlement?
   codRemittance  CodRemittance?
-  return         Return?
+  returns        Return[]
   trackingEvents TrackingEvent[]
   courierQuotes  CourierQuote[]
   courierShipment CourierShipment?
@@ -600,14 +643,18 @@ model Order {
 
 model OrderItem {
   orderItemId   BigInt   @id @default(autoincrement()) @map("order_item_id")
+  resolution    OrderItemResolution @default(PURCHASED)
   orderId       BigInt   @map("order_id")
   order         Order    @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
   productId     BigInt   @map("product_id")
   product       Product  @relation(fields: [productId], references: [productId], onDelete: Restrict)
   titleSnapshot String   @map("title_snapshot") @db.VarChar(160)
+    categorySlugSnapshot String? @map("category_slug_snapshot") @db.VarChar(80)
   unitPrice     Decimal  @map("unit_price") @db.Decimal(12, 2)
   quantity      Int
   createdAt     DateTime @default(now()) @map("created_at")
+  returnCases   Return[]
+  dispatchEvidence DispatchEvidence[]
 
   @@index([orderId], map: "idx_order_items_order")
   @@index([productId], map: "idx_order_items_product")
@@ -701,8 +748,10 @@ model CodRemittance {
 
 model Return {
   returnId       BigInt           @id @default(autoincrement()) @map("return_id")
-  orderId        BigInt           @unique @map("order_id")
+  orderId        BigInt           @map("order_id")
   order          Order            @relation(fields: [orderId], references: [orderId], onDelete: Restrict)
+  orderItemId    BigInt?          @unique(map: "returns_order_item_id_key") @map("order_item_id")
+  orderItem      OrderItem?       @relation(fields: [orderItemId], references: [orderItemId], onDelete: Restrict)
   sellerId       BigInt           @map("seller_id")
   seller         SellerProfile    @relation(fields: [sellerId], references: [userId], onDelete: Restrict)
   reason         String           @db.VarChar(200)
@@ -717,9 +766,13 @@ model Return {
   updatedAt      DateTime         @updatedAt @map("updated_at")
 
   images  ReturnImage[]
+  inspection ReturnInspection?
   dispute Dispute?
+  fulfillment ReturnFulfillment?
+  shipments ReturnShipment[]
 
   @@index([status], map: "idx_returns_status")
+  @@index([orderId], map: "idx_returns_order")
   @@index([sellerId, createdAt], map: "idx_returns_seller_created")
   @@map("returns")
 }
@@ -728,15 +781,123 @@ model Return {
 // §4.16 return_images
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Exchange fulfillment is distinct from the canonical AI return decision.
+model ReturnFulfillment {
+  returnId BigInt @id @map("return_id")
+  returnCase Return @relation(fields: [returnId], references: [returnId], onDelete: Restrict)
+  status ReturnFulfillmentStatus @default(AWAITING_COURIER)
+  receiptCondition ReturnReceiptCondition? @map("receipt_condition")
+  receiptConfirmedBy BigInt? @map("receipt_confirmed_by")
+  receiptConfirmedAt DateTime? @map("receipt_confirmed_at")
+  inventoryReconciledAt DateTime? @map("inventory_reconciled_at")
+  replacementProductId BigInt? @map("replacement_product_id")
+  replacementProduct Product? @relation(fields: [replacementProductId], references: [productId], onDelete: Restrict)
+  replacementQuantity Int? @map("replacement_quantity")
+  replacementReservedAt DateTime? @map("replacement_reserved_at")
+  replacementPackedAt DateTime? @map("replacement_packed_at")
+  replacementBuyerConfirmedAt DateTime? @map("replacement_buyer_confirmed_at")
+  refundProposalStatus ReturnRefundProposalStatus @default(NONE) @map("refund_proposal_status")
+  refundProposalReason String? @map("refund_proposal_reason") @db.VarChar(500)
+  refundProposedBy BigInt? @map("refund_proposed_by")
+  refundProposedAt DateTime? @map("refund_proposed_at")
+  buyerRespondedAt DateTime? @map("buyer_responded_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("return_fulfillments")
+}
+
+model ReturnShipment {
+  shipmentId BigInt @id @default(autoincrement()) @map("shipment_id")
+  returnId BigInt @map("return_id")
+  returnCase Return @relation(fields: [returnId], references: [returnId], onDelete: Restrict)
+  leg ReturnShipmentLeg
+  source CourierShipmentSource @default(SIMULATED)
+  status CourierShipmentStatus @default(EVALUATING)
+  courier CourierCode?
+  originCity String @map("origin_city") @db.VarChar(80)
+  destCity String @map("dest_city") @db.VarChar(80)
+  destProvince String @map("dest_province") @db.VarChar(80)
+  weightKg Decimal @map("weight_kg") @db.Decimal(8, 3)
+  quoteCost Decimal? @map("quote_cost") @db.Decimal(12, 2)
+  quoteEtaHours Int? @map("quote_eta_hours")
+  scoreBreakdown Json? @map("score_breakdown")
+  bookingReference String? @map("booking_reference") @db.VarChar(100)
+  trackingId String? @map("tracking_id") @db.VarChar(100)
+  failureCode String? @map("failure_code") @db.VarChar(80)
+  bookedAt DateTime? @map("booked_at")
+  deliveredAt DateTime? @map("delivered_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  events ReturnShipmentEvent[]
+
+  @@unique([returnId, leg], map: "uq_return_shipments_leg")
+  @@index([status, createdAt], map: "idx_return_shipments_status")
+  @@map("return_shipments")
+}
+
+model ReturnShipmentEvent {
+  eventId BigInt @id @default(autoincrement()) @map("event_id")
+  shipmentId BigInt @map("shipment_id")
+  shipment ReturnShipment @relation(fields: [shipmentId], references: [shipmentId], onDelete: Restrict)
+  status CourierShipmentStatus
+  description String @db.VarChar(200)
+  eventTime DateTime @default(now()) @map("event_time")
+
+  @@index([shipmentId, eventTime], map: "idx_return_shipment_events_time")
+  @@map("return_shipment_events")
+}
+
 model ReturnImage {
   returnImageId BigInt   @id @default(autoincrement()) @map("return_image_id")
   returnId      BigInt   @map("return_id")
   return        Return   @relation(fields: [returnId], references: [returnId], onDelete: Cascade)
   cdnUrl        String   @map("cdn_url") @db.VarChar(512)
+  storageKey    String?  @map("storage_key") @db.VarChar(512)
   createdAt     DateTime @default(now()) @map("created_at")
 
   @@index([returnId], map: "idx_return_images_return")
   @@map("return_images")
+}
+
+// Private, item-linked dispatch photos. These are never published through the product CDN.
+model DispatchEvidence {
+  evidenceId  BigInt    @id @default(autoincrement()) @map("evidence_id")
+  orderItemId BigInt    @map("order_item_id")
+  orderItem   OrderItem @relation(fields: [orderItemId], references: [orderItemId], onDelete: Restrict)
+  storageKey  String    @map("storage_key") @db.VarChar(512)
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@index([orderItemId], map: "idx_dispatch_evidence_item")
+  @@map("dispatch_evidence")
+}
+
+// The original automated decision remains here after an authorized seller override.
+model ReturnInspection {
+  inspectionId BigInt    @id @default(autoincrement()) @map("inspection_id")
+  returnId     BigInt    @unique @map("return_id")
+  returnCase   Return    @relation(fields: [returnId], references: [returnId], onDelete: Cascade)
+  state        String    @db.VarChar(30)
+  outcome      String?   @db.VarChar(50)
+  provider     String?   @db.VarChar(40)
+  model        String?   @db.VarChar(100)
+    categorySlug String? @map("category_slug") @db.VarChar(80)
+    confidence   Float?
+    predictions  Json?
+  policyVersion String   @map("policy_version") @db.VarChar(40)
+  findings     Json?
+  imageQuality String?  @map("image_quality") @db.VarChar(30)
+  comparisonAvailable Boolean @default(false) @map("comparison_available")
+  comparisonResult String? @map("comparison_result") @db.VarChar(50)
+  errorCode    String?   @map("error_code") @db.VarChar(60)
+  attempts     Int       @default(0)
+  startedAt    DateTime? @map("started_at")
+  completedAt  DateTime? @map("completed_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  @@index([state, updatedAt], map: "idx_return_inspections_state")
+  @@map("return_inspections")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -748,6 +909,7 @@ model Dispute {
   returnId       BigInt        @unique @map("return_id")
   return         Return        @relation(fields: [returnId], references: [returnId], onDelete: Restrict)
   status         DisputeStatus @default(OPEN)
+  buyerReason    String?       @map("buyer_reason") @db.VarChar(500)
   adminReason    String?       @map("admin_reason") @db.Text
   resolvedBy     BigInt?       @map("resolved_by")
   resolvedByUser User?         @relation("DisputeResolvedBy", fields: [resolvedBy], references: [userId], onDelete: SetNull)

@@ -27,7 +27,7 @@ afterAll(async () => {
   await redis.quit();
 });
 
-async function scenario(status: 'PAYMENT_CONFIRMED' | 'PAYMENT_PENDING' = 'PAYMENT_CONFIRMED') {
+async function scenario(status: 'PACKED' | 'PAYMENT_PENDING' = 'PACKED') {
   const seller = await createTestUser('SELLER', { onboarded: true });
   const buyer = await createTestUser('BUYER');
   const product = await createTestProduct(seller.userId);
@@ -52,7 +52,7 @@ describe('seller-triggered simulated auto selection', () => {
     expect(shipment.source).toBe('SIMULATED');
     expect(shipment.bookingReference).toMatch(/^SIM-/);
     expect(response.body.data.shipment.simulated).toBe(true);
-    expect((await prisma.order.findUniqueOrThrow({ where: { orderId: order.orderId } })).status).toBe('PROCESSING');
+    expect((await prisma.order.findUniqueOrThrow({ where: { orderId: order.orderId } })).status).toBe('PACKED');
   });
 
   it('returns the stored shipment on repeat requests without another booking', async () => {
@@ -160,19 +160,18 @@ describe('seller-triggered simulated auto selection', () => {
       .set('Authorization', auth);
     expect(canceled.status).toBe(409);
     expect(canceled.body.error.code).toBe('COURIER_OUTCOME_UNCERTAIN');
-    expect((await prisma.order.findUniqueOrThrow({ where: { orderId: order.orderId } })).status).toBe('PAYMENT_CONFIRMED');
+    expect((await prisma.order.findUniqueOrThrow({ where: { orderId: order.orderId } })).status).toBe('PACKED');
   });
 
   it('repairs a persisted local status transition without booking again', async () => {
     const { seller, order, url } = await scenario();
     const auth = `Bearer ${seller.accessToken}`;
     expect((await request(app).post(url).set('Authorization', auth)).status).toBe(200);
-    // Simulate the state left when the booking commit succeeds but the later status transition fails.
-    await prisma.order.update({ where: { orderId: order.orderId }, data: { status: 'PAYMENT_CONFIRMED' } });
+    // A booking retry must not advance fulfillment or book a second shipment.
     const resumed = await request(app).post(url).set('Authorization', auth);
     expect(resumed.status).toBe(200);
     expect(bookSpy).toHaveBeenCalledTimes(1);
-    expect((await prisma.order.findUniqueOrThrow({ where: { orderId: order.orderId } })).status).toBe('PROCESSING');
+    expect((await prisma.order.findUniqueOrThrow({ where: { orderId: order.orderId } })).status).toBe('PACKED');
   });
 
   it('keeps simulated history separate from real-world performance claims', async () => {
@@ -192,6 +191,7 @@ describe('seller-triggered simulated auto selection', () => {
   it('persists simulated tracking milestones and terminal delivery outcome', async () => {
     const { seller, order, url } = await scenario();
     expect((await request(app).post(url).set('Authorization', `Bearer ${seller.accessToken}`)).status).toBe(200);
+    await prisma.order.update({ where: { orderId: order.orderId }, data: { status: 'HANDED_OVER_TO_COURIER' } });
     for (let step = 0; step < 4; step++) {
       const row = await prisma.order.findUniqueOrThrow({ where: { orderId: order.orderId } });
       await pollOneOrder(row);
@@ -204,7 +204,7 @@ describe('seller-triggered simulated auto selection', () => {
     expect(shipment.deliveredAt).not.toBeNull();
     const events = await prisma.trackingEvent.findMany({ where: { orderId: order.orderId }, orderBy: { eventTime: 'asc' } });
     expect(events.map(({ status }) => status)).toEqual([
-      'PROCESSING', 'PICKED_UP', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'DELIVERED',
+      'PICKED_UP', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'DELIVERED',
     ]);
     const repeated = await request(app).post(url).set('Authorization', `Bearer ${seller.accessToken}`);
     expect(repeated.status).toBe(200);
@@ -223,7 +223,7 @@ describe('seller-triggered simulated auto selection', () => {
     const winners: string[] = [];
     for (const details of cases) {
       const order = await createTestOrder(buyer.userId, seller.userId, product,
-        { status: 'PAYMENT_CONFIRMED', shipCity: details.shipCity, quantity: details.quantity });
+        { status: 'PACKED', shipCity: details.shipCity, quantity: details.quantity });
       await prisma.order.update({ where: { orderId: order.orderId }, data: { shipProvince: details.shipProvince } });
       const response = await request(app).post(`/api/v1/orders/${order.publicId}/auto-select-courier`)
         .set('Authorization', `Bearer ${seller.accessToken}`);

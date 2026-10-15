@@ -27,6 +27,8 @@ export type OrderStatus =
   | 'PAYMENT_PENDING'
   | 'PAYMENT_CONFIRMED'
   | 'PROCESSING'
+  | 'PACKED'
+  | 'HANDED_OVER_TO_COURIER'
   | 'PICKED_UP'
   | 'IN_TRANSIT'
   | 'OUT_FOR_DELIVERY'

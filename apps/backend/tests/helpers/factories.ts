@@ -139,10 +139,12 @@ export async function createTestOrder(
     paymentMethod?: PaymentMethod;
     quantity?: number;
     deliveredAt?: Date | null;
+    buyerConfirmedAt?: Date | null;
     shipCity?: string;
     courier?: CourierCode | null;
     trackingNo?: string | null;
     courierOverridden?: boolean;
+      categorySlugSnapshot?: string | null;
   } = {},
 ) {
   const quantity = overrides.quantity ?? 1;
@@ -167,6 +169,7 @@ export async function createTestOrder(
       shipProvince: 'Punjab',
       shipPhone: encryptField('03001234567'),
       deliveredAt: overrides.deliveredAt ?? null,
+      buyerConfirmedAt: overrides.buyerConfirmedAt ?? null,
       courier: overrides.courier ?? null,
       trackingNo: overrides.trackingNo ?? null,
       courierOverridden: overrides.courierOverridden ?? false,
@@ -174,6 +177,7 @@ export async function createTestOrder(
         create: {
           productId: product.productId,
           titleSnapshot: product.titleEn,
+            categorySlugSnapshot: overrides.categorySlugSnapshot ?? null,
           unitPrice,
           quantity,
         },

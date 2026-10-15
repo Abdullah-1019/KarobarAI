@@ -16,10 +16,15 @@ describe('order.state-machine canTransition (Task 6.1 — adversarial)', () => {
     ['PAYMENT_CONFIRMED', 'CANCELLED'],
     ['PENDING_MANUAL_LOGISTICS', 'PROCESSING'],
     ['PENDING_MANUAL_LOGISTICS', 'CANCELLED'],
-    ['PROCESSING', 'PICKED_UP'],
+    ['PROCESSING', 'PACKED'],
+    ['PACKED', 'HANDED_OVER_TO_COURIER'],
+    ['HANDED_OVER_TO_COURIER', 'PICKED_UP'],
+    ['HANDED_OVER_TO_COURIER', 'DELIVERED'],
     ['PROCESSING', 'CANCELLED'],
     ['PICKED_UP', 'IN_TRANSIT'],
+    ['PICKED_UP', 'DELIVERED'],
     ['IN_TRANSIT', 'OUT_FOR_DELIVERY'],
+    ['IN_TRANSIT', 'DELIVERED'],
     ['OUT_FOR_DELIVERY', 'DELIVERED'],
     ['DELIVERED', 'COMPLETED'],
   ] as const)('allows %s -> %s', (from, to) => {
@@ -32,6 +37,8 @@ describe('order.state-machine canTransition (Task 6.1 — adversarial)', () => {
     ['PAYMENT_CONFIRMED', 'PAYMENT_PENDING'],
     ['PROCESSING', 'PAYMENT_CONFIRMED'],
     ['PROCESSING', 'IN_TRANSIT'], // must go through PICKED_UP
+    ['PROCESSING', 'PICKED_UP'], // seller must pack and hand over first
+    ['PACKED', 'PICKED_UP'],
     ['PICKED_UP', 'CANCELLED'], // post-shipment — no longer cancellable
     ['PICKED_UP', 'OUT_FOR_DELIVERY'], // skipping IN_TRANSIT
     ['IN_TRANSIT', 'PICKED_UP'], // no backward transitions
@@ -55,7 +62,7 @@ describe('order.state-machine isCancellable (Gap #3)', () => {
     expect(isCancellable(status)).toBe(true);
   });
 
-  it.each(['PICKED_UP', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'DELIVERED', 'COMPLETED', 'CANCELLED'] as const)(
+  it.each(['HANDED_OVER_TO_COURIER', 'PICKED_UP', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'DELIVERED', 'COMPLETED', 'CANCELLED'] as const)(
     '%s is not cancellable',
     (status) => {
       expect(isCancellable(status)).toBe(false);

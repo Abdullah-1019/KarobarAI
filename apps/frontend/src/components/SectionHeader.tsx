@@ -1,30 +1,32 @@
-import type { CSSProperties } from 'react';
-import { Typography } from 'antd';
+import type { ReactNode } from 'react';
 
 interface SectionHeaderProps {
-  title: string;
-  subtitle?: string;
-  style?: CSSProperties;
+  title: ReactNode;
+  subtitle?: ReactNode;
+  action?: ReactNode;
+  align?: 'start' | 'center';
+  className?: string;
 }
 
-// A page section (Home's "Browse categories"/"Featured"/"New arrivals", and future Marketplace
-// sections) previously had no distinct treatment from a plain `Typography.Title` — no consistent
-// rhythm separating "this is a new content group" from any other heading on the page. One shared
-// primitive so that rhythm is defined once. Deliberately no built-in "view all" action yet — no
-// E2 section currently has a real destination for one (Home's featured/new-arrivals aren't
-// separately browsable routes); the prop can be added when a real target exists rather than
-// inventing a link to nowhere.
-export function SectionHeader({ title, subtitle, style }: SectionHeaderProps) {
+export function SectionHeader({ title, subtitle, action, align = 'start', className }: SectionHeaderProps) {
   return (
-    <div style={{ marginBottom: 'var(--sp-4)', ...style }}>
-      <Typography.Title level={4} style={{ margin: 0 }}>
-        {title}
-      </Typography.Title>
-      {subtitle && (
-        <Typography.Text type="secondary" style={{ display: 'block', marginTop: 'var(--sp-1)' }}>
-          {subtitle}
-        </Typography.Text>
-      )}
+    <div
+      className={className}
+      style={{
+        display: 'flex',
+        flexDirection: align === 'center' ? 'column' : 'row',
+        alignItems: align === 'center' ? 'center' : 'flex-end',
+        justifyContent: align === 'center' ? 'center' : 'space-between',
+        gap: 'var(--sp-2)',
+        textAlign: align === 'center' ? 'center' : 'start',
+        marginBottom: 'var(--sp-6)',
+      }}
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-1)' }}>
+        <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, letterSpacing: '-0.01em', fontSize: 'clamp(1.25rem, 2vw, 1.75rem)' }}>{title}</h2>
+        {subtitle && <p style={{ margin: 0, color: 'var(--text-secondary)' }}>{subtitle}</p>}
+      </div>
+      {action && <div>{action}</div>}
     </div>
   );
 }

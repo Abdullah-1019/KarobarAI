@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Alert, Button, Carousel, Typography } from 'antd';
 import { ImageOff } from 'lucide-react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
@@ -14,6 +14,7 @@ import { formatCatalogError } from '../catalog/catalogErrors';
 import { CART_QUERY_KEY, addCartItem } from '../cart/cartApi';
 import { useGuestCartStore } from '../cart/guestCartStore';
 import { getStoreForProduct } from './storeApi';
+import { useAddToCart } from '../cart/useAddToCart';
 
 // E2: previously a raw <img> with no background/fallback — when a URL fails to load (any
 // storage/network hiccup, e.g. this environment's object storage being unreachable), the entire
@@ -66,6 +67,7 @@ export function ProductDetailPage() {
   const { id = '' } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { language } = useLanguage();
+  const { addToCart, isAdding } = useAddToCart();
   const user = useAuthStore((s) => s.user);
   const queryClient = useQueryClient();
   // Actions only, called from event handlers — no need to subscribe this component to the
@@ -83,15 +85,6 @@ export function ProductDetailPage() {
     queryKey: ['product-store', id],
     queryFn: () => getStoreForProduct(id),
     enabled: !!product && product.status === 'LIVE',
-  });
-
-  const addToCartMutation = useMutation({
-    mutationFn: () => addCartItem({ productId: id, quantity }),
-    onSuccess: (cart) => {
-      queryClient.setQueryData(CART_QUERY_KEY, cart);
-      toast.success(t('product.addedToCart'));
-    },
-    onError: (err) => toast.error(formatCatalogError(t, err)),
   });
 
   if (isPending) {
@@ -114,24 +107,6 @@ export function ProductDetailPage() {
   const description = language === 'UR' && product.descriptionUr ? product.descriptionUr : product.descriptionEn;
   const outOfStock = product.stock <= 0 || product.status !== 'LIVE';
   const canBuy = (!user || user.role === 'BUYER') && !outOfStock;
-
-  function addToCart() {
-    if (user?.role === 'BUYER') {
-      addToCartMutation.mutate();
-      return;
-    }
-    if (!product) return;
-    addGuestItem(
-      {
-        productId: product.id,
-        titleEn: product.titleEn,
-        price: product.price,
-        primaryImageUrl: product.images[0]?.url ?? null,
-      },
-      quantity,
-    );
-    toast.success(t('product.addedToCart'));
-  }
 
   async function buyNow() {
     if (!product) return;
@@ -208,7 +183,7 @@ export function ProductDetailPage() {
               </div>
             </div>
             <div style={{ display: 'flex', gap: 'var(--sp-3)' }}>
-              <Button size="large" loading={addToCartMutation.isPending} onClick={addToCart}>
+              <Button size="large" loading={isAdding} onClick={() => addToCart(product, quantity)}>
                 {t('product.addToCart')}
               </Button>
               <Button type="primary" size="large" onClick={buyNow}>

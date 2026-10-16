@@ -1,22 +1,21 @@
-import { Badge, Button, Dropdown, Space } from 'antd';
-import type { MenuProps } from 'antd';
 import { ClipboardList, Home, Search, ShoppingCart, User } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { Link, Outlet, useNavigate } from 'react-router-dom';
+import { Outlet, useNavigate } from 'react-router-dom';
 
-import { AppHeader, AppShell, BottomTabBar, type NavItem } from '../../components';
+import { AppShell, BottomTabBar, type NavItem } from '../../components';
 import { useAuthStore } from '../../lib/authStore';
 import { logout as logoutApi } from '../auth/authApi';
 import { useCartCount } from '../cart/useCartCount';
 import { useGuestCartMerge } from '../cart/useGuestCartMerge';
-import { NotificationBell } from '../notifications';
-import { SearchBar } from './SearchBar';
+import { StorefrontHeader } from './StorefrontHeader';
+import { StorefrontFooter } from './StorefrontFooter';
 
 // Route-layout element wrapping every storefront-facing route (home, search, product detail,
-// cart, and the buyer-protected checkout/orders group) — see app/router.tsx. Was previously
-// StorefrontLayout (bare Outlet wrapper) + a separate StorefrontHeader component; folded into one
-// file since StorefrontHeader had no other consumer and this is now the Buyer "configuration"
-// layer over the shared AppShell/AppHeader/BottomTabBar (Phase C).
+// cart, and the buyer-protected checkout/orders group) — see app/router.tsx. The Buyer "chrome"
+// is now the bespoke StorefrontHeader (announcement bar + sticky shrinking nav + mobile drawer);
+// AppShell/BottomTabBar stay shared. The account menu, guest CTAs and cart badge that used to be
+// passed into the shared AppHeader now live inside StorefrontHeader, so this layout just wires
+// session + cart + logout into it.
 export function StorefrontLayout() {
   useGuestCartMerge();
 
@@ -38,30 +37,6 @@ export function StorefrontLayout() {
     }
   }
 
-  // Unchanged from the old StorefrontHeader: any authenticated role can browse the public
-  // storefront, so the account menu still has to branch by role, not just show a fixed Buyer menu.
-  const menuItems: MenuProps['items'] =
-    user?.role === 'SELLER'
-      ? [
-          { key: 'dashboard', label: <Link to="/seller">{t('common:nav.dashboard')}</Link> },
-          { key: 'orders', label: <Link to="/seller/orders">{t('common:nav.orders')}</Link> },
-          { type: 'divider' },
-          { key: 'logout', label: t('common:actions.logout'), onClick: handleLogout },
-        ]
-      : user?.role === 'ADMIN'
-        ? [
-            { key: 'admin', label: <Link to="/admin">{t('common:nav.admin')}</Link> },
-            { type: 'divider' },
-            { key: 'logout', label: t('common:actions.logout'), onClick: handleLogout },
-          ]
-        : [
-            { key: 'orders', label: <Link to="/orders">{t('common:nav.orders')}</Link> },
-            { key: 'returns', label: <Link to="/returns">{t('common:nav.myReturns')}</Link> },
-            { key: 'profile', label: <Link to="/buyer/profile">{t('common:nav.profile')}</Link> },
-            { type: 'divider' },
-            { key: 'logout', label: t('common:actions.logout'), onClick: handleLogout },
-          ];
-
   const isGuest = !user;
   const bottomTabs: NavItem[] = [
     { key: 'home', to: '/', label: t('common:nav.home'), icon: Home, exact: true },
@@ -73,40 +48,8 @@ export function StorefrontLayout() {
 
   return (
     <AppShell
-      header={
-        <AppHeader
-          homeHref="/"
-          brandLabel="KarobarAI"
-          search={<SearchBar />}
-          actions={
-            <Link to="/cart">
-              <Badge count={cartCount} size="small" offset={[-4, 4]}>
-                <Button>{t('common:nav.cart')}</Button>
-              </Badge>
-            </Link>
-          }
-          notificationSlot={user && <NotificationBell />}
-          accountSlot={
-            user && (
-              <Dropdown menu={{ items: menuItems }}>
-                <Button>{t('common:nav.profile')}</Button>
-              </Dropdown>
-            )
-          }
-          guestActions={
-            !user && (
-              <Space>
-                <Link to="/login">
-                  <Button>{t('marketplace:home.loginCta')}</Button>
-                </Link>
-                <Link to="/register">
-                  <Button type="primary">{t('marketplace:home.registerCta')}</Button>
-                </Link>
-              </Space>
-            )
-          }
-        />
-      }
+      header={<StorefrontHeader user={user} cartCount={cartCount} onLogout={handleLogout} />}
+      footer={<StorefrontFooter />}
       bottomTabs={<BottomTabBar items={bottomTabs} ariaLabel={t('common:landmarks.buyerNav')} />}
     >
       <Outlet />

@@ -25,8 +25,14 @@ export function QuantityStepper({
   increaseLabel = 'Increase quantity',
 }: QuantityStepperProps) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
-      <Button aria-label={decreaseLabel} disabled={disabled || value <= min} onClick={() => onChange(Math.max(min, value - 1))}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', padding: '2px' }} role="group" aria-label="Quantity">
+      <Button
+        aria-label={decreaseLabel}
+        disabled={disabled || value <= min}
+        onClick={() => onChange(Math.max(min, value - 1))}
+        size="small"
+        style={{ border: 'none', boxShadow: 'none' }}
+      >
         <Minus size={16} aria-hidden="true" />
       </Button>
       <InputNumber
@@ -37,12 +43,14 @@ export function QuantityStepper({
         onChange={(next) => {
           if (typeof next === 'number') onChange(Math.min(max ?? Infinity, Math.max(min, next)));
         }}
-        style={{ width: 64, textAlign: 'center' }}
+        style={{ width: 64, textAlign: 'center', border: 'none', boxShadow: 'none' }}
       />
       <Button
         aria-label={increaseLabel}
         disabled={disabled || (max !== undefined && value >= max)}
         onClick={() => onChange(max !== undefined ? Math.min(max, value + 1) : value + 1)}
+        size="small"
+        style={{ border: 'none', boxShadow: 'none' }}
       >
         <Plus size={16} aria-hidden="true" />
       </Button>

@@ -38,9 +38,16 @@ const LANGUAGE_STORAGE_KEY = 'karobarai:language';
 // can survive a reload on Login/Register/Forgot Password — read synchronously here, before i18n
 // even initializes, so the first paint is already correct instead of flashing English then
 // switching.
+//
+// First-visit fallback chain: stored choice → browser language → Urdu. Urdu is the default on
+// purpose (it matches the backend's users.preferred_language default 'UR' and the app's primary
+// market); only an English-preferring browser resolves to English.
 export function getStoredLanguage(): Language {
-  if (typeof window === 'undefined') return 'EN';
-  return window.localStorage.getItem(LANGUAGE_STORAGE_KEY) === 'UR' ? 'UR' : 'EN';
+  if (typeof window === 'undefined') return 'UR';
+  const stored = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
+  if (stored === 'EN' || stored === 'UR') return stored;
+  const browser = typeof navigator !== 'undefined' ? navigator.language?.toLowerCase() ?? '' : '';
+  return browser.startsWith('en') ? 'EN' : 'UR';
 }
 
 export function storeLanguage(language: Language): void {

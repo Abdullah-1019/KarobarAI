@@ -587,7 +587,7 @@ model CartItem {
 
 model Order {
   orderId                BigInt        @id @default(autoincrement()) @map("order_id")
-  orderNumber            BigInt        @unique @default(dbgenerated("nextval('order_number_seq'::regclass)")) @map("order_number")
+  orderNumber            BigInt        @unique @default(autoincrement()) @map("order_number")
   publicId               String        @unique @default(dbgenerated("gen_random_uuid()")) @map("public_id") @db.Uuid
   trackingToken          String        @unique @default(dbgenerated("gen_random_uuid()")) @map("tracking_token") @db.Uuid
   buyerId                BigInt        @map("buyer_id")
@@ -690,7 +690,7 @@ model StripeWebhookEvent {
   eventType   String   @map("event_type") @db.VarChar(80)
   paymentId   BigInt   @map("payment_id")
   payment     Payment  @relation(fields: [paymentId], references: [paymentId], onDelete: Restrict)
-  receivedAt  DateTime @default(now()) @map("received_at")
+  receivedAt  DateTime @default(now()) @map("received_at") @db.Timestamptz(6)
 
   @@index([paymentId, receivedAt], map: "idx_stripe_webhook_events_payment")
   @@map("stripe_webhook_events")

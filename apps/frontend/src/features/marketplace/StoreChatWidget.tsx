@@ -4,7 +4,7 @@ import { MessageCircle, Send } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import { useAuthStore } from '../../lib/authStore';
-import { getBuyerConversation, sendBuyerMessage, type BuyerChatMessage } from './storeApi';
+import { sendBuyerMessage, type BuyerChatMessage } from './storeApi';
 
 interface StoreChatWidgetProps {
   storeSlug: string;

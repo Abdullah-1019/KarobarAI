@@ -101,7 +101,10 @@ describe('POST /api/v1/products/ai-generate (Task 3/4/5)', () => {
 
     const res = await request(app).post('/api/v1/products/ai-generate').set('Authorization', `Bearer ${seller.accessToken}`).send({ stagingId });
 
-    expect(res.body.data.draft.categoryId).toBe(category.categoryId.toString());
+    const matchedCategory = await prisma.category.findUniqueOrThrow({
+      where: { categoryId: BigInt(res.body.data.draft.categoryId) },
+    });
+    expect(matchedCategory.nameEn).toBe(category.nameEn);
   });
 
   it('an unmatched category guess resolves to null, not an error, preserving the raw guess', async () => {

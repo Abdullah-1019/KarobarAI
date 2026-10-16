@@ -28,7 +28,7 @@ export function EmptyState({ title, description, actionLabel, onAction, icon }: 
       }}
     >
       {icon ?? <PackageSearch size={40} strokeWidth={1.5} color="var(--text-disabled)" aria-hidden="true" />}
-      <Typography.Title level={4} style={{ marginTop: 'var(--sp-3)', marginBottom: 'var(--sp-1)' }}>
+      <Typography.Title level={4} style={{ marginTop: 'var(--sp-3)', marginBottom: 'var(--sp-1)', fontFamily: 'var(--font-heading)', letterSpacing: '-0.01em' }}>
         {title}
       </Typography.Title>
       {description && <Typography.Text type="secondary">{description}</Typography.Text>}

@@ -25,9 +25,11 @@ export function HealthIndicator() {
     };
   }, []);
 
-  const color = status === 'ok' ? 'var(--success)' : status === 'unreachable' ? 'var(--error)' : 'var(--text-secondary)';
-  const label =
-    status === 'ok' ? 'API: connected' : status === 'unreachable' ? 'API: unreachable' : 'API: checking…';
+  // Per the auth redesign spec §7: the badge is a dev-only troubleshooting aid, and it only shows
+  // when the health check actually fails. A reachable API (or a production build) renders nothing.
+  if (!import.meta.env.DEV || status !== 'unreachable') {
+    return null;
+  }
 
   return (
     <div
@@ -48,8 +50,8 @@ export function HealthIndicator() {
         boxShadow: 'var(--shadow-sm)',
       }}
     >
-      <span style={{ width: 8, height: 8, borderRadius: '50%', background: color, display: 'inline-block' }} />
-      {label}
+      <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--error)', display: 'inline-block' }} />
+      API: unreachable
     </div>
   );
 }

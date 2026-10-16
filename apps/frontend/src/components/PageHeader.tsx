@@ -16,8 +16,8 @@ interface PageHeaderProps {
 // status) was hand-rolled slightly differently in SellerProductsPage, AddProductPage, and
 // EditProductPage — a title+button flex row in one, a BackLink+title stack in another, a
 // BackLink+title+StatusTag row in the third. Named explicitly as a candidate reusable component
-// in the E4 brief ("Seller page header"). Distinct from marketplace's SectionHeader (E2), which
-// is an in-page sub-section heading, not page-level chrome with a back-link/trailing actions.
+// in the E4 brief ("Seller page header"). Distinct from marketplace's Section (E2/Home), which
+// is an in-page content band/heading, not page-level chrome with a back-link/trailing actions.
 export function PageHeader({ title, backTo, backLabel, actions, style }: PageHeaderProps) {
   return (
     <div style={{ marginBottom: 'var(--sp-5)', ...style }}>

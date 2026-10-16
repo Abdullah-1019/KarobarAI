@@ -1,5 +1,5 @@
 import type { OrderStatus } from '@karobarai/shared';
-import { Typography } from 'antd';
+import { Tag, Typography } from 'antd';
 import { Circle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -9,13 +9,14 @@ interface TrackingStatusCardProps {
   status: OrderStatus;
   /** Real, server-computed human label (TrackingDTO.deliveryStageLabel) — never a client-derived guess. */
   deliveryStageLabel: string;
+  simulated?: boolean | null;
   colorForStatus?: (status: string) => string;
 }
 
 // E6 — "what is happening to my order right now?" is the first question the brief calls out;
 // this card answers it in one glance, above the timeline/map. No invented ETA — TrackingDTO has
 // no such field, so the message stays honest and status-only rather than guessing a delivery date.
-export function TrackingStatusCard({ status, deliveryStageLabel, colorForStatus }: TrackingStatusCardProps) {
+export function TrackingStatusCard({ status, deliveryStageLabel, colorForStatus, simulated }: TrackingStatusCardProps) {
   const { t } = useTranslation(['orders']);
   const Icon = STATUS_ICON[status] ?? Circle;
   const color = colorForStatus?.(status) ?? 'var(--brand-primary)';
@@ -54,6 +55,7 @@ export function TrackingStatusCard({ status, deliveryStageLabel, colorForStatus 
           {deliveryStageLabel}
         </Typography.Title>
         <Typography.Text type="secondary">{t(`tracking.statusMessage.${status}`)}</Typography.Text>
+        {simulated && <Tag color="blue" style={{ marginInlineStart: 8 }}>{t('courier.simulatedBadge')}</Tag>}
       </div>
     </div>
   );

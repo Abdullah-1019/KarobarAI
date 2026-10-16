@@ -31,11 +31,34 @@ export const config = {
   redisUrl: process.env.REDIS_URL ?? '',
   corsAllowedOrigins: (process.env.CORS_ALLOWED_ORIGINS ?? '').split(',').filter(Boolean),
   adapterMode: (process.env.ADAPTER_MODE ?? 'mock') as 'mock' | 'live',
+  stripe: {
+    secretKey: process.env.STRIPE_SECRET_KEY ?? '',
+    publishableKey: process.env.STRIPE_PUBLISHABLE_KEY ?? '',
+    webhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? '',
+  },
+  jazzCash: {
+    merchantId: process.env.JAZZCASH_MERCHANT_ID ?? '',
+    password: process.env.JAZZCASH_PASSWORD ?? '',
+    secretKey: process.env.JAZZCASH_SECRET_KEY ?? '',
+  },
+  easyPaisa: {
+    storeId: process.env.EASYPAISA_STORE_ID ?? '',
+    hashKey: process.env.EASYPAISA_HASH_KEY ?? '',
+  },
   bcryptCost: Number(process.env.BCRYPT_COST ?? 12),
   fieldEncryptionKey: process.env.FIELD_ENCRYPTION_KEY ?? '',
   // Internal-only (TRD §8: ai-service is never reachable from the host/Nginx) — native dev uses
   // localhost:PORT_AI, Docker Compose overrides this to http://ai-service:8000 in its env block.
   aiServiceUrl: process.env.AI_SERVICE_URL || `http://localhost:${process.env.PORT_AI ?? 8000}`,
+  // When the API runs in Docker, browser-facing MinIO URLs use localhost while the private AI
+  // service must fetch the same object through Docker DNS. Leave unset for native/local callers.
+  aiServiceImageBaseUrl: process.env.AI_SERVICE_IMAGE_BASE_URL || '',
+  aiServiceTimeoutMs: Number(process.env.AI_SERVICE_TIMEOUT_MS ?? 600_000),
+  returnDecisions: {
+    enabled: (process.env.RETURN_AUTO_DECISIONS_ENABLED ?? 'true').toLowerCase() === 'true',
+    acceptThreshold: Number(process.env.AUTO_ACCEPT_THRESHOLD ?? 0.80),
+    reviewThreshold: Number(process.env.AUTO_REVIEW_THRESHOLD ?? 0.60),
+  },
   jwt: {
     privateKey: unescapePem(process.env.JWT_PRIVATE_KEY),
     publicKey: unescapePem(process.env.JWT_PUBLIC_KEY),

@@ -5,8 +5,7 @@ import pytest
 from app.llm.client import LlmClient
 from app.llm.errors import AiGenerationError, LlmClientError
 from app.llm.fallback_orchestrator import LlmFallbackOrchestrator, build_default_orchestrator
-from app.llm.gemini_client import GeminiVisionClient
-from app.llm.mock_client import MockLlmClient
+from app.llm.gemini_listing_client import GeminiListingClient
 from app.schemas.listing import GeneratedListing
 
 FALLBACK_RESULT = GeneratedListing(
@@ -78,29 +77,8 @@ class TestLlmFallbackOrchestrator:
 
 
 class TestBuildDefaultOrchestrator:
-    def test_falls_back_to_mock_clients_when_no_gemini_api_key_is_configured(
-        self, monkeypatch
-    ) -> None:
-        monkeypatch.setattr("app.llm.fallback_orchestrator.settings.gemini_api_key", "")
+    def test_builds_hosted_listing_client_without_local_fallback(self) -> None:
         orchestrator = build_default_orchestrator()
 
-        assert isinstance(orchestrator._primary, MockLlmClient)
-        assert isinstance(orchestrator._fallback, MockLlmClient)
-
-    def test_builds_two_gemini_clients_reading_model_names_from_config_when_a_key_is_present(
-        self, monkeypatch
-    ) -> None:
-        monkeypatch.setattr("app.llm.fallback_orchestrator.settings.gemini_api_key", "real-key")
-        monkeypatch.setattr(
-            "app.llm.fallback_orchestrator.settings.llm_primary_model", "model-primary-x"
-        )
-        monkeypatch.setattr(
-            "app.llm.fallback_orchestrator.settings.llm_fallback_model", "model-fallback-y"
-        )
-
-        orchestrator = build_default_orchestrator()
-
-        assert isinstance(orchestrator._primary, GeminiVisionClient)
-        assert isinstance(orchestrator._fallback, GeminiVisionClient)
-        assert orchestrator._primary._model == "model-primary-x"
-        assert orchestrator._fallback._model == "model-fallback-y"
+        assert isinstance(orchestrator._primary, GeminiListingClient)
+        assert orchestrator._fallback is None

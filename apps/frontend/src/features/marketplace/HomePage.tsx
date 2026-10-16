@@ -1,11 +1,18 @@
 import { Alert } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { Link, useNavigate } from 'react-router-dom';
 
-import { SectionHeader } from '../../components';
+import { ArrowIcon, Button, EmptyState, Reveal, Section } from '../../components';
+import { Hero } from './Hero';
+import { TrustStrip } from './TrustStrip';
 import { ProductGridSkeleton } from './ProductGridSkeleton';
 import { CategoryGrid } from './CategoryGrid';
-import { ProductGrid } from './ProductGrid';
+import { FeaturedProducts } from './FeaturedProducts';
+import { NewArrivalsGrid } from './NewArrivalsGrid';
+import { HowItWorks } from './HowItWorks';
+import { AiBanner } from './AiBanner';
+import { PaymentStrip } from './PaymentStrip';
 import { HOME_FEED_QUERY_KEY, getHomeFeed } from './marketplaceApi';
 import { formatMarketplaceError } from './marketplaceErrors';
 
@@ -14,37 +21,109 @@ import { formatMarketplaceError } from './marketplaceErrors';
 // max-width/padding wrapper — AppShell's shared content area (Phase C) already provides both, so
 // this page uses the full width it's given rather than a second, narrower, redundant container.
 //
-// The guest login/register CTA previously duplicated here (a second pair of buttons stacked
-// directly under the header) was removed — AppHeader's own `guestActions` slot (StorefrontLayout)
-// already renders the identical pair; this page doesn't need its own copy.
+// The hero + trust strip are static (no data dependency) so they render immediately and own the
+// page's single `<h1>`; the data-driven sections below follow the query's pending/error/success
+// states.
+//
+// One query drives every section: /marketplace/home already returns featured + newArrivals +
+// categories in a single payload, so there are no per-section hooks to write — they'd re-declare
+// the same queryKey and fetch the same endpoint a second and third time.
 export function HomePage() {
-  const { t } = useTranslation(['marketplace']);
+  const { t } = useTranslation(['marketplace', 'common']);
+  const navigate = useNavigate();
 
-  const { data, isPending, isError, error } = useQuery({ queryKey: HOME_FEED_QUERY_KEY, queryFn: getHomeFeed });
+  const { data, isPending, isError, error, refetch } = useQuery({
+    queryKey: HOME_FEED_QUERY_KEY,
+    queryFn: getHomeFeed,
+  });
+
+  const hasProducts = !!data && (data.featured.length > 0 || data.newArrivals.length > 0);
 
   return (
     <div>
+      <Hero />
+      <TrustStrip />
+
       {isPending && (
         <>
           <ProductGridSkeleton count={8} variant="category" />
-          <ProductGridSkeleton count={6} style={{ marginTop: 'var(--sp-8)' }} />
+          <ProductGridSkeleton count={4} style={{ marginTop: 'var(--sp-8)' }} />
         </>
       )}
 
-      {isError && <Alert type="error" showIcon message={formatMarketplaceError(t, error)} />}
+      {isError && (
+        <Alert
+          type="error"
+          showIcon
+          message={formatMarketplaceError(t, error)}
+          action={
+            <Button variant="outline" onClick={() => refetch()}>
+              {t('common:actions.retry')}
+            </Button>
+          }
+        />
+      )}
 
       {data && (
         <>
-          <SectionHeader title={t('home.browseCategories')} />
-          <CategoryGrid categories={data.categories} />
+          {data.categories.length > 0 && (
+            <Reveal>
+              <Section
+                id="categories"
+                title={t('home.browseCategories')}
+                action={
+                  <Link to="/search" className="section-action-link">
+                    {t('home.allCategories')}
+                    <ArrowIcon size={16} />
+                  </Link>
+                }
+              >
+                <CategoryGrid categories={data.categories} />
+              </Section>
+            </Reveal>
+          )}
 
-          <SectionHeader title={t('home.featuredTitle')} style={{ marginTop: 'var(--sp-10)' }} />
-          <ProductGrid products={data.featured} />
-
-          <SectionHeader title={t('home.newArrivalsTitle')} style={{ marginTop: 'var(--sp-10)' }} />
-          <ProductGrid products={data.newArrivals} />
+          {hasProducts ? (
+            <>
+              {data.featured.length > 0 && (
+                <Reveal>
+                  <Section title={t('home.featuredTitle')}>
+                    <FeaturedProducts products={data.featured} />
+                  </Section>
+                </Reveal>
+              )}
+              {data.newArrivals.length > 0 && (
+                <Reveal>
+                  <Section title={t('home.newArrivalsTitle')}>
+                    <NewArrivalsGrid products={data.newArrivals} />
+                  </Section>
+                </Reveal>
+              )}
+            </>
+          ) : (
+            <Reveal>
+              <Section>
+                <EmptyState
+                  title={t('home.empty.title')}
+                  description={t('home.empty.description')}
+                  actionLabel={t('hero.startSelling')}
+                  onAction={() => navigate('/register')}
+                />
+              </Section>
+            </Reveal>
+          )}
         </>
       )}
+
+      <Reveal>
+        <HowItWorks />
+      </Reveal>
+      <Reveal>
+        <AiBanner />
+      </Reveal>
+      <Reveal>
+        <PaymentStrip />
+      </Reveal>
     </div>
   );
 }

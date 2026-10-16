@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { z } from 'zod';
 
 import { authenticate } from '../../../core/middleware/authenticate';
 import { authorize } from '../../../core/middleware/authorize';
@@ -10,6 +11,8 @@ import {
   sellerDecisionHandler,
   sellerEscalateHandler,
 } from './seller.controller';
+import { bookReplacementHandler, bookReturnCourierHandler, confirmReturnReceiptHandler,
+  packReplacementHandler, proposeRefundHandler, reserveReplacementHandler } from '../return-fulfillment.controller';
 
 export const sellerReturnsRouter = Router();
 sellerReturnsRouter.use(authenticate, authorize('SELLER'));
@@ -18,7 +21,7 @@ sellerReturnsRouter.use(authenticate, authorize('SELLER'));
  * @swagger
  * /api/v1/seller/returns:
  *   get:
- *     summary: The seller's own return queue (MANUAL_REVIEW) or full history (?history=true)
+ *     summary: The seller's manual-review and AI-accepted queue, or full history (?history=true)
  *     tags: [Returns]
  *     security: [{ bearerAuth: [] }]
  *     parameters:
@@ -59,7 +62,7 @@ sellerReturnsRouter.get('/:id', getSellerReturnDetailHandler);
  * @swagger
  * /api/v1/seller/returns/{id}/decision:
  *   post:
- *     summary: Approve or reject a return in MANUAL_REVIEW (reason mandatory on reject)
+ *     summary: Decide a manual-review return or reject an AI acceptance (reason mandatory on reject)
  *     tags: [Returns]
  *     security: [{ bearerAuth: [] }]
  *     requestBody:
@@ -90,3 +93,13 @@ sellerReturnsRouter.post('/:id/decision', validateBody(sellerDecisionSchema), se
  *         description: "{ escalated: true }"
  */
 sellerReturnsRouter.post('/:id/escalate', sellerEscalateHandler);
+sellerReturnsRouter.post('/:id/confirm-receipt',
+  validateBody(z.object({ condition: z.enum(['RESELLABLE', 'DAMAGED', 'NEEDS_INSPECTION']) }).strict()),
+  confirmReturnReceiptHandler);
+sellerReturnsRouter.post('/:id/replacement',
+  validateBody(z.object({ productId: z.string().uuid() }).strict()), reserveReplacementHandler);
+sellerReturnsRouter.post('/:id/replacement/pack', packReplacementHandler);
+sellerReturnsRouter.post('/:id/book-replacement', bookReplacementHandler);
+sellerReturnsRouter.post('/:id/book-return-courier', bookReturnCourierHandler);
+sellerReturnsRouter.post('/:id/refund-proposal',
+  validateBody(z.object({ reason: z.string().trim().min(1).max(500) }).strict()), proposeRefundHandler);

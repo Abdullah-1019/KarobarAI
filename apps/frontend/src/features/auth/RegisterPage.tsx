@@ -1,36 +1,41 @@
 import { useState } from 'react';
-import { Alert, Button, Input, Segmented, Typography } from 'antd';
-import { UserPlus } from 'lucide-react';
+import { Mail, ShoppingBag, Store, UserPlus } from 'lucide-react';
 import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 
-import { registerSchema, type UserRole } from '@karobarai/shared';
-import { PasswordStrengthMeter } from '../../components';
+import { registerSchema } from '@karobarai/shared';
+import {
+  AuthLayout,
+  Checkbox,
+  FormAlert,
+  MethodTabs,
+  PasswordField,
+  PhoneField,
+  PrimaryButton,
+  RoleSelector,
+  TextField,
+} from '../../components';
 import { useLanguage } from '../../hooks';
-import { AuthLayout } from './AuthLayout';
 import { register as registerAccount } from './authApi';
 import { formatAuthError } from './authErrors';
 
 type Method = 'mobile' | 'email';
+type Role = 'BUYER' | 'SELLER';
 
 interface FormValues {
   phone: string;
   email: string;
   password: string;
+  agreed: boolean;
 }
 
-// SCR-A01 — role toggle, method tabs, phone/email, password + strength meter. Language switch
-// now lives in the shared AuthLayout (all 5 auth screens get one, not just this one).
-// Fields use RHF's <Controller>, not uncontrolled `register()` — AntD's Input forwards a ref to
-// a wrapper object (focus/blur/input), not the raw DOM node, so uncontrolled register() reads
-// the wrong `.value` on submit.
 export function RegisterPage() {
   const { t } = useTranslation(['auth', 'common']);
   const navigate = useNavigate();
   const { language } = useLanguage();
 
-  const [role, setRole] = useState<UserRole>('BUYER');
+  const [role, setRole] = useState<Role>('BUYER');
   const [method, setMethod] = useState<Method>('mobile');
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -38,20 +43,27 @@ export function RegisterPage() {
   const {
     control,
     handleSubmit,
-    watch,
     setError,
     formState: { errors },
-  } = useForm<FormValues>({ defaultValues: { phone: '', email: '', password: '' } });
-
-  const password = watch('password');
+  } = useForm<FormValues>({ defaultValues: { phone: '', email: '', password: '', agreed: false } });
 
   const onSubmit = handleSubmit(async (values) => {
     setSubmitError(null);
 
+    // Normalize phone number (strip whitespace, ensure standard 03XX format if 10 digits)
+    let cleanPhone = values.phone.replace(/[\s-]/g, '');
+    if (cleanPhone.startsWith('+92')) {
+      cleanPhone = '0' + cleanPhone.slice(3);
+    } else if (cleanPhone.startsWith('92') && cleanPhone.length === 12) {
+      cleanPhone = '0' + cleanPhone.slice(2);
+    } else if (cleanPhone.length === 10 && cleanPhone.startsWith('3')) {
+      cleanPhone = '0' + cleanPhone;
+    }
+
     const payload =
       method === 'mobile'
-        ? { method: 'mobile' as const, role, phone: values.phone, password: values.password, preferredLanguage: language }
-        : { method: 'email' as const, role, email: values.email, password: values.password, preferredLanguage: language };
+        ? { method: 'mobile' as const, role, phone: cleanPhone, password: values.password, preferredLanguage: language }
+        : { method: 'email' as const, role, email: values.email.trim(), password: values.password, preferredLanguage: language };
 
     const parsed = registerSchema.safeParse(payload);
     if (!parsed.success) {
@@ -68,12 +80,9 @@ export function RegisterPage() {
     try {
       const result = await registerAccount(parsed.data);
       if (result.kind === 'pending_verification') {
-        navigate('/verify-otp', { state: { phone: values.phone } });
+        navigate('/verify-otp', { state: { phone: cleanPhone } });
         return;
       }
-      // Email registration issues tokens immediately, but we don't auto-login with them — send
-      // the user to Login to sign in explicitly rather than dropping them straight into their
-      // role home (buyer storefront / seller onboarding).
       navigate('/login');
     } catch (err) {
       setSubmitError(formatAuthError(t, err));
@@ -85,115 +94,129 @@ export function RegisterPage() {
   return (
     <AuthLayout
       title={t('auth:register.title')}
+      subtitle={t('auth:register.subtitle')}
       icon={UserPlus}
       footer={
-        <Typography.Paragraph style={{ margin: 0 }}>
-          {t('auth:register.haveAccount')} <Link to="/login">{t('auth:register.loginLink')}</Link>
-        </Typography.Paragraph>
+        <>
+          {t('auth:register.haveAccount')}{' '}
+          <Link to="/login">{t('auth:register.loginLink')}</Link>
+        </>
       }
     >
-      <Segmented
-        block
+      <RoleSelector
+        name="role"
+        ariaLabel={t('auth:register.roleLegend')}
         value={role}
-        onChange={(value) => setRole(value as UserRole)}
+        onChange={setRole}
         options={[
-          { label: t('auth:register.roleBuyer'), value: 'BUYER' },
-          { label: t('auth:register.roleSeller'), value: 'SELLER' },
+          {
+            value: 'BUYER',
+            icon: ShoppingBag,
+            title: t('auth:register.roleBuyer'),
+            description: t('auth:register.buyerTagline'),
+          },
+          {
+            value: 'SELLER',
+            icon: Store,
+            title: t('auth:register.roleSeller'),
+            description: t('auth:register.sellerTagline'),
+          },
         ]}
-        style={{ marginBottom: 'var(--sp-4)' }}
       />
 
-      <Segmented
-        block
+      <MethodTabs
+        name="method"
+        ariaLabel={t('auth:register.methodLabel')}
         value={method}
-        onChange={(value) => setMethod(value as Method)}
+        onChange={setMethod}
         options={[
-          { label: t('auth:register.methodMobile'), value: 'mobile' },
-          { label: t('auth:register.methodEmail'), value: 'email' },
+          { value: 'mobile', label: t('auth:register.methodMobile') },
+          { value: 'email', label: t('auth:register.methodEmail') },
         ]}
-        style={{ marginBottom: 'var(--sp-4)' }}
       />
 
-      {submitError && <Alert type="error" message={submitError} showIcon style={{ marginBottom: 'var(--sp-4)' }} />}
+      {submitError && <FormAlert variant="error">{submitError}</FormAlert>}
 
-      <form onSubmit={onSubmit}>
+      <form onSubmit={onSubmit} noValidate>
         {method === 'mobile' ? (
-          <div style={{ marginBottom: 'var(--sp-4)' }}>
-            <label htmlFor="register-phone">{t('auth:register.phoneLabel')}</label>
-            <Controller
-              name="phone"
-              control={control}
-              render={({ field }) => (
-                <Input
-                  {...field}
-                  id="register-phone"
-                  size="large"
-                  placeholder="03001234567"
-                  aria-invalid={!!errors.phone}
-                  aria-describedby={errors.phone ? 'register-phone-error' : undefined}
-                />
-              )}
-            />
-            {errors.phone && (
-              <Typography.Text id="register-phone-error" type="danger">
-                {errors.phone.message}
-              </Typography.Text>
-            )}
-          </div>
-        ) : (
-          <div style={{ marginBottom: 'var(--sp-4)' }}>
-            <label htmlFor="register-email">{t('auth:register.emailLabel')}</label>
-            <Controller
-              name="email"
-              control={control}
-              render={({ field }) => (
-                <Input
-                  {...field}
-                  id="register-email"
-                  size="large"
-                  type="email"
-                  aria-invalid={!!errors.email}
-                  aria-describedby={errors.email ? 'register-email-error' : undefined}
-                />
-              )}
-            />
-            {errors.email && (
-              <Typography.Text id="register-email-error" type="danger">
-                {errors.email.message}
-              </Typography.Text>
-            )}
-          </div>
-        )}
-
-        <div style={{ marginBottom: 'var(--sp-4)' }}>
-          <label htmlFor="register-password">{t('auth:register.passwordLabel')}</label>
           <Controller
-            name="password"
+            name="phone"
             control={control}
             render={({ field }) => (
-              <Input.Password
-                {...field}
-                id="register-password"
-                size="large"
-                aria-invalid={!!errors.password}
-                aria-describedby={errors.password ? 'register-password-error' : undefined}
+              <PhoneField
+                id="register-phone"
+                name="phone"
+                label={t('auth:register.phoneLabel')}
+                value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                error={errors.phone?.message}
+                placeholder={t('auth:register.phonePlaceholder')}
+                autoComplete="tel"
+                autoFocus
               />
             )}
           />
-          <Typography.Text type="secondary" style={{ fontSize: 'var(--fs-xs)' }}>
-            {t('auth:register.passwordHelp')}
-          </Typography.Text>
-          <PasswordStrengthMeter password={password ?? ''} />
-          {errors.password && (
-            <Typography.Text id="register-password-error" type="danger">
-              {errors.password.message}
-            </Typography.Text>
-          )}
-        </div>
+        ) : (
+          <Controller
+            name="email"
+            control={control}
+            render={({ field }) => (
+              <TextField
+                id="register-email"
+                name="email"
+                label={t('auth:register.emailLabel')}
+                icon={Mail}
+                type="email"
+                value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                error={errors.email?.message}
+                placeholder={t('auth:register.emailPlaceholder')}
+                autoComplete="email"
+              />
+            )}
+          />
+        )}
 
-        <Button type="primary" htmlType="submit" size="large" block loading={submitting}>
-          {t('auth:register.submit')}
-        </Button>
+        <Controller
+          name="password"
+          control={control}
+          render={({ field }) => (
+            <PasswordField
+              id="register-password"
+              name="password"
+              label={t('auth:register.passwordLabel')}
+              value={field.value}
+              onChange={field.onChange}
+              onBlur={field.onBlur}
+              error={errors.password?.message}
+              autoComplete="new-password"
+              showStrength
+              showChecklist
+            />
+          )}
+        />
+
+        <Controller
+          name="agreed"
+          control={control}
+          rules={{ validate: (value) => value || t('auth:register.termsRequired') }}
+          render={({ field }) => (
+            <Checkbox
+              id="register-terms"
+              checked={field.value}
+              onChange={field.onChange}
+              error={errors.agreed?.message}
+            >
+              {t('auth:register.termsAgree')}
+            </Checkbox>
+          )}
+        />
+
+        <PrimaryButton type="submit" loading={submitting}>
+          {method === 'mobile' ? t('auth:register.submitOtp') : t('auth:register.submit')}
+        </PrimaryButton>
       </form>
     </AuthLayout>
   );

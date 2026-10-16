@@ -4,3 +4,4 @@ export { CheckoutPage } from './CheckoutPage';
 export { CheckoutConfirmationPage } from './CheckoutConfirmationPage';
 export { useGuestCartStore } from './guestCartStore';
 export { useCartCount } from './useCartCount';
+export { useAddToCart, type AddableProduct } from './useAddToCart';

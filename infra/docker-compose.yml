@@ -77,7 +77,9 @@ services:
       DATABASE_URL: postgresql://karobarai:karobarai@postgres:5432/karobarai?schema=public
       REDIS_URL: redis://redis:6379
       AI_SERVICE_URL: http://ai-service:8000
+      AI_SERVICE_IMAGE_BASE_URL: http://minio:9000
       MINIO_ENDPOINT: http://minio:9000
+      S3_PUBLIC_BASE_URL: http://localhost:9000
     volumes:
       - ../apps/backend:/workspace/apps/backend
       - ../packages/shared:/workspace/packages/shared
@@ -102,8 +104,10 @@ services:
       OLLAMA_BASE_URL: http://ollama:11434
       OLLAMA_CHAT_MODEL: ${OLLAMA_CHAT_MODEL:-qwen2.5vl:7b}
       OLLAMA_EMBED_MODEL: ${OLLAMA_EMBED_MODEL:-nomic-embed-text}
+      RETURN_DINO_CACHE_DIR: /models/dinov2
     volumes:
       - ../apps/ai-service:/app
+      - dinov2_cache:/models/dinov2
     # No `ports:` mapping — never reachable from the host or Nginx (TRD §8).
     # Reachable only from `api` via the internal network at http://ai-service:8000.
     networks: [karobarai_net]
@@ -114,6 +118,9 @@ services:
       dockerfile: apps/frontend/Dockerfile
     env_file:
       - ../.env
+    environment:
+      CHOKIDAR_USEPOLLING: "true"
+      WATCHPACK_POLLING: "true"
     volumes:
       - ../apps/frontend:/workspace/apps/frontend
       - ../packages/shared:/workspace/packages/shared
@@ -144,4 +151,5 @@ volumes:
   minio_data:
   api_node_modules:
   web_node_modules:
+  dinov2_cache:
   shared_node_modules:

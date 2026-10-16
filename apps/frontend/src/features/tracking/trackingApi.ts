@@ -1,4 +1,4 @@
-import type { CourierCode, CourierQuotesDTO, OrderDetailDTO, TrackingDTO } from '@karobarai/shared';
+import type { CourierCode, CourierQuotesDTO, CourierSelectionDTO, OrderDetailDTO, TrackingDTO } from '@karobarai/shared';
 
 import type { ApiEnvelope } from '../../api';
 import { apiClient, unwrap } from '../../api';
@@ -25,6 +25,18 @@ export function refreshCourierRates(orderId: string): Promise<CourierQuotesDTO> 
 // than being cut off client-side. Callers must show a patient loading state, not a normal spinner.
 export function bookCourier(orderId: string, courierCode: CourierCode): Promise<OrderDetailDTO> {
   return unwrap(apiClient.post<ApiEnvelope<OrderDetailDTO>>(`/orders/${orderId}/book-courier`, { courierCode }));
+}
+
+export function courierSelectionQueryKey(orderId: string) {
+  return ['tracking', 'courier-selection', orderId] as const;
+}
+
+export function getCourierSelection(orderId: string): Promise<CourierSelectionDTO | null> {
+  return unwrap(apiClient.get<ApiEnvelope<CourierSelectionDTO | null>>(`/orders/${orderId}/courier-selection`));
+}
+
+export function autoSelectCourier(orderId: string): Promise<CourierSelectionDTO> {
+  return unwrap(apiClient.post<ApiEnvelope<CourierSelectionDTO>>(`/orders/${orderId}/auto-select-courier`, {}));
 }
 
 export function trackingQueryKey(orderId: string) {

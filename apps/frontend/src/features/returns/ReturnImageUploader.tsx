@@ -3,19 +3,21 @@ import { Alert, Button } from 'antd';
 import { useTranslation } from 'react-i18next';
 
 import type { ReturnImageDTO } from '@karobarai/shared';
-import { ProductThumbnail } from '../../components';
+import { PrivateEvidenceImage } from './PrivateEvidenceImage';
 import { removeReturnImage, uploadReturnImages } from './returnsApi';
 import { formatReturnsError } from './returnsErrors';
 
 interface ReturnImageUploaderProps {
   returnId: string;
   images: ReturnImageDTO[];
+  references: Array<{ id: string; url: string }>;
+  maxImages: number;
   onChange: (images: ReturnImageDTO[]) => void;
 }
 
 // Mirrors features/catalog/ProductImageManager.tsx's multi-image grid closely, minus reordering
 // — position doesn't matter for return evidence photos, only count (>=3, REQ-F-Return-002).
-export function ReturnImageUploader({ returnId, images, onChange }: ReturnImageUploaderProps) {
+export function ReturnImageUploader({ returnId, images, references, maxImages, onChange }: ReturnImageUploaderProps) {
   const { t } = useTranslation(['returns']);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
@@ -25,6 +27,10 @@ export function ReturnImageUploader({ returnId, images, onChange }: ReturnImageU
     const files = Array.from(event.target.files ?? []);
     event.target.value = '';
     if (files.length === 0) return;
+    if (images.length + files.length > maxImages) {
+      setError(t('wizard.imageLimit', { count: maxImages }));
+      return;
+    }
 
     setError(null);
     setBusy(true);
@@ -54,23 +60,28 @@ export function ReturnImageUploader({ returnId, images, onChange }: ReturnImageU
   return (
     <div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--sp-3)', marginBottom: 'var(--sp-3)' }}>
-        {images.map((img) => (
-          <div key={img.id} style={{ position: 'relative' }}>
-            <ProductThumbnail src={img.cdnUrl} size={100} />
+        {Array.from({ length: maxImages }, (_, index) => (
+          <div key={references[index]?.id ?? `slot-${index}`} style={{ position: 'relative', width: 160 }}>
+            <div style={{ marginBottom: 'var(--sp-1)' }}>{t('wizard.angleNumber', { count: index + 1 })}</div>
+            {references[index] && <img src={references[index].url} alt={t('wizard.referenceAlt', { count: index + 1 })}
+              style={{ width: 100, height: 100, objectFit: 'contain' }} />}
+            {images[index] && <PrivateEvidenceImage url={images[index].cdnUrl} size={100} />}
+            {images[index] && (
             <Button
               size="small"
               danger
-              disabled={busy}
-              onClick={() => handleRemove(img.id)}
+              disabled={busy || index !== images.length - 1}
+              onClick={() => handleRemove(images[index]!.id)}
               style={{ display: 'block', margin: 'var(--sp-1) auto 0' }}
             >
               {t('wizard.removeImage')}
             </Button>
+            )}
           </div>
         ))}
       </div>
 
-      <Button loading={busy} onClick={() => fileInputRef.current?.click()}>
+      <Button loading={busy} disabled={images.length >= maxImages} onClick={() => fileInputRef.current?.click()}>
         {t('wizard.uploadImages')}
       </Button>
       <input
@@ -82,8 +93,8 @@ export function ReturnImageUploader({ returnId, images, onChange }: ReturnImageU
         onChange={handleFileChange}
       />
       <div style={{ marginTop: 'var(--sp-1)' }}>
-        <span style={{ color: images.length >= 3 ? 'var(--success)' : 'var(--text-secondary)' }}>
-          {t('wizard.imageCount', { count: images.length })}
+        <span style={{ color: images.length === maxImages ? 'var(--success)' : 'var(--text-secondary)' }}>
+          {t('wizard.pairedImageCount', { count: images.length, required: maxImages })}
         </span>
       </div>
       {error && <Alert type="error" message={error} showIcon style={{ marginTop: 'var(--sp-2)', maxWidth: 480 }} />}

@@ -5,7 +5,8 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import type { ReturnDetailDTO } from '@karobarai/shared';
-import { PageHeader, ProductThumbnail } from '../../components';
+import { PageHeader } from '../../components';
+import { PrivateEvidenceImage } from './PrivateEvidenceImage';
 import { getOrder, orderQueryKey } from '../orders/ordersApi';
 import { ReturnImageUploader } from './ReturnImageUploader';
 import { createReturn, submitReturn } from './returnsApi';
@@ -25,6 +26,7 @@ export function ReturnWizardPage() {
 
   const [step, setStep] = useState(0);
   const [reasonKey, setReasonKey] = useState<ReasonKey | null>(null);
+  const [selectedProductId, setSelectedProductId] = useState('');
   const [otherReason, setOtherReason] = useState('');
   const [returnRecord, setReturnRecord] = useState<ReturnDetailDTO | null>(null);
   const [blockedError, setBlockedError] = useState<string | null>(null);
@@ -35,9 +37,12 @@ export function ReturnWizardPage() {
   const { data: order } = useQuery({ queryKey: orderQueryKey(orderId), queryFn: () => getOrder(orderId), enabled: !!orderId });
 
   const reasonText = reasonKey === 'OTHER' ? otherReason.trim() : reasonKey ? t(`reasons.${reasonKey}`) : '';
+  const chosenProductId = selectedProductId || (order?.items.length === 1 ? order.items[0]?.productId : '');
+  const selectedItemEligible = order?.items.some((item) =>
+    item.productId === chosenProductId && item.returnEligible) ?? false;
 
   const createMutation = useMutation({
-    mutationFn: () => createReturn(orderId, reasonText),
+    mutationFn: () => createReturn(orderId, reasonKey!, chosenProductId, otherReason.trim()),
     onSuccess: (data) => {
       setReturnRecord(data);
       setBlockedError(null);
@@ -48,11 +53,13 @@ export function ReturnWizardPage() {
 
   const submitMutation = useMutation({
     mutationFn: () => submitReturn(returnRecord!.id),
-    onSuccess: () => navigate(`/orders/${orderId}/return/status`),
+    onSuccess: () => navigate(`/orders/${orderId}/return/${returnRecord!.id}/status`),
     onError: (err) => setBlockedError(formatReturnsError(t, err)),
   });
 
   const imageCount = returnRecord?.images.length ?? 0;
+  const referenceCount = returnRecord?.referenceImages.length ?? 0;
+  const requiredCount = referenceCount || 3;
 
   return (
     <div style={{ maxWidth: 640, margin: '0 auto' }}>
@@ -102,6 +109,15 @@ export function ReturnWizardPage() {
 
       {step === 1 && (
         <Card>
+          <Typography.Paragraph strong>{t('wizard.selectItem')}</Typography.Paragraph>
+          <Radio.Group value={chosenProductId}
+            onChange={(event) => setSelectedProductId(event.target.value as string)}>
+            <Space direction="vertical">
+              {order?.items.map((item) => <Radio key={item.productId} value={item.productId}
+                disabled={!item.returnEligible}>{item.titleSnapshot}
+                {!item.returnEligible ? ` — ${t('wizard.itemUnavailable')}` : ''}</Radio>)}
+            </Space>
+          </Radio.Group>
           <Typography.Paragraph strong>{t('wizard.reasonLabel')}</Typography.Paragraph>
           <Radio.Group value={reasonKey} onChange={(e) => setReasonKey(e.target.value as ReasonKey)}>
             <Space direction="vertical">
@@ -127,7 +143,7 @@ export function ReturnWizardPage() {
             <Button
               type="primary"
               loading={createMutation.isPending}
-              disabled={!reasonText}
+              disabled={!reasonText || !selectedItemEligible}
               onClick={() => createMutation.mutate()}
             >
               {t('wizard.next')}
@@ -138,13 +154,17 @@ export function ReturnWizardPage() {
 
       {step === 2 && returnRecord && (
         <Card>
+          <Typography.Paragraph>{t('wizard.pairedGuidance')}</Typography.Paragraph>
+          {referenceCount === 0 && <Alert type="warning" showIcon message={t('wizard.noListingReference')} style={{ marginBottom: 'var(--sp-3)' }} />}
           <ReturnImageUploader
             returnId={returnRecord.id}
             images={returnRecord.images}
+            references={returnRecord.referenceImages}
+            maxImages={requiredCount}
             onChange={(images) => setReturnRecord((prev) => (prev ? { ...prev, images } : prev))}
           />
           <div style={{ marginTop: 'var(--sp-4)' }}>
-            <Button type="primary" disabled={imageCount < 3} onClick={() => setStep(3)}>
+            <Button type="primary" disabled={imageCount !== requiredCount} onClick={() => setStep(3)}>
               {t('wizard.next')}
             </Button>
           </div>
@@ -156,11 +176,11 @@ export function ReturnWizardPage() {
           <Typography.Paragraph>{t('wizard.reviewIntro')}</Typography.Paragraph>
           <Typography.Paragraph>
             <Typography.Text strong>{t('wizard.reviewReason')}: </Typography.Text>
-            {returnRecord.reason}
+            {reasonText}
           </Typography.Paragraph>
           <div style={{ display: 'flex', gap: 'var(--sp-2)', flexWrap: 'wrap', marginBottom: 'var(--sp-4)' }}>
             {returnRecord.images.map((img) => (
-              <ProductThumbnail key={img.id} src={img.cdnUrl} size={80} />
+              <PrivateEvidenceImage key={img.id} url={img.cdnUrl} size={80} />
             ))}
           </div>
           <div style={{ display: 'flex', gap: 'var(--sp-2)' }}>

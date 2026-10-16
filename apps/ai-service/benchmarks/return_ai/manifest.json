@@ -1,0 +1,217 @@
+{
+  "version": 1,
+  "limitations": "Simplified computer-drawn shirts; not representative of real photographs.",
+  "cases": [
+    {
+      "id": "clear",
+      "category": "shirt",
+      "return_images": [
+        "images/clear.png"
+      ],
+      "reference_images": [],
+      "quality": "clear",
+      "defects": [],
+      "condition_change": "unknown",
+      "expected_route": "manual_review",
+      "source": "procedural synthetic illustration",
+      "license": "generated in this repository; CC0",
+      "group": "clear"
+    },
+    {
+      "id": "stain",
+      "category": "shirt",
+      "return_images": [
+        "images/stain.png"
+      ],
+      "reference_images": [],
+      "quality": "clear",
+      "defects": [
+        "stain"
+      ],
+      "condition_change": "unknown",
+      "expected_route": "manual_review",
+      "source": "procedural synthetic illustration",
+      "license": "generated in this repository; CC0",
+      "group": "stain"
+    },
+    {
+      "id": "tear",
+      "category": "shirt",
+      "return_images": [
+        "images/tear.png"
+      ],
+      "reference_images": [],
+      "quality": "clear",
+      "defects": [
+        "tear"
+      ],
+      "condition_change": "unknown",
+      "expected_route": "manual_review",
+      "source": "procedural synthetic illustration",
+      "license": "generated in this repository; CC0",
+      "group": "tear"
+    },
+    {
+      "id": "hole",
+      "category": "shirt",
+      "return_images": [
+        "images/hole.png"
+      ],
+      "reference_images": [],
+      "quality": "clear",
+      "defects": [
+        "hole"
+      ],
+      "condition_change": "unknown",
+      "expected_route": "manual_review",
+      "source": "procedural synthetic illustration",
+      "license": "generated in this repository; CC0",
+      "group": "hole"
+    },
+    {
+      "id": "button",
+      "category": "shirt",
+      "return_images": [
+        "images/button.png"
+      ],
+      "reference_images": [],
+      "quality": "clear",
+      "defects": [
+        "missing_button"
+      ],
+      "condition_change": "unknown",
+      "expected_route": "manual_review",
+      "source": "procedural synthetic illustration",
+      "license": "generated in this repository; CC0",
+      "group": "button"
+    },
+    {
+      "id": "seam",
+      "category": "shirt",
+      "return_images": [
+        "images/seam.png"
+      ],
+      "reference_images": [],
+      "quality": "clear",
+      "defects": [
+        "seam_damage"
+      ],
+      "condition_change": "unknown",
+      "expected_route": "manual_review",
+      "source": "procedural synthetic illustration",
+      "license": "generated in this repository; CC0",
+      "group": "seam"
+    },
+    {
+      "id": "occluded",
+      "category": "shirt",
+      "return_images": [
+        "images/occluded.png"
+      ],
+      "reference_images": [],
+      "quality": "unclear",
+      "defects": [],
+      "condition_change": "unknown",
+      "expected_route": "manual_review",
+      "source": "procedural synthetic illustration",
+      "license": "generated in this repository; CC0",
+      "group": "occluded"
+    },
+    {
+      "id": "low_contrast",
+      "category": "shirt",
+      "return_images": [
+        "images/low_contrast.png"
+      ],
+      "reference_images": [],
+      "quality": "unclear",
+      "defects": [],
+      "condition_change": "unknown",
+      "expected_route": "manual_review",
+      "source": "procedural synthetic illustration",
+      "license": "generated in this repository; CC0",
+      "group": "low_contrast"
+    },
+    {
+      "id": "patterned",
+      "category": "shirt",
+      "return_images": [
+        "images/patterned.png"
+      ],
+      "reference_images": [],
+      "quality": "clear",
+      "defects": [],
+      "condition_change": "unknown",
+      "expected_route": "manual_review",
+      "source": "procedural synthetic illustration",
+      "license": "generated in this repository; CC0",
+      "group": "patterned"
+    },
+    {
+      "id": "folded",
+      "category": "shirt",
+      "return_images": [
+        "images/folded.png"
+      ],
+      "reference_images": [],
+      "quality": "clear",
+      "defects": [],
+      "condition_change": "unknown",
+      "expected_route": "manual_review",
+      "source": "procedural synthetic illustration",
+      "license": "generated in this repository; CC0",
+      "group": "folded"
+    },
+    {
+      "id": "shadowed",
+      "category": "shirt",
+      "return_images": [
+        "images/shadowed.png"
+      ],
+      "reference_images": [],
+      "quality": "unclear",
+      "defects": [],
+      "condition_change": "unknown",
+      "expected_route": "manual_review",
+      "source": "procedural synthetic illustration",
+      "license": "generated in this repository; CC0",
+      "group": "shadowed"
+    },
+    {
+      "id": "paired_unchanged",
+      "category": "shirt",
+      "return_images": [
+        "images/paired_unchanged.png"
+      ],
+      "reference_images": [
+        "images/paired_unchanged_dispatch.png"
+      ],
+      "quality": "clear",
+      "defects": [],
+      "condition_change": "none",
+      "expected_route": "manual_review",
+      "source": "procedural synthetic illustration",
+      "license": "generated in this repository; CC0",
+      "group": "paired_unchanged"
+    },
+    {
+      "id": "paired_stain",
+      "category": "shirt",
+      "return_images": [
+        "images/paired_stain.png"
+      ],
+      "reference_images": [
+        "images/paired_stain_dispatch.png"
+      ],
+      "quality": "clear",
+      "defects": [
+        "stain"
+      ],
+      "condition_change": "possible",
+      "expected_route": "manual_review",
+      "source": "procedural synthetic illustration",
+      "license": "generated in this repository; CC0",
+      "group": "paired_stain"
+    }
+  ]
+}

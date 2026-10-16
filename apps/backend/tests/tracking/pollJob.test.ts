@@ -37,13 +37,13 @@ async function setUpBookedOrder(paymentMethod: 'COD' | 'JAZZCASH' = 'JAZZCASH') 
   const buyer = await createTestUser('BUYER');
   const product = await createTestProduct(seller.userId);
   const order = await createTestOrder(buyer.userId, seller.userId, product, {
-    status: 'PROCESSING',
+    status: 'HANDED_OVER_TO_COURIER',
     paymentMethod,
     courier: 'TCS',
     trackingNo: 'MOCK-TCS-BOOKED01',
   });
   await prisma.trackingEvent.create({
-    data: { orderId: order.orderId, status: 'PROCESSING', description: 'Courier booked: TCS', eventTime: new Date() },
+    data: { orderId: order.orderId, status: 'HANDED_OVER_TO_COURIER', description: 'Seller handed over parcel', eventTime: new Date() },
   });
   return { seller, buyer, order };
 }
@@ -58,7 +58,7 @@ describe('runPollCycle / pollOneOrder (Task 6 — 5-min poll)', () => {
     expect(row.status).toBe('PICKED_UP');
 
     const events = await prisma.trackingEvent.findMany({ where: { orderId: order.orderId }, orderBy: { eventTime: 'asc' } });
-    expect(events.map((e) => e.status)).toEqual(['PROCESSING', 'PICKED_UP']);
+    expect(events.map((e) => e.status)).toEqual(['HANDED_OVER_TO_COURIER', 'PICKED_UP']);
 
     expect(emitSpy).toHaveBeenCalledWith(order.publicId, 'order_status_update', expect.objectContaining({ status: 'PICKED_UP' }));
     expect(emitSpy).toHaveBeenCalledWith(order.publicId, 'tracking_location_update', expect.anything());

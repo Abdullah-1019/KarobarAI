@@ -146,6 +146,14 @@ export function getAdminReturnDetail(id: string): Promise<ReturnDetailDTO> {
   return unwrap(apiClient.get<ApiEnvelope<ReturnDetailDTO>>(`/admin/returns/${id}`));
 }
 
+export function adminBookReturnCourier(id: string): Promise<ReturnDetailDTO> {
+  return unwrap(apiClient.post<ApiEnvelope<ReturnDetailDTO>>(`/admin/returns/${id}/book-return-courier`));
+}
+
+export function adminAdvanceReturnShipment(id: string, leg: 'RETURN' | 'REPLACEMENT'): Promise<ReturnDetailDTO> {
+  return unwrap(apiClient.post<ApiEnvelope<ReturnDetailDTO>>(`/admin/returns/${id}/shipments/${leg}/advance`));
+}
+
 export function adminDecideReturn(id: string, decision: 'APPROVED' | 'REJECTED', reason: string): Promise<ReturnDetailDTO> {
   return unwrap(apiClient.post<ApiEnvelope<ReturnDetailDTO>>(`/admin/returns/${id}/decision`, { decision, reason }));
 }

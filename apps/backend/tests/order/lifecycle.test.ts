@@ -28,6 +28,81 @@ afterAll(async () => {
   queueAddSpy.mockRestore();
 });
 
+it('buyer receipt confirms only their delivered order and preserves its stable display number', async () => {
+  const seller = await createTestUser('SELLER', { onboarded: true });
+  const buyer = await createTestUser('BUYER');
+  const stranger = await createTestUser('BUYER');
+  const product = await createTestProduct(seller.userId);
+  const order = await createTestOrder(buyer.userId, seller.userId, product,
+    { status: 'DELIVERED', deliveredAt: new Date() });
+  const url = `/api/v1/orders/${order.publicId}/confirm-receipt`;
+  expect((await request(app).post(url).set('Authorization', `Bearer ${stranger.accessToken}`)).status).toBe(403);
+  const confirmed = await request(app).post(url).set('Authorization', `Bearer ${buyer.accessToken}`);
+  expect(confirmed.status).toBe(200);
+  expect(confirmed.body.data.status).toBe('COMPLETED');
+  expect(confirmed.body.data.orderNumber).toBe(order.orderNumber.toString());
+  const saved = await prisma.order.findUniqueOrThrow({ where: { orderId: order.orderId } });
+  expect(saved.buyerConfirmedAt).not.toBeNull();
+  expect(saved.orderNumber).toBe(order.orderNumber);
+  expect((await request(app).post(url).set('Authorization', `Bearer ${buyer.accessToken}`)).status).toBe(200);
+  expect(await prisma.trackingEvent.count({ where: { orderId: order.orderId, status: 'COMPLETED' } })).toBe(1);
+});
+
+it('seller can report simulated delivery after handover; only buyer receipt completes it', async () => {
+  const seller = await createTestUser('SELLER', { onboarded: true });
+  const otherSeller = await createTestUser('SELLER', { onboarded: true });
+  const buyer = await createTestUser('BUYER');
+  const product = await createTestProduct(seller.userId);
+  const order = await createTestOrder(buyer.userId, seller.userId, product,
+    { status: 'PAYMENT_CONFIRMED', paymentMethod: 'COD' });
+  const path = `/api/v1/seller/orders/${order.publicId}/fulfillment`;
+  expect((await request(app).post(path).set('Authorization', `Bearer ${otherSeller.accessToken}`)
+    .send({ stage: 'PROCESSING' })).status).toBe(403);
+  const act = (stage: string) => request(app).post(path)
+    .set('Authorization', `Bearer ${seller.accessToken}`).send({ stage });
+  expect((await act('HANDED_OVER_TO_COURIER')).status).toBe(422);
+  expect((await act('PROCESSING')).body.data.status).toBe('PROCESSING');
+  expect((await act('PACKED')).body.data.status).toBe('PACKED');
+  expect((await act('HANDED_OVER_TO_COURIER')).status).toBe(422);
+  const booked = await request(app).post(`/api/v1/orders/${order.publicId}/auto-select-courier`)
+    .set('Authorization', `Bearer ${seller.accessToken}`);
+  expect(booked.status).toBe(200);
+  expect((await prisma.order.findUniqueOrThrow({ where: { orderId: order.orderId } })).status)
+    .toBe('PACKED');
+  expect((await act('HANDED_OVER_TO_COURIER')).body.data.status).toBe('HANDED_OVER_TO_COURIER');
+  expect((await act('PACKED')).status).toBe(422);
+  await prisma.courierShipment.update({ where: { orderId: order.orderId }, data: { source: 'REAL' } });
+  const realShipmentAttempt = await act('DELIVERED');
+  expect(realShipmentAttempt.status).toBe(422);
+  expect(realShipmentAttempt.body.error.code).toBe('COURIER_SIMULATION_ONLY');
+  await prisma.courierShipment.update({ where: { orderId: order.orderId }, data: { source: 'SIMULATED' } });
+  expect((await request(app).post(path).set('Authorization', `Bearer ${otherSeller.accessToken}`)
+    .send({ stage: 'DELIVERED' })).status).toBe(403);
+  expect((await request(app).post(path).set('Authorization', `Bearer ${buyer.accessToken}`)
+    .send({ stage: 'DELIVERED' })).status).toBe(403);
+  const delivered = await act('DELIVERED');
+  expect(delivered.status).toBe(200);
+  expect(delivered.body.data.status).toBe('DELIVERED');
+  expect((await act('DELIVERED')).status).toBe(422);
+  const saved = await prisma.order.findUniqueOrThrow({ where: { orderId: order.orderId } });
+  expect(saved.buyerConfirmedAt).toBeNull();
+  const shipment = await prisma.courierShipment.findUniqueOrThrow({ where: { orderId: order.orderId } });
+  expect(shipment.status).toBe('DELIVERED');
+  expect(shipment.source).toBe('SIMULATED');
+  expect(shipment.onTime).toBeNull();
+  const payment = await prisma.payment.findUniqueOrThrow({ where: { orderId: order.orderId } });
+  expect(payment.status).toBe('PENDING');
+  const deliveryEvents = await prisma.trackingEvent.findMany({ where: { orderId: order.orderId, status: 'DELIVERED' } });
+  expect(deliveryEvents).toHaveLength(1);
+  expect(deliveryEvents[0]?.description).toContain('Seller reported simulated courier delivery');
+  const receipt = await request(app).post(`/api/v1/orders/${order.publicId}/confirm-receipt`)
+    .set('Authorization', `Bearer ${buyer.accessToken}`);
+  expect(receipt.status).toBe(200);
+  expect(receipt.body.data.status).toBe('COMPLETED');
+  expect((await prisma.payment.findUniqueOrThrow({ where: { orderId: order.orderId } })).status)
+    .toBe('CONFIRMED');
+});
+
 describe('transitionOrderStatus (Task 6 — the single write-path, adversarial)', () => {
   it('rejects an invalid transition with 422 INVALID_STATUS_TRANSITION, leaves status untouched', async () => {
     const seller = await createTestUser('SELLER', { onboarded: true });
@@ -58,7 +133,7 @@ describe('transitionOrderStatus (Task 6 — the single write-path, adversarial)'
     const seller = await createTestUser('SELLER', { onboarded: true });
     const buyer = await createTestUser('BUYER');
     const product = await createTestProduct(seller.userId);
-    const order = await createTestOrder(buyer.userId, seller.userId, product, { status: 'PROCESSING' });
+    const order = await createTestOrder(buyer.userId, seller.userId, product, { status: 'HANDED_OVER_TO_COURIER' });
 
     await orderService.transitionOrderStatus(order.orderId, 'PICKED_UP', 'system', 'Courier picked up');
 

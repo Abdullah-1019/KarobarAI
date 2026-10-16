@@ -24,19 +24,43 @@ afterAll(async () => {
 });
 
 describe('POST /api/v1/returns (Task 2 — eligibility + creation)', () => {
+  it('requires a selected reason and an explanation only for Other', async () => {
+    const seller = await createTestUser('SELLER', { onboarded: true });
+    const buyer = await createTestUser('BUYER');
+    const product = await createTestProduct(seller.userId);
+    const order = await createTestOrder(buyer.userId, seller.userId, product, {
+      status: 'COMPLETED', deliveredAt: new Date(), buyerConfirmedAt: new Date(),
+    });
+    const path = '/api/v1/returns';
+    const auth = `Bearer ${buyer.accessToken}`;
+    for (const payload of [
+      { orderId: order.publicId, reason: 'arbitrary' },
+      { orderId: order.publicId, reasonCode: 'OTHER' },
+      { orderId: order.publicId, reasonCode: 'OTHER', otherReason: '   ' },
+      { orderId: order.publicId, reasonCode: 'DAMAGED', otherReason: 'not applicable' },
+    ]) {
+      const rejected = await request(app).post(path).set('Authorization', auth).send(payload);
+      expect(rejected.status).toBe(400);
+    }
+    const accepted = await request(app).post(path).set('Authorization', auth).send({
+      orderId: order.publicId, reasonCode: 'OTHER', otherReason: 'Colour differs from listing',
+    });
+    expect(accepted.status).toBe(201);
+    expect(accepted.body.data.reason).toBe('OTHER: Colour differs from listing');
+  });
   it('creates a return on an eligible delivered order and notifies the seller', async () => {
     const seller = await createTestUser('SELLER', { onboarded: true });
     const buyer = await createTestUser('BUYER');
     const product = await createTestProduct(seller.userId);
     const order = await createTestOrder(buyer.userId, seller.userId, product, {
-      status: 'DELIVERED',
-      deliveredAt: new Date(),
+      status: 'COMPLETED',
+      deliveredAt: new Date(), buyerConfirmedAt: new Date(),
     });
 
     const res = await request(app)
       .post('/api/v1/returns')
       .set('Authorization', `Bearer ${buyer.accessToken}`)
-      .send({ orderId: order.publicId, reason: 'Item not as described' });
+      .send({ orderId: order.publicId, reasonCode: 'NOT_AS_DESCRIBED' });
 
     expect(res.status).toBe(201);
     expect(res.body.data.status).toBe('INITIATED');
@@ -59,7 +83,7 @@ describe('POST /api/v1/returns (Task 2 — eligibility + creation)', () => {
     const res = await request(app)
       .post('/api/v1/returns')
       .set('Authorization', `Bearer ${buyer.accessToken}`)
-      .send({ orderId: order.publicId, reason: 'Changed my mind' });
+      .send({ orderId: order.publicId, reasonCode: 'CHANGED_MIND' });
 
     expect(res.status).toBe(422);
     expect(res.body.error.code).toBe('RETURN_WINDOW_CLOSED');
@@ -69,16 +93,16 @@ describe('POST /api/v1/returns (Task 2 — eligibility + creation)', () => {
     const seller = await createTestUser('SELLER', { onboarded: true });
     const buyer = await createTestUser('BUYER');
     const product = await createTestProduct(seller.userId);
-    const twentyDaysAgo = new Date(Date.now() - 20 * 24 * 60 * 60 * 1000);
+    const twentyDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
     const order = await createTestOrder(buyer.userId, seller.userId, product, {
-      status: 'DELIVERED',
-      deliveredAt: twentyDaysAgo,
+      status: 'COMPLETED',
+      deliveredAt: twentyDaysAgo, buyerConfirmedAt: twentyDaysAgo,
     });
 
     const res = await request(app)
       .post('/api/v1/returns')
       .set('Authorization', `Bearer ${buyer.accessToken}`)
-      .send({ orderId: order.publicId, reason: 'Too late but trying anyway' });
+      .send({ orderId: order.publicId, reasonCode: 'CHANGED_MIND' });
 
     expect(res.status).toBe(422);
     expect(res.body.error.code).toBe('RETURN_WINDOW_CLOSED');
@@ -89,18 +113,62 @@ describe('POST /api/v1/returns (Task 2 — eligibility + creation)', () => {
     const buyer = await createTestUser('BUYER');
     const product = await createTestProduct(seller.userId);
     const order = await createTestOrder(buyer.userId, seller.userId, product, {
-      status: 'DELIVERED',
-      deliveredAt: new Date(),
+      status: 'COMPLETED',
+      deliveredAt: new Date(), buyerConfirmedAt: new Date(),
     });
     await prisma.return.create({ data: { orderId: order.orderId, sellerId: seller.userId, reason: 'First return' } });
 
     const res = await request(app)
       .post('/api/v1/returns')
       .set('Authorization', `Bearer ${buyer.accessToken}`)
-      .send({ orderId: order.publicId, reason: 'Second attempt' });
+      .send({ orderId: order.publicId, reasonCode: 'OTHER', otherReason: 'Second attempt' });
 
     expect(res.status).toBe(409);
     expect(res.body.error.code).toBe('RETURN_ALREADY_EXISTS');
+  });
+
+  it('allows one return per purchased item in a multi-item order, including after a rejection', async () => {
+    const seller = await createTestUser('SELLER', { onboarded: true });
+    const buyer = await createTestUser('BUYER');
+    const first = await createTestProduct(seller.userId);
+    const second = await createTestProduct(seller.userId);
+    const order = await createTestOrder(buyer.userId, seller.userId, first, {
+      status: 'COMPLETED', deliveredAt: new Date(), buyerConfirmedAt: new Date(),
+    });
+    await prisma.orderItem.create({ data: { orderId: order.orderId, productId: second.productId,
+      titleSnapshot: second.titleEn, unitPrice: second.price, quantity: 1 } });
+    const auth = `Bearer ${buyer.accessToken}`;
+    const create = (productId: string) => request(app).post('/api/v1/returns')
+      .set('Authorization', auth).send({ orderId: order.publicId, productId,
+        reasonCode: 'NOT_AS_DESCRIBED' });
+    expect((await create(first.publicId)).status).toBe(201);
+    const firstReturn = await prisma.return.findFirstOrThrow({ where: {
+      orderId: order.orderId, orderItem: { productId: first.productId },
+    } });
+    await prisma.return.update({ where: { returnId: firstReturn.returnId }, data: { status: 'REJECTED' } });
+    expect((await create(first.publicId)).status).toBe(409);
+    const afterFirst = await request(app).get('/api/v1/orders').set('Authorization', auth);
+    expect(afterFirst.body.data.items[0].returnEligible).toBe(true);
+    expect((await create(second.publicId)).status).toBe(201);
+    expect((await request(app).get('/api/v1/orders').set('Authorization', auth))
+      .body.data.items[0].returnEligible).toBe(false);
+    expect(await prisma.return.count({ where: { orderId: order.orderId } })).toBe(2);
+  });
+
+  it('accepts only one of two concurrent requests for the same purchased item', async () => {
+    const seller = await createTestUser('SELLER', { onboarded: true });
+    const buyer = await createTestUser('BUYER');
+    const product = await createTestProduct(seller.userId);
+    const order = await createTestOrder(buyer.userId, seller.userId, product, {
+      status: 'COMPLETED', deliveredAt: new Date(), buyerConfirmedAt: new Date(),
+    });
+    const submit = () => request(app).post('/api/v1/returns')
+      .set('Authorization', `Bearer ${buyer.accessToken}`)
+      .send({ orderId: order.publicId, productId: product.publicId,
+        reasonCode: 'NOT_AS_DESCRIBED' });
+    const results = await Promise.all([submit(), submit()]);
+    expect(results.map((result) => result.status).sort()).toEqual([201, 409]);
+    expect(await prisma.return.count({ where: { orderId: order.orderId } })).toBe(1);
   });
 
   it("rejects an attempt to return another buyer's order with 403", async () => {
@@ -116,7 +184,7 @@ describe('POST /api/v1/returns (Task 2 — eligibility + creation)', () => {
     const res = await request(app)
       .post('/api/v1/returns')
       .set('Authorization', `Bearer ${buyerB.accessToken}`)
-      .send({ orderId: order.publicId, reason: 'Not mine' });
+      .send({ orderId: order.publicId, reasonCode: 'OTHER', otherReason: 'Not mine' });
 
     expect(res.status).toBe(403);
   });

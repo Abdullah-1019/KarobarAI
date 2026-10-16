@@ -16,12 +16,14 @@ import { AnalyticsDashboardPage } from '../features/analytics';
 import { ForgotPasswordPage, LoginPage, OtpVerifyPage, RegisterPage, ResetPasswordPage } from '../features/auth';
 import { AddProductPage, EditProductPage, SellerProductsPage } from '../features/catalog';
 import { CartPage, CheckoutConfirmationPage, CheckoutPage } from '../features/cart';
-import { CategoryPage, HomePage, ProductDetailPage, SearchPage, StorefrontLayout } from '../features/marketplace';
+import { UiGalleryPage } from '../features/dev/UiGalleryPage';
+import { CategoryPage, HomePage, ProductDetailPage, SearchPage, StorePage, StorefrontLayout } from '../features/marketplace';
 import { NotificationCenterPage } from '../features/notifications';
 import { BuyerOrderDetailPage, BuyerOrdersPage, SellerOrderDetailPage, SellerOrdersPage } from '../features/orders';
 import { ChangePasswordPage, ProfilePage, SettingsPage } from '../features/profile';
 import { BuyerReturnsPage, ReturnStatusPage, ReturnWizardPage, SellerReturnDetailPage, SellerReturnsPage } from '../features/returns';
 import { RequireStore, SellerLayout, SellerPlaceholder, StoreSetupWizard } from '../features/seller';
+import { SellerAssistantPage } from '../features/seller/SellerAssistantPage';
 import { BuyerTrackingPage, PublicTrackingPage, SellerTrackingPage } from '../features/tracking';
 import { ProtectedRoute } from './ProtectedRoute';
 
@@ -49,6 +51,7 @@ export const router = createBrowserRouter([
       { path: '/search', element: <SearchPage /> },
       { path: '/category/:slug', element: <CategoryPage /> },
       { path: '/product/:id', element: <ProductDetailPage /> },
+      { path: '/store/:storeSlug', element: <StorePage /> },
       { path: '/cart', element: <CartPage /> },
       {
         element: <ProtectedRoute allowedRoles={['BUYER']} />,
@@ -61,6 +64,7 @@ export const router = createBrowserRouter([
           { path: '/returns', element: <BuyerReturnsPage /> },
           { path: '/orders/:id/return', element: <ReturnWizardPage /> },
           { path: '/orders/:id/return/status', element: <ReturnStatusPage /> },
+          { path: '/orders/:id/return/:returnId/status', element: <ReturnStatusPage /> },
           { path: '/buyer/profile', element: <ProfilePage /> },
           { path: '/buyer/profile/settings', element: <SettingsPage /> },
           { path: '/buyer/profile/change-password', element: <ChangePasswordPage /> },
@@ -84,6 +88,7 @@ export const router = createBrowserRouter([
               { path: '/seller/products/new', element: <AddProductPage /> },
               { path: '/seller/products/:productId/edit', element: <EditProductPage /> },
               { path: '/seller/analytics', element: <AnalyticsDashboardPage /> },
+              { path: '/seller/assistant', element: <SellerAssistantPage /> },
               { path: '/seller/orders', element: <SellerOrdersPage /> },
               { path: '/seller/orders/:id', element: <SellerOrderDetailPage /> },
               { path: '/seller/orders/:id/track', element: <SellerTrackingPage /> },
@@ -125,6 +130,16 @@ export const router = createBrowserRouter([
   {
     element: <ProtectedRoute allowedRoles={['BUYER', 'SELLER', 'ADMIN', 'SUPPORT']} />,
     children: [{ path: '/notifications', element: <NotificationCenterPage /> }],
+  },
+  // Dev-only component gallery (Phase 1, Batch-1 Buyer Purchase Journey) — a reference surface for
+  // the shared UI in EN/UR + LTR/RTL. Not rendered in production builds.
+  {
+    path: '/dev/ui',
+    element: import.meta.env.DEV ? (
+      <UiGalleryPage />
+    ) : (
+      <EmptyState title="Page not found" description="We couldn't find that." />
+    ),
   },
   { path: '*', element: <EmptyState title="Page not found" description="We couldn't find that." /> },
 ]);

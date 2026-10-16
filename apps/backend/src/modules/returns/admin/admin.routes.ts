@@ -1,10 +1,12 @@
 import { Router } from 'express';
+import { z } from 'zod';
 
 import { authenticate } from '../../../core/middleware/authenticate';
 import { authorize } from '../../../core/middleware/authorize';
 import { validateBody, validateQuery } from '../../../core/middleware/validate';
 import { adminDecisionSchema, listReturnsQuerySchema } from '../returns.dto';
 import { adminDecisionHandler, getAdminReturnDetailHandler, listAdminReturnsHandler } from './admin.controller';
+import { advanceReturnShipmentHandler, bookReturnCourierHandler } from '../return-fulfillment.controller';
 
 // Task 5.1 — Support gets read access; only Admin gets write (the decision endpoint). This is
 // the first feature in this codebase to actually gate a route by ADMIN/SUPPORT via authorize()
@@ -71,3 +73,7 @@ adminReturnsRouter.get('/:id', getAdminReturnDetailHandler);
  *         description: Support role attempted a write (FORBIDDEN)
  */
 adminReturnsRouter.post('/:id/decision', authorize('ADMIN'), validateBody(adminDecisionSchema), adminDecisionHandler);
+adminReturnsRouter.post('/:id/book-return-courier', authorize('ADMIN'), bookReturnCourierHandler);
+adminReturnsRouter.post('/:id/shipments/:leg/advance', authorize('ADMIN'),
+  (req, _res, next) => { try { z.enum(['RETURN', 'REPLACEMENT']).parse(req.params.leg); next(); } catch (error) { next(error); } },
+  advanceReturnShipmentHandler);

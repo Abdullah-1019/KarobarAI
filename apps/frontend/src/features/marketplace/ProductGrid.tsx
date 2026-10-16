@@ -5,19 +5,16 @@ interface ProductGridProps {
   products: ProductDetailDTO[];
 }
 
-// Was three separate copies of the same `display:grid; auto-fill minmax(180px,1fr)` markup
-// (HomePage's featured + new-arrivals sections, SearchResultsGrid). Feature-scoped rather than a
-// components/ primitive since it's tightly coupled to ProductCard/ProductDetailDTO, both
-// marketplace-owned.
+// Feature-scoped rather than a components/ primitive since it's tightly coupled to ProductCard and
+// ProductDetailDTO, both marketplace-owned.
 //
-// E2: minmax tightened from 180px to 150px — at a 320-375px mobile viewport, 180px only ever fit
-// one column (minus content-area padding, two 180px tiles plus a gap never fit under 376px),
-// producing a single full-bleed column and a very long scroll for a 24-card grid. 150px lets the
-// same auto-fill mechanism settle into 2 columns on a real phone without any separate
-// mobile-specific breakpoint logic — still purely responsive, not a second layout.
+// Columns are explicit (4 desktop / 3 tablet / 2 phone) via the `.product-grid` class rather than
+// the old `auto-fill, minmax(150px, 1fr)`: a minmax grid kept packing in columns as the content
+// column widened, so a 1280px Home was rendering seven cramped 150px cards. A fixed rhythm makes
+// card size predictable and matches the Home redesign's 4/3/2 spec (Phase 6).
 export function ProductGrid({ products }: ProductGridProps) {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 'var(--sp-4)' }}>
+    <div className="product-grid">
       {products.map((product) => (
         <ProductCard key={product.id} product={product} />
       ))}

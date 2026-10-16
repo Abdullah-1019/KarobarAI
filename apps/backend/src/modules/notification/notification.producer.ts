@@ -32,8 +32,8 @@ function getNotificationQueue(): Queue {
   return notificationQueue;
 }
 
-export async function enqueueNotification(payload: NotificationPayload): Promise<void> {
-  await getNotificationQueue().add('notify', payload);
+export async function enqueueNotification(payload: NotificationPayload, jobId?: string): Promise<void> {
+  await getNotificationQueue().add('notify', payload, jobId ? { jobId } : undefined);
 }
 
 // Exposed for test teardown only, mirroring order.service.ts's closeCourierHandoffQueue() —

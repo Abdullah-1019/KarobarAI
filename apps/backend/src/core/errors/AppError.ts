@@ -57,3 +57,23 @@ export class DependencyError extends AppError {
     super(503, code, message, details);
   }
 }
+
+export class PaymentGatewayUnavailableError extends DependencyError {
+  constructor(message = 'The selected payment gateway is unavailable') {
+    super(message, undefined, 'PAYMENT_GATEWAY_UNAVAILABLE');
+  }
+}
+
+/** The provider may have accepted the request; callers must retry with the same idempotency key. */
+export class PaymentOutcomeUncertainError extends DependencyError {
+  constructor(message = 'Payment setup is still being verified. Retry this checkout with the same key.') {
+    super(message, undefined, 'PAYMENT_OUTCOME_UNCERTAIN');
+  }
+}
+
+/** A checkout attempt is known to be terminal and a new user-initiated attempt may use a new key. */
+export class PaymentAttemptFailedError extends ConflictError {
+  constructor(message = 'This payment attempt failed and was canceled. Start a new checkout attempt to try again.') {
+    super(message, undefined, 'PAYMENT_ATTEMPT_FAILED');
+  }
+}

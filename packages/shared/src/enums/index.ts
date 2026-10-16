@@ -19,7 +19,7 @@ export type ProductStatus = 'DRAFT' | 'LIVE' | 'OUT_OF_STOCK' | 'REMOVED';
 
 export type ProductCondition = 'NEW' | 'LIKE_NEW' | 'USED' | 'REFURBISHED';
 
-export type PaymentMethod = 'JAZZCASH' | 'EASYPAISA' | 'COD';
+export type PaymentMethod = 'JAZZCASH' | 'EASYPAISA' | 'COD' | 'STRIPE';
 
 export type PaymentStatus = 'PENDING' | 'CONFIRMED' | 'FAILED' | 'REFUNDED' | 'CANCELLED';
 
@@ -27,6 +27,8 @@ export type OrderStatus =
   | 'PAYMENT_PENDING'
   | 'PAYMENT_CONFIRMED'
   | 'PROCESSING'
+  | 'PACKED'
+  | 'HANDED_OVER_TO_COURIER'
   | 'PICKED_UP'
   | 'IN_TRANSIT'
   | 'OUT_FOR_DELIVERY'
@@ -35,4 +37,4 @@ export type OrderStatus =
   | 'CANCELLED'
   | 'PENDING_MANUAL_LOGISTICS';
 
-export type CourierCode = 'TCS' | 'LEOPARDS' | 'TRAX';
+export type CourierCode = 'TCS' | 'LEOPARDS' | 'TRAX' | 'POSTEX';

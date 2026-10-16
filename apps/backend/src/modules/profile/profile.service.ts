@@ -32,6 +32,7 @@ import type {
   UpdateSellerProfileInput,
   UpdateSettingsInput,
 } from './profile.dto';
+import { createStoreSlug } from './store-slug';
 
 async function loadUser(publicId: string) {
   const user = await prisma.user.findUnique({
@@ -138,8 +139,9 @@ export async function updateSellerProfile(
 // rule but adapted to a row that's already there — the module doc's literal Task 2.1 design
 // (insert + catch unique-violation) assumed no row existed yet, which isn't true in this system.
 export async function createStore(publicId: string, input: CreateStoreInput): Promise<SellerProfileDTO> {
-  const user = await prisma.user.findUnique({ where: { publicId } });
+  const user = await prisma.user.findUnique({ where: { publicId }, select: { userId: true, publicId: true } });
   if (!user) throw new AuthError();
+  const storeSlug = createStoreSlug(input.storeName, user.publicId);
 
   const wallets: Array<{ type: PayoutWalletType; accountNumber: string }> = [];
   if (input.jazzcashAccountNumber) {
@@ -154,6 +156,7 @@ export async function createStore(publicId: string, input: CreateStoreInput): Pr
       where: { userId: user.userId, onboardingCompletedAt: null },
       data: {
         storeName: input.storeName,
+        storeSlug,
         storeDescription: input.storeDescription ?? null,
         // 3-step wizard per auth.service.ts's SellerProfile.onboardingStep contract comment —
         // this single "Finish" submission is the whole wizard server-side (Task 2.4's

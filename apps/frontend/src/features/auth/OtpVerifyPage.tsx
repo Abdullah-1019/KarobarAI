@@ -1,17 +1,22 @@
-import { useEffect, useRef, useState } from 'react';
-import { Alert, Button, Input, Typography } from 'antd';
-import { ShieldCheck } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Clock, ShieldCheck } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-import { AuthLayout } from './AuthLayout';
+import { AuthLayout, AuthResult, FormAlert, OtpInput, PrimaryButton } from '../../components';
 import { otpResend, otpVerify } from './authApi';
 import { formatAuthError } from './authErrors';
 
 const OTP_VALIDITY_SECONDS = 10 * 60;
 const RESEND_COOLDOWN_SECONDS = 60;
+const RESEND_MAX_PER_HOUR = 5;
 
-// SCR-A02 — 6-box OTP input, 10-min countdown, resend (disabled until cooldown elapses).
+// Keeps the first 3 and last 2 digits visible: "03001234567" -> "030••••••67".
+function maskPhone(phone: string): string {
+  if (phone.length < 6) return phone;
+  return `${phone.slice(0, 3)}${'•'.repeat(phone.length - 5)}${phone.slice(-2)}`;
+}
+
 export function OtpVerifyPage() {
   const { t } = useTranslation(['auth', 'common']);
   const navigate = useNavigate();
@@ -25,49 +30,52 @@ export function OtpVerifyPage() {
   const [resending, setResending] = useState(false);
   const [expirySeconds, setExpirySeconds] = useState(OTP_VALIDITY_SECONDS);
   const [resendCooldown, setResendCooldown] = useState(RESEND_COOLDOWN_SECONDS);
-  const intervalRef = useRef<ReturnType<typeof setInterval>>();
+  const [resendCount, setResendCount] = useState(0);
+  const inFlight = useRef(false);
 
   useEffect(() => {
-    intervalRef.current = setInterval(() => {
+    const id = setInterval(() => {
       setExpirySeconds((seconds) => Math.max(0, seconds - 1));
       setResendCooldown((seconds) => Math.max(0, seconds - 1));
     }, 1000);
-    return () => clearInterval(intervalRef.current);
+    return () => clearInterval(id);
   }, []);
 
-  if (!phone) {
-    return (
-      <AuthLayout>
-        <Alert type="warning" showIcon message={t('auth:otp.noPhoneToVerify')} />
-        <Button style={{ marginTop: 'var(--sp-4)' }} onClick={() => navigate('/register')}>
-          {t('auth:register.title')}
-        </Button>
-      </AuthLayout>
-    );
-  }
+  const handleVerify = useCallback(
+    async (codeToVerify?: string) => {
+      const targetCode = codeToVerify ?? code;
+      if (targetCode.length !== 6 || inFlight.current) return;
 
-  async function handleVerify() {
-    setError(null);
-    setVerifying(true);
-    try {
-      // Tokens are issued on verify, but we don't auto-login with them — send the user to
-      // Login to sign in explicitly instead of dropping them into their role home.
-      await otpVerify({ phone: phone!, code });
-      navigate('/login');
-    } catch (err) {
-      setError(formatAuthError(t, err));
-    } finally {
-      setVerifying(false);
-    }
-  }
+      inFlight.current = true;
+      setError(null);
+      setVerifying(true);
+      try {
+        await otpVerify({ phone: phone!, code: targetCode });
+        navigate('/login');
+      } catch (err) {
+        setError(formatAuthError(t, err));
+      } finally {
+        setVerifying(false);
+        inFlight.current = false;
+      }
+    },
+    [code, phone, navigate, t],
+  );
+
+  const handleCodeChange = (value: string) => {
+    setCode(value);
+    if (error) setError(null);
+  };
 
   async function handleResend() {
+    if (resendCooldown > 0 || resending || resendCount >= RESEND_MAX_PER_HOUR) return;
     setError(null);
     setResending(true);
     try {
       const result = await otpResend({ phone: phone! });
       setExpirySeconds(result.expiresInSeconds);
       setResendCooldown(RESEND_COOLDOWN_SECONDS);
+      setResendCount((count) => count + 1);
     } catch (err) {
       setError(formatAuthError(t, err));
     } finally {
@@ -75,45 +83,67 @@ export function OtpVerifyPage() {
     }
   }
 
+  if (!phone) {
+    return (
+      <AuthLayout>
+        <AuthResult
+          variant="error"
+          icon={ShieldCheck}
+          title={t('auth:otp.title')}
+          description={t('auth:otp.noPhoneToVerify')}
+        >
+          <PrimaryButton onClick={() => navigate('/register')}>{t('auth:register.title')}</PrimaryButton>
+        </AuthResult>
+      </AuthLayout>
+    );
+  }
+
+  const minutes = String(Math.floor(expirySeconds / 60)).padStart(2, '0');
+  const seconds = String(expirySeconds % 60).padStart(2, '0');
+  const resendLimitReached = resendCount >= RESEND_MAX_PER_HOUR;
+
   return (
-    <AuthLayout title={t('auth:otp.title')} subtitle={t('auth:otp.subtitle', { phone })} icon={ShieldCheck}>
-      {error && <Alert type="error" message={error} showIcon style={{ marginBottom: 'var(--sp-4)' }} />}
+    <AuthLayout
+      title={t('auth:otp.title')}
+      subtitle={t('auth:otp.subtitle', { phone: `\u2066${maskPhone(phone)}\u2069` })}
+      icon={ShieldCheck}
+      footer={
+        <button type="button" className="kaTextButton" onClick={() => navigate('/register')}>
+          {t('auth:otp.changePhone')}
+        </button>
+      }
+    >
+      {error && <FormAlert variant="error">{error}</FormAlert>}
 
-      <Input.OTP
-        length={6}
+      <OtpInput
         value={code}
-        onChange={setCode}
-        aria-label={t('auth:otp.title')}
-        style={{ marginBottom: 'var(--sp-2)' }}
+        onChange={handleCodeChange}
+        onComplete={handleVerify}
+        invalid={!!error}
+        disabled={verifying}
+        autoFocus
       />
-      <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 'var(--sp-4)' }}>
-        {t('auth:otp.expiresIn', {
-          minutes: Math.floor(expirySeconds / 60),
-          seconds: (expirySeconds % 60).toString().padStart(2, '0'),
-        })}
-      </Typography.Text>
 
-      <Button
-        type="primary"
-        size="large"
-        block
-        loading={verifying}
-        disabled={code.length !== 6}
-        onClick={handleVerify}
-      >
+      <div className="kaOtpMeta">
+        <Clock size={14} aria-hidden="true" />
+        <span>{t('auth:otp.expiresIn', { minutes, seconds })}</span>
+      </div>
+
+      <PrimaryButton loading={verifying} disabled={code.length !== 6} onClick={() => handleVerify()}>
         {t('auth:otp.verify')}
-      </Button>
+      </PrimaryButton>
 
-      <Button
-        type="link"
-        block
-        disabled={resendCooldown > 0}
-        loading={resending}
-        onClick={handleResend}
-        style={{ marginTop: 'var(--sp-2)' }}
-      >
-        {resendCooldown > 0 ? t('auth:otp.resendIn', { seconds: resendCooldown }) : t('auth:otp.resend')}
-      </Button>
+      <div className="kaResendRow">
+        {resendLimitReached ? (
+          <span>{t('auth:otp.resendLimitReached')}</span>
+        ) : resendCooldown > 0 ? (
+          <span>{t('auth:otp.resendIn', { seconds: resendCooldown })}</span>
+        ) : (
+          <button type="button" className="kaTextButton" onClick={handleResend} disabled={resending}>
+            {t('auth:otp.resend')}
+          </button>
+        )}
+      </div>
     </AuthLayout>
   );
 }

@@ -1,7 +1,7 @@
 import type { ComponentType } from 'react';
 import type { ReturnDetailDTO } from '@karobarai/shared';
 import { Typography } from 'antd';
-import { CheckCircle2, Circle, Package, PackageSearch, Truck, Wallet, XCircle, type LucideProps } from 'lucide-react';
+import { CheckCircle2, Package, PackageSearch, Truck, Wallet, XCircle, type LucideProps } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 type StepState = 'done' | 'current' | 'upcoming';
@@ -25,8 +25,8 @@ function buildSteps(ret: ReturnDetailDTO): Step[] {
   const decided = ret.decision !== null;
   const rejected = ret.decision === 'REJECTED';
   const approved = ret.decision === 'APPROVED';
-  const pickedUp = ret.status === 'PICKUP_BOOKED' || ret.status === 'REFUND_ISSUED' || ret.status === 'CLOSED';
-  const refunded = ret.refundStatus === 'ISSUED';
+  const returnLeg = ret.shipments?.find((shipment) => shipment.leg === 'RETURN');
+  const replacementLeg = ret.shipments?.find((shipment) => shipment.leg === 'REPLACEMENT');
 
   const steps: Step[] = [
     {
@@ -52,21 +52,46 @@ function buildSteps(ret: ReturnDetailDTO): Step[] {
     },
   ];
 
+  if (ret.dispute) {
+    steps.push({ key: 'appeal', labelKey: ret.dispute.status === 'OPEN'
+      ? 'progress.appealPending' : 'progress.appealResolved', icon: PackageSearch,
+    state: ret.dispute.status === 'OPEN' ? 'current' : 'done',
+    timestamp: ret.dispute.resolvedAt ?? null });
+  }
+
   if (!decided || approved) {
     steps.push({
       key: 'pickup',
       labelKey: 'progress.pickup',
       icon: Truck,
-      state: pickedUp ? 'done' : decided ? 'current' : 'upcoming',
-      timestamp: null,
+      state: returnLeg ? 'done' : decided ? 'current' : 'upcoming',
+      timestamp: returnLeg?.bookedAt ?? null,
     });
     steps.push({
-      key: 'refund',
-      labelKey: 'progress.refunded',
-      icon: Wallet,
-      state: refunded ? 'done' : pickedUp ? 'current' : 'upcoming',
-      timestamp: ret.refundedAt,
+      key: 'received', labelKey: 'progress.receivedBySeller', icon: Package,
+      state: ret.fulfillment?.receiptConfirmedAt ? 'done' : returnLeg?.status === 'DELIVERED' ? 'current' : 'upcoming',
+      timestamp: ret.fulfillment?.receiptConfirmedAt ?? null,
     });
+    if (ret.fulfillment?.refundProposalStatus !== 'NONE' && ret.fulfillment?.refundProposalStatus) {
+      steps.push({ key: 'refundProposal', labelKey: 'progress.refundProposal', icon: Wallet,
+        state: ret.fulfillment.refundProposalStatus === 'PENDING_BUYER' ? 'current' : 'done',
+        timestamp: ret.fulfillment.refundProposedAt });
+      if (ret.refundStatus === 'ISSUED') steps.push({ key: 'refund', labelKey: 'progress.refunded',
+        icon: Wallet, state: 'done', timestamp: ret.refundedAt });
+    }
+    if (!ret.fulfillment?.refundProposalStatus || ['NONE', 'DECLINED'].includes(ret.fulfillment.refundProposalStatus)) {
+      steps.push({ key: 'replacementPacked', labelKey: 'progress.replacementPacked', icon: Package,
+        state: ret.fulfillment?.replacementPackedAt ? 'done'
+          : ret.fulfillment?.receiptConfirmedAt ? 'current' : 'upcoming',
+        timestamp: ret.fulfillment?.replacementPackedAt ?? null });
+      steps.push({ key: 'replacement', labelKey: 'progress.replacementDispatched', icon: Truck,
+        state: replacementLeg ? 'done' : ret.fulfillment?.receiptConfirmedAt ? 'current' : 'upcoming',
+        timestamp: replacementLeg?.bookedAt ?? null });
+      steps.push({ key: 'exchange', labelKey: 'progress.exchangeCompleted', icon: CheckCircle2,
+        state: ret.fulfillment?.status === 'EXCHANGE_COMPLETED' ? 'done'
+          : replacementLeg ? 'current' : 'upcoming',
+        timestamp: ret.fulfillment?.replacementBuyerConfirmedAt ?? null });
+    }
   }
 
   // Fix up: only one step should ever be "current" — the first non-done step in a state machine

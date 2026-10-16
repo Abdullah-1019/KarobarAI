@@ -47,10 +47,15 @@ describe('Settlement-engine gap closure reuse/scope audit', () => {
     expect(content).not.toMatch(/setInterval\(/);
   });
 
-  it('return_window_days is read from platform_config, never hardcoded', () => {
+  it('settlement uses the buyer-confirmed 24-hour return window and waits for returns to close', () => {
     const serviceFile = settlementModuleFiles.find((file) => file.endsWith('settlement.service.ts'));
-    const content = fs.readFileSync(serviceFile as string, 'utf-8');
-    expect(content).toContain("configKey: 'return_window_days'");
+    const repositoryFile = settlementModuleFiles.find((file) => file.endsWith('settlement.repository.ts'));
+    const service = fs.readFileSync(serviceFile as string, 'utf-8');
+    const repository = fs.readFileSync(repositoryFile as string, 'utf-8');
+    expect(service).toContain('Date.now() - 24 * 60 * 60 * 1000');
+    expect(repository).toContain("status: 'COMPLETED'");
+    expect(repository).toContain('buyerConfirmedAt: { lte: cutoff }');
+    expect(repository).toContain("returns: { every: { status: 'CLOSED' } }");
   });
 
   it('startSettlementPollJob is only invoked from server.ts\'s process-startup bootstrap guard, never called during a request handler', () => {

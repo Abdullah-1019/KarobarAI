@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 
 import app.routers.listing as listing_router
 from app.llm.errors import AiGenerationError
+from app.llm.gemini_listing_client import GeminiListingError
 from app.main import app
 from app.schemas.listing import GeneratedListing
 
@@ -63,3 +64,28 @@ def test_a_failure_response_never_contains_partial_ai_fields(monkeypatch) -> Non
 
     body = response.json()
     assert not any(field in body for field in REQUIRED_FIELDS)
+
+
+def test_missing_hosted_key_does_not_break_chat_or_leak_configuration(monkeypatch) -> None:
+    error = AiGenerationError("listing failed")
+    error.__cause__ = GeminiListingError("configuration_unavailable")
+    mock_orchestrator = MagicMock()
+    mock_orchestrator.generate.side_effect = error
+    monkeypatch.setattr(listing_router, "_orchestrator", mock_orchestrator)
+
+    response = client.post("/generate-listing", json={"image_url": "http://minio/x.jpg"})
+    assert response.status_code == 503
+    assert response.json() == {"error": "LISTING_PROVIDER_NOT_CONFIGURED"}
+    assert client.get("/health").status_code == 200
+
+
+def test_hosted_rate_limit_is_sanitized(monkeypatch) -> None:
+    error = AiGenerationError("listing failed")
+    error.__cause__ = GeminiListingError("rate_limited")
+    mock_orchestrator = MagicMock()
+    mock_orchestrator.generate.side_effect = error
+    monkeypatch.setattr(listing_router, "_orchestrator", mock_orchestrator)
+
+    response = client.post("/generate-listing", json={"image_url": "http://minio/x.jpg"})
+    assert response.status_code == 429
+    assert response.json() == {"error": "LISTING_PROVIDER_RATE_LIMITED"}

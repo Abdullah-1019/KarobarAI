@@ -1,9 +1,15 @@
 import { Router } from 'express';
+import { z } from 'zod';
 
 import { authenticate } from '../../core/middleware/authenticate';
 import { authorize } from '../../core/middleware/authorize';
 import { validateBody, validateQuery } from '../../core/middleware/validate';
 import { arrayImageUpload } from '../../core/upload/imageValidation';
+import { asyncHandler } from '../../core/http/asyncHandler';
+import { resolveUserId } from '../../core/http/resolveUserId';
+import { readReturnEvidence } from './return-evidence.service';
+import { parseReturnId } from './returns.service';
+import { confirmReplacementReceiptHandler, respondRefundHandler, submitExchangeFeedbackHandler } from './return-fulfillment.controller';
 import { createReturnSchema, listReturnsQuerySchema } from './returns.dto';
 import {
   appealReturnHandler,
@@ -70,6 +76,13 @@ returnsRouter.get('/', authorize('BUYER'), validateQuery(listReturnsQuerySchema)
  *         description: Requester does not own this return (RETURN_NOT_OWNED)
  */
 returnsRouter.get('/:id', getReturnDetailHandler);
+returnsRouter.get('/:id/images/:imageId/content', asyncHandler(async (req, res) => {
+  const result = await readReturnEvidence(parseReturnId(req.params.id ?? ''), parseReturnId(req.params.imageId ?? ''), 'return', {
+    userId: await resolveUserId(req.user!.sub), role: req.user!.role,
+  });
+  res.setHeader('Cache-Control', 'private, no-store');
+  res.type(result.contentType).send(result.buffer);
+}));
 
 /**
  * @swagger
@@ -138,4 +151,12 @@ returnsRouter.post('/:id/submit', authorize('BUYER'), submitReturnHandler);
  *       422:
  *         description: Return is not REJECTED (RETURN_INVALID_STATE)
  */
-returnsRouter.post('/:id/appeal', authorize('BUYER'), appealReturnHandler);
+returnsRouter.post('/:id/appeal', authorize('BUYER'),
+  validateBody(z.object({ reason: z.string().trim().min(1).max(500) }).strict()), appealReturnHandler);
+returnsRouter.post('/:id/refund-proposal/respond', authorize('BUYER'),
+  validateBody(z.object({ accept: z.boolean() }).strict()), respondRefundHandler);
+returnsRouter.post('/:id/replacement/confirm-receipt', authorize('BUYER'),
+  confirmReplacementReceiptHandler);
+returnsRouter.post('/:id/exchange-feedback', authorize('BUYER'),
+  validateBody(z.object({ rating: z.number().int().min(1).max(5),
+    comment: z.string().trim().max(1000).optional() }).strict()), submitExchangeFeedbackHandler);

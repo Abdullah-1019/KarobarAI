@@ -22,7 +22,7 @@ export interface TestUser {
   cookieValue: string;
 }
 
-async function createUserRow(role: UserRole, email: string, password: string, onboarded: boolean, phone?: string) {
+async function createUserRow(role: UserRole, email: string, password: string, onboarded: boolean, phone?: string, storeSlug?: string) {
   const passwordHash = await bcrypt.hash(password, config.bcryptCost);
   const normalized = normalizeEmail(email);
   const normalizedPhone = phone ? normalizePhone(phone) : undefined;
@@ -49,6 +49,7 @@ async function createUserRow(role: UserRole, email: string, password: string, on
       data: {
         userId: user.userId,
         storeName: `Store-${user.userId}`,
+        storeSlug: storeSlug ?? `test-store-${user.userId}`,
         onboardingStep: onboarded ? 3 : 0,
         onboardingCompletedAt: onboarded ? new Date() : null,
       },
@@ -69,12 +70,12 @@ export async function issueSession(
 
 export async function createTestUser(
   role: UserRole,
-  overrides: { email?: string; password?: string; onboarded?: boolean; phone?: string } = {},
+  overrides: { email?: string; password?: string; onboarded?: boolean; phone?: string; storeSlug?: string } = {},
 ): Promise<TestUser> {
   const email = overrides.email ?? `${role.toLowerCase()}-${randomUUID()}@example.com`;
   const password = overrides.password ?? 'Correct1$Pass';
 
-  const user = await createUserRow(role, email, password, overrides.onboarded ?? false, overrides.phone);
+  const user = await createUserRow(role, email, password, overrides.onboarded ?? false, overrides.phone, overrides.storeSlug);
   const session = await issueSession(user, role);
 
   return { userId: user.userId, publicId: user.publicId, ...session };
@@ -138,10 +139,12 @@ export async function createTestOrder(
     paymentMethod?: PaymentMethod;
     quantity?: number;
     deliveredAt?: Date | null;
+    buyerConfirmedAt?: Date | null;
     shipCity?: string;
     courier?: CourierCode | null;
     trackingNo?: string | null;
     courierOverridden?: boolean;
+      categorySlugSnapshot?: string | null;
   } = {},
 ) {
   const quantity = overrides.quantity ?? 1;
@@ -166,6 +169,7 @@ export async function createTestOrder(
       shipProvince: 'Punjab',
       shipPhone: encryptField('03001234567'),
       deliveredAt: overrides.deliveredAt ?? null,
+      buyerConfirmedAt: overrides.buyerConfirmedAt ?? null,
       courier: overrides.courier ?? null,
       trackingNo: overrides.trackingNo ?? null,
       courierOverridden: overrides.courierOverridden ?? false,
@@ -173,6 +177,7 @@ export async function createTestOrder(
         create: {
           productId: product.productId,
           titleSnapshot: product.titleEn,
+            categorySlugSnapshot: overrides.categorySlugSnapshot ?? null,
           unitPrice,
           quantity,
         },

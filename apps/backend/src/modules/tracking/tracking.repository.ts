@@ -1,4 +1,5 @@
-import type { CourierCode, Order } from '@prisma/client';
+import { randomUUID } from 'node:crypto';
+import type { CourierCode, Order, Prisma } from '@prisma/client';
 
 import { prisma } from '../../core/prisma';
 
@@ -13,6 +14,9 @@ export interface NewQuote {
   cost: number;
   etaHours: number;
   score: number;
+  slaScore?: number;
+  ratingScore?: number;
+  scoreBreakdown?: unknown;
 }
 
 export async function findOrderRowById(orderId: bigint): Promise<Order | null> {
@@ -20,33 +24,32 @@ export async function findOrderRowById(orderId: bigint): Promise<Order | null> {
 }
 
 export async function findQuotesByOrder(orderId: bigint) {
-  return prisma.courierQuote.findMany({ where: { orderId }, orderBy: { score: 'desc' } });
+  const latest = await prisma.courierQuote.findFirst({ where: { orderId }, orderBy: { quoteId: 'desc' } });
+  if (!latest) return [];
+  return prisma.courierQuote.findMany({
+    where: { orderId, evaluationId: latest.evaluationId },
+    orderBy: [{ score: 'desc' }, { courier: 'asc' }],
+  });
 }
 
-export async function replaceCourierQuotes(orderId: bigint, quotes: NewQuote[]): Promise<void> {
-  await prisma.$transaction([
-    prisma.courierQuote.deleteMany({ where: { orderId } }),
-    prisma.courierQuote.createMany({
+export async function replaceCourierQuotes(orderId: bigint, quotes: NewQuote[],
+  context?: { originCity: string; destCity: string; weightKg: number }): Promise<void> {
+  if (!quotes.length) return;
+  const evaluationId = randomUUID();
+  await prisma.courierQuote.createMany({
       data: quotes.map((q) => ({
         orderId,
+        evaluationId,
         courier: q.courier,
         cost: q.cost,
         etaHours: q.etaHours,
         score: q.score,
+        slaScore: q.slaScore,
+        ratingScore: q.ratingScore,
+        scoreBreakdown: q.scoreBreakdown as Prisma.InputJsonValue | undefined,
+        originCity: context?.originCity, destCity: context?.destCity, weightKg: context?.weightKg,
       })),
-    }),
-  ]);
-}
-
-export async function markQuoteSelected(orderId: bigint, courier: CourierCode): Promise<void> {
-  await prisma.courierQuote.updateMany({ where: { orderId, courier }, data: { selected: true } });
-}
-
-export async function updateOrderCourierBooking(
-  orderId: bigint,
-  data: { courier: CourierCode; trackingNo: string; courierOverridden: boolean },
-): Promise<void> {
-  await prisma.order.update({ where: { orderId }, data });
+    });
 }
 
 // No standalone appendTrackingEvent method — every genuine milestone this feature tracks (the
@@ -76,6 +79,6 @@ export async function findOrderByTrackingToken(token: string): Promise<Order | n
 // the alternative (a permanently stuck pipeline) can't be what was intended.
 export async function findActiveShipmentOrders(): Promise<Order[]> {
   return prisma.order.findMany({
-    where: { status: { in: ['PROCESSING', 'PICKED_UP', 'IN_TRANSIT', 'OUT_FOR_DELIVERY'] } },
+    where: { status: { in: ['HANDED_OVER_TO_COURIER', 'PICKED_UP', 'IN_TRANSIT', 'OUT_FOR_DELIVERY'] } },
   });
 }

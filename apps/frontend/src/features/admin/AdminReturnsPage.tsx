@@ -33,7 +33,7 @@ export function AdminReturnsPage() {
       title: t('returnsQueue.columnOrder'),
       dataIndex: 'id',
       key: 'id',
-      render: (id: string, record: ReturnListItemDTO) => <Link to={`/admin/returns/${id}`}>{record.orderId}</Link>,
+      render: (id: string, record: ReturnListItemDTO) => <Link to={`/admin/returns/${id}`}>{record.orderNumber ? `Order #${record.orderNumber}` : record.orderId}</Link>,
     },
     { title: t('returnsQueue.columnReason'), dataIndex: 'reason', key: 'reason' },
     { title: t('returnsQueue.columnImages'), dataIndex: 'imageCount', key: 'imageCount' },

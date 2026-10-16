@@ -9,6 +9,137 @@ or flagged for follow-up. Newest entries at the top.
 
 ---
 
+## Hosted seller image listing refactor (2026-10-13)
+
+**Status: PARTIAL — hosted listing passes through both authenticated backend paths on isolated data; browser interaction remains unverified.** Seller image listing now uses a server-side Gemini vision adapter through the AI service's existing `LlmClient` contract. The default model is configurable (`GEMINI_LISTING_MODEL`, currently `gemini-3.1-flash-lite`); the key belongs only in the root `.env` as `GEMINI_API_KEY`. The adapter fetches only allowlisted image hosts, checks JPEG/PNG/WebP image bytes and size, sends the image to Gemini with a structured output schema, validates the returned `GeneratedListing`, and returns sanitized failures. It retries a transient provider failure at most once. The backend revalidates the listing; malformed output cannot create a new draft or update an existing draft. Seller review and authorization remain in place. The old local Ollama listing client is retained in source for historical tests but is inactive. Chat and embeddings still use `qwen2.5vl:7b` and `nomic-embed-text` respectively; no separate Urdu/listing model was found in active configuration. Installed experimental models were not deleted.
+
+**Verified this pass:** AI-service pytest **50/50**, backend listing integration tests **34/34** on disposable PostgreSQL/Redis, and a focused provider-error regression suite **16/16**. Backend typecheck and build passed. The small live Roman-English/Roman-Urdu/mixed chatbot smoke benchmark is recorded separately in `docs/benchmarks/roman-chatbot-evaluation.md`: reviewed result **10/13**, no tools executed, with failures in an out-of-stock tool argument, out-of-scope weather answer, and seller write refusal. The root environment now has a configured Gemini key; a synthetic image returned a valid live GeneratedListing from the AI-service route, and both authenticated backend listing paths passed on isolated data; the browser flow remains unverified. Uploaded images are transmitted to Google for listing generation; check account data-use and quota terms before using customer images. The earlier CPU-based local vision timeout below remains historical context, not a claim about the new provider.
+
+**Live provider evidence (2026-10-13):** The configured Gemini key loaded in the AI service. Gemini 3.5 Flash-Lite model metadata was accessible, but its image request returned provider HTTP 503 and a minimal text request timed out. The same key completed a minimal text request on Gemini 3.1 Flash-Lite. With 3.1 Flash-Lite, a synthetic 513-byte blue T-shirt graphic produced a Pydantic-valid listing in about 16 seconds. After changing the configurable default, the private `/generate-listing` route returned HTTP 200 in about 15 seconds with all six required fields, Urdu text, and a grounded English description identifying the input as a graphic icon. This proves AI-service-to-Gemini listing generation. Separate authenticated backend tests verified a seller review draft and persisted existing-product listing; the review draft created no product. Browser interaction remains unverified.
+
+**Live backend evidence:** On disposable PostgreSQL and Redis, with no API listener or workers started, the authenticated existing-product listing test passed **1/1**: backend HTTP 200, AI-service HTTP 200, validated fields persisted and read back, then the test record was removed. The separate upload-and-review draft test passed **1/1**: backend HTTP 200, a nonempty bilingual draft returned, and the seller's product count stayed zero. Its first run used an invalid test field and failed at HTTP 400 before inference; the request was corrected to the documented `categoryHint` field and rerun. No shared database, real customer image, or browser interaction was used.
+
+## Seller image listing runtime check (2026-10-12)
+
+**Status: BLOCKED on local vision inference time.** The reported `AI_SERVICE_UNAVAILABLE`
+at 18:36:02 was caused by the native backend calling `localhost:8000` while the AI service
+was reachable only inside Docker. The API now runs in Compose and reaches
+`http://ai-service:8000/health` (HTTP 200). Browser-facing MinIO image URLs are retained in
+staging, while the AI request uses `http://minio:9000`; a focused backend regression test
+passed **14/14**, backend typecheck passed, and `/health`, `/ready`, and the frontend returned
+HTTP 200. The synthetic image upload returned HTTP 201 and its public image URL returned
+HTTP 200.
+
+The same synthetic shirt image reached local Ollama. `qwen2.5vl:7b` exceeded the backend's
+600-second deadline; `qwen2.5vl:3b` timed out after 360 seconds; `qwen3-vl:2b` took over five
+minutes and entered a corrective JSON retry, so that probe was stopped without a valid listing.
+`moondream:1.8b` responded in 63 seconds but misidentified the shirt as an urn. No alternative
+was activated; production listing generation remains on `qwen2.5vl:7b`, with no commercial API.
+No `GeneratedListing` response was verified and no product was created. The next practical step
+is to run the existing end-to-end image test on a GPU-capable local Ollama host, or explicitly
+approve another inference setup after a grounded quality and latency check. The original
+connection error is fixed, but automatic image listing is **not yet usable on this CPU**.
+
+## Feature 18 — Seller Business Agent (2026-10-10)
+
+**Status: PARTIAL.** Implemented the authenticated Seller Center assistant, server-derived seller context, nine strictly validated read-only tools, scoped session persistence, Redis rate limiting, scope guard, and bilingual chat page. No schema or migration change was required. Seller identity is resolved from the authenticated user by `requireActiveSeller`; client/model seller IDs are rejected. Inventory low-stock means zero stock because the schema has no configurable threshold. Grounding guards replace unsupported inventory counts and recommendation claims with verified data-derived responses.
+
+**Verified:** focused seller backend tests passed **22/22**. Live integration used disposable loopback-only PostgreSQL and Redis plus local Qwen; it verified seller-scoped tools, authenticated/persisted chat, cross-seller isolation, buyer-role denial, scope-guard refusal with zero tool calls, and a real recommendation request with real combined tool results. Qwen's first raw recommendation was unsupported; the grounding guard returned the verified restock recommendation, and the targeted post-fix live test passed **1/1**. The isolated full backend suite passed **88 suites / 794 tests**, with **3 suites / 7 tests skipped**. Backend typecheck/build and frontend typecheck/build passed. No browser flow was run. Lint scripts have no rules configured.
+
+**Remaining:** the real Qwen recommendation request is verified, but a grounded raw model synthesis is not: the guard supplied the final grounded response after unsupported model text. The seller factory and dependent-row reset defects were fixed and covered; the full isolated suite now passes. Browser interaction remains unverified. Keep Feature 18 PARTIAL until the model-synthesis criterion is demonstrated or explicitly revised.
+
+## Feature 16 follow-up: move listing generation to local Ollama
+
+**Status:** Implementation and automated checks complete — 2026-10-08. Replaced the previous
+Gemini-backed listing provider with the configured local Ollama vision model, reused the shared
+`SLMClient`, removed Gemini configuration and provider tests, and applied the configured AI-service
+timeout in the backend. Added an opt-in live listing integration test and a configurable JSON
+envelope benchmark script. This supersedes the Feature 13 provider choice recorded below; the
+Feature 13 flow and API contract remain in place.
+
+**Verified:** AI Service **30/30 pytest tests**; `mypy`, `flake8`, and `black --check` clean.
+Backend typecheck clean. Full backend suite with `TZ=Asia/Karachi`: **759 passed, 2 skipped, 80
+suites passed**. Two test-isolation issues surfaced and were corrected: category name matches now
+have a stable category-ID order, and the admin config list returns the newest row once per key if
+the local database contains duplicate legacy rows.
+
+**Live check:** Ollama returned a valid Qwen chat completion in 35 seconds and a valid 768-
+dimensional `nomic-embed-text` vector in 1.17 seconds. The five-case Urdu benchmark ran; four
+answers were grounded, but the model incorrectly said two units were available when stock was
+one. The listing vision smoke request was manually stopped before it returned after several
+minutes of CPU inference. The live backend listing and BullMQ embedding integration tests remain
+opt-in via `RUN_LIVE_LISTING_TEST=1` and `RUN_LIVE_EMBEDDING_TEST=1` respectively. The alternative
+vision model has not been compared.
+
+**Handoff:** Feature 17’s draft is present in `docs/modules/Feature-17-Buyer-Storefront-Agent.md`.
+Do not start its implementation until the user confirms.
+
+## Feature 16 hardening follow-up: stock grounding and live vision status
+
+**Stock grounding:** After the Urdu smoke benchmark showed the model confirming two units when
+only one was in stock, the shared SLM system instructions were strengthened to require a numeric
+requested-quantity/stock comparison and prohibit confirming quantities above stock. Added a
+regression test for the instruction. AI-service pytest now reports **31 passed**. The five live
+Urdu smoke cases were rerun against `qwen2.5vl:7b`: the stock case now answered `نہیں` for two
+requested with one in stock; the price, material, and color answers matched their facts. The
+availability answer used Arabic `نعم` instead of Urdu `ہاں`, so Urdu fluency still needs review.
+Four supplemental Urdu intents (search, details, add-to-cart, order status) produced the expected
+valid tool-call envelope type in all four cases; no tool was executed.
+
+**Live vision:** The opt-in backend-to-ai-service-to-Ollama listing test was started with the
+development image fixture. Ollama logs showed the image entering Qwen's CPU vision encoder, with
+approximately 6.9 GiB used against Docker's 9.716 GiB limit. The last successful Docker status
+check before the CLI stall reported the service healthy; no OOM event was captured. The backend
+response did not return. Subsequent `docker ps` calls
+blocked for at least 30 seconds, so the test client was interrupted. This is inconclusive: no
+GeneratedListing response was verified, and there is no OOM or model-quality conclusion. The
+temporary host image server was stopped. Docker's current state could not be rechecked while its
+CLI was unresponsive.
+
+The live BullMQ embedding verification passed in the Compose network: create and update jobs
+upserted one row with 768 dimensions. The previous JSON envelope run remains **10/10, 0 retries**.
+In the follow-up validation, backend typecheck passed. The chatbot subset first passed **11 tests,
+with 1 opt-in live test skipped** while the database was available. A later rerun after Docker
+stopped responding had **9 passed, 2 failed, 1 skipped**: the two failures were setup/reset hooks
+in `rag.service.test.ts` because Prisma could not connect to `localhost:5432`; this is an
+infrastructure failure, not a retrieval assertion failure. The last known full backend suite
+remains **759 passed, 2 skipped**; it could not be rerun after Docker became unresponsive.
+
+The Docker daemon is responsive again. `docker ps` and `docker info` succeeded; Docker reported
+9.716 GiB and 4 CPUs. The required `postgres`, `redis`, `ollama`, and `ai-service` containers
+started and remained healthy during the checks. `ollama list` confirmed `qwen2.5vl:7b` and
+`nomic-embed-text`.
+
+The existing live JSON-envelope benchmark was rerun against `qwen2.5vl:7b`: **10/10 passed,
+100%, all on the initial attempt, 0 retries**. It covered five conversational replies and five
+allowlisted tool-call envelopes. The runner validates output only; **no tools were executed**.
+
+The live image-to-listing test was run through the backend, AI service, and local Qwen vision
+model with disposable development fixtures. The image was fetched successfully; Ollama decoded
+vision batch 1 in 182.6 seconds and began batch 2. It remained healthy at about 6.8 GiB of the
+9.716 GiB Docker limit, with no OOM or model-crash evidence. The AI-service inference timeout and
+backend Axios timeout are both 600 seconds. The backend reached its deadline first, logged
+`ECONNABORTED`, and returned **503** through the existing fail-closed error mapping. No valid
+`GeneratedListing` was returned. This evidence points to very slow CPU-based Qwen vision
+inference, not a timeout mismatch or request-routing defect. The existing error path is safe; no
+code change or timeout increase was justified. The temporary host image server was stopped and
+Compose removed its disposable API test container. Feature 16 remains **blocked** on verifying a
+real listing response; Docker availability is no longer a blocker. The next action is one live
+run of the same image test using Qwen on an approved GPU-accelerated inference host.
+
+**Final targeted validation (historical; not rerun for this diagnosis):** AI-service pytest **31 passed** (two dependency deprecation
+warnings); backend typecheck passed; the Feature 16 chatbot test subset passed **11/11** when run
+against the host-generated Prisma client and the healthy local database. The Compose-run Jest
+container initially used a stale generated Prisma client and failed TypeScript compilation in
+`tests/helpers/reset.ts`; this was a test-container artifact, while the host test run passed. The
+10-case JSON benchmark passed **10/10**, with zero retries and no tools executed. The earlier full
+backend suite passed **759 tests with 2 skipped**. The live Urdu stock case rejected a request for
+two when stock was one; its availability wording used Arabic `نعم` rather than Urdu `ہاں`. The
+embedding pipeline previously upserted exactly one 768-dimensional row after create/update. These
+results were not rerun during this timeout diagnosis.
+
+---
+
 ## Feature: AI Store Builder (Implementation Plan Phase 16 / Feature 13)
 
 **Status:** Done — 2026-08-04. New AI Service module (`apps/ai-service/app/llm/`: `client.py`,
@@ -1149,3 +1280,23 @@ just cosmetic. `returns_confidence_threshold` (`platform_config`, R1.1-scoped, r
 Feature 12's Admin Panel) is very likely the exact config key Feature 14's AI confidence-gating
 logic will finally give a real consumer to — worth checking first, since Feature 12's own
 handoff doc flagged it as configured-but-inert until this feature.*
+
+## Feature 17 — Buyer Storefront Agent (2026-10-09)
+
+**Implementation status: PARTIAL — pending live end-to-end acceptance.** Added a public store route/page, product cards, store chat widget, API routes, Redis rate limiting, fixed-store chat sessions, bilingual scope guard, same-store RAG search, validated buyer tools, and checkout navigation signal. Store slugs are now persisted and backfilled by the Feature 17 migration. Cart changes delegate to the existing `CartService` after store ownership, buyer authentication, and stock checks.
+
+Verification this pass: 4 targeted backend suites / 13 tests passed; backend and frontend typechecks and backend production build passed; frontend production build passed with large-bundle/PWA precache warnings; Prisma validation passed; Feature 17 migration deployed and migration status is up to date. Lint scripts have no configured rules. A live public-route request attempted before API startup completed failed to connect; API startup also initialized existing BullMQ consumers and processed queued background jobs, so the server was stopped and not restarted. No live model conversation, real persisted cart verification, browser flow, or full suites were run. The known product schema has no variants and seller profiles have no policy fields; unknown variant/policy facts are explicitly rejected/reported unavailable. Feature 16 image-to-listing remains BLOCKED as previously documented; it is not a dependency for storefront chat.
+
+## Feature 19 — Payment Gateway: Stripe test mode + local gateway interfaces (2026-10-10)
+
+**Latest verification (2026-10-11):** Store-6772 order 1765 has a matching real Stripe test-mode PaymentIntent for USD 2.50 (PKR 100 items plus PKR 150 shipping). Stripe reported a captured, unrefunded success event. The CLI listener did not forward that event: its earlier log recorded no delivery and the current listener started afterward. An authenticated provider-API reconciliation using the existing transactional event processor changed the local payment/order to CONFIRMED/PAYMENT_CONFIRMED and persisted one real Stripe event ID. Focused reconciliation/webhook tests passed 13/13; backend and frontend typechecks passed. The browser and live signed-webhook path remain unverified, so Feature 19 is **PARTIAL**.
+
+**Implementation status: PARTIAL — automated validation passed; live Stripe provider/browser verification remains.** Implemented a shared typed payment adapter interface, COD adapter preserving unpaid COD semantics, Stripe test-mode PaymentIntent initiation with server-derived amount/idempotency and PKR-to-USD demo conversion (PKR 100 = USD 1), disabled JazzCash/EasyPaisa adapters, checkout integration, client-safe Stripe Elements flow, and signed raw-body webhook processing at `POST /api/v1/payments/stripe/webhook`. Checkout shows the exact backend-calculated USD amount for each seller order before confirmation. A database event ledger and transactional state transitions make verified webhook processing idempotent; browser return alone never confirms payment. Full refunds are handled from verified provider events. Local gateway flags are seeded disabled and require credentials; provider protocols are not implemented.
+
+**Migration:** `20261010120000_feature19_stripe_payments` adds `STRIPE` to `PaymentMethod` and a Stripe webhook event ledger. It deployed successfully with all prior migrations to a disposable pgvector PostgreSQL database; Prisma validation passed. Test PostgreSQL and Redis were isolated disposable containers, seeded for the test suite; the shared development database, Redis, and application services were not used.
+
+**Verification actually run:** payment adapter/webhook route/webhook state/checkout/refund focus: 5 suites, 40 tests passed. Four stale compatibility assertions were updated to reflect disabled local-gateway config entries, no invented COD refunds, and Feature 19's narrowly scoped payment lifecycle writes; those four affected suites passed 33/33. Full backend Jest suite before the USD-display follow-up: **91 suites passed, 3 skipped; 816 tests passed, 7 skipped, 0 failed**. After the exact USD amount display change, the payment adapter suite passed **14/14**, backend typecheck/build passed, and frontend typecheck/production build passed. The full suite was not rerun after that small change. The frontend build reported a large chunk/PWA precache warning. Lint scripts have no configured rules. No browser test, real Stripe PaymentIntent, or real Stripe webhook delivery was run because test keys were absent from the root `.env` and Dashboard webhook setup had not been completed. The standard test suite mocks provider calls; no live payment was fabricated.
+
+**Setup needed for live Stripe test verification:** set `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, and `STRIPE_WEBHOOK_SECRET` to Stripe test-mode values only. Configure a reachable test-mode webhook for `payment_intent.succeeded`, `payment_intent.payment_failed`, `payment_intent.canceled`, and `charge.refunded` at `/api/v1/payments/stripe/webhook`, then complete an Elements checkout using a Stripe test card and verify authoritative persisted order/payment state. Do not configure live credentials. No JazzCash/EasyPaisa live integration is claimed. Feature 19 remains **PARTIAL** until this real provider and browser flow is verified.
+
+**2026-10-11 checkout hardening and live evidence:** The local development database's stale Stripe payment/order 1763 had no provider reference. A read-only check of the configured Stripe test account found zero PaymentIntents before reconciliation. A guarded, serializable application transaction marked that payment FAILED, canceled its order, and restored its three reserved product units (stock 3 to 6); a second execution made no change. The development database then had zero pending Stripe payments. Checkout now recovers the original pending key, retrieves an existing intent instead of creating another after its reference is saved, keeps uncertain outcomes pending, rejects new checkouts while Stripe is pending, serializes duplicate checkout requests, and preserves the browser key across reloads. An early signed webhook can bind its intent reference before checkout does. Focused tests against disposable PostgreSQL/Redis: **5 suites, 55 tests passed**; backend and frontend typechecks passed. A controlled request to an isolated API created one real **test-mode** PaymentIntent for USD 6.50 (PKR 650 at the documented demo rate), and Stripe reported it `succeeded` with a matching `payment_intent.succeeded` event. The local CLI listener recorded no delivery: its CLI session lacked API authentication despite reporting Ready. The isolated database still showed PENDING with zero webhook events when checked. A subsequent isolated automated test reset removed that disposable checkout row, leaving a succeeded test intent without a corresponding current isolated payment row; therefore persisted confirmation, duplicate live delivery, and browser checkout are **not verified**. Feature 19 remains **PARTIAL**. Next: account for this orphaned test intent, authenticate the CLI listener with the same test account, verify forwarding and signing secret, then run one isolated end-to-end checkout in a database kept separate from resetting test suites until verification finishes.

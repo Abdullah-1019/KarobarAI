@@ -26,11 +26,19 @@ export async function resetDb(): Promise<void> {
   await prisma.auditLog.deleteMany();
   await prisma.refreshToken.deleteMany();
   await prisma.notificationPreference.deleteMany();
+  await prisma.stripeWebhookEvent.deleteMany();
   await prisma.payment.deleteMany();
+  await prisma.codRemittance.deleteMany(); // CodRemittance.orderId is Restrict, so it must precede order deletion.
   await prisma.chatSession.deleteMany();
   await prisma.settlement.deleteMany(); // Feature 11 — Settlement.orderId is onDelete: Restrict, must precede order.deleteMany()
   await prisma.dispute.deleteMany(); // Feature 10 — Dispute.returnId is onDelete: Restrict, must precede return.deleteMany()
+  await prisma.returnShipmentEvent.deleteMany();
+  await prisma.returnShipment.deleteMany();
+  await prisma.returnFulfillment.deleteMany();
   await prisma.return.deleteMany(); // cascades return_images; Return.orderId is onDelete: Restrict, must precede order.deleteMany()
+  await prisma.review.deleteMany(); // Review.orderId is onDelete: Restrict, must precede order.deleteMany()
+  await prisma.courierShipment.deleteMany(); // Feature 20 shipment history restricts order deletion.
+  await prisma.dispatchEvidence.deleteMany(); // Private dispatch evidence restricts order-item deletion.
   await prisma.order.deleteMany(); // cascades order_items/tracking_events/courier_quotes
   await prisma.product.deleteMany();
   await prisma.sellerProfile.deleteMany();

@@ -278,14 +278,16 @@ Functional requirements are grouped by feature and tagged with their SRS IDs for
 
 | ID | Requirement | Priority | Scope |
 |----|-------------|----------|-------|
-| REQ-F-Payment-001 | Support JazzCash wallet, Easypaisa wallet, and COD — **via mock adapters in MVP (D2)** | HIGH | MVP |
-| REQ-F-Payment-002 | All payment calls server-side only; webhooks HMAC/signature-verified before status updates | HIGH | MVP |
+| REQ-F-Payment-001 | Support COD without an external provider; demonstrate card payment through Stripe test mode; keep JazzCash/EasyPaisa disabled until merchant onboarding and provider implementation | HIGH | MVP |
+| REQ-F-Payment-002 | All payment calls server-side only; Stripe webhook signatures are verified against the raw request before status updates | HIGH | MVP |
 | REQ-F-Payment-003 | Retry failed payments up to 3× at 1-min intervals; cancel and notify buyer if all fail | HIGH | MVP |
 | REQ-F-Payment-004 | Idempotency keys on all payment calls to prevent duplicate charges | HIGH | MVP |
 | REQ-F-Payment-005 | Settle seller payout within 48h of confirmed delivery (72h for COD) | HIGH | MVP |
 | REQ-F-Payment-006 | Commission rate admin-configurable without code change (default 5%) | MEDIUM | MVP |
 | REQ-F-Payment-007 | Trigger full refund within 24h of return approval — to the **original wallet for prepaid; via a defined COD refund channel** (see §12.8) | HIGH | MVP |
 | REQ-F-Payment-008 | Store only gateway-issued transaction reference IDs; never store wallet PINs/credentials | HIGH | MVP |
+
+**Feature 19 implementation framing:** Payment integration implements a gateway-agnostic adapter interface. Cash-on-Delivery remains available without an external payment dependency. Stripe test mode is the demonstrated card-payment pathway for the academic evaluation phase. JazzCash and EasyPaisa are represented by disabled adapter interfaces pending commercial merchant onboarding and provider credentials. The adapter architecture allows future activation without re-architecting checkout. This implementation does not claim the unimplemented automatic retry policy in REQ-F-Payment-003 or automated COD refund-to-wallet behavior in REQ-F-COD-003.
 
 ### 12.8 COD Money Flow & Reconciliation (gap closed) — *MVP*
 
@@ -304,7 +306,7 @@ The SRS leaves the COD remittance and refund path undefined. This PRD defines it
 |----|-------------|----------|-------|
 | REQ-F-Cart-001 | Cart is **persisted per buyer** and synchronised across devices (D4) | HIGH | MVP |
 | REQ-F-Cart-002 | A cart spanning multiple sellers is **split into one order per seller at checkout** (D4); each split order has its own logistics, payment line, and tracking | HIGH | MVP |
-| REQ-F-Cart-003 | Checkout collects delivery address, payment method (JazzCash/Easypaisa/COD), and shows a full order summary including a separate **shipping line** (buyer pays shipping, D4) | HIGH | MVP |
+| REQ-F-Cart-003 | Checkout collects delivery address, payment method (COD or configured Stripe test mode), and shows a full order summary including a separate **shipping line** (buyer pays shipping, D4) | HIGH | MVP |
 | REQ-F-Cart-004 | Enforce minimum order value PKR 100 (admin-configurable); block below-minimum at checkout (SRS BR-005) | MEDIUM | MVP |
 
 ### 12.10 Inventory Management (gap closed) — *MVP*
@@ -460,7 +462,7 @@ Representative stories per epic (Given/When/Then). MVP stories shown; R1.1/Futur
 | F7 | Seller Analytics — AI recommendation cards | §4.5 | R1.1 |
 | F8 | Authentication & account management (OTP/email, JWT, RBAC) | §4.6 | MVP |
 | F9 | Store-setup onboarding wizard | §4.6 | MVP |
-| F10 | Payment processing (mock JazzCash/Easypaisa/COD adapters) | §4.7 | MVP |
+| F10 | Payment processing (COD, Stripe test mode, disabled JazzCash/EasyPaisa adapters) | §4.7 | MVP |
 | F11 | Seller settlement & payout engine | §4.7 | MVP |
 | F12 | COD money flow & reconciliation ledger | new (gap) | MVP |
 | F13 | Persisted multi-device cart + multi-seller order splitting | new (gap) | MVP |
@@ -494,7 +496,7 @@ The MVP is a **complete, demonstrable single-region marketplace** that proves th
 - Inventory with oversell prevention — F14
 - Persisted cart + multi-seller order splitting — F13
 - Checkout with buyer-paid shipping, minimum-order enforcement — F13
-- Payments via **mock** JazzCash/Easypaisa/COD adapters; settlement engine; COD ledger — F10, F11, F12
+- Payments via COD and Stripe test mode; JazzCash/EasyPaisa remain disabled pending onboarding; settlement engine and COD ledger — F10, F11, F12
 - **Intelligent Logistics** via **mock** courier adapters with the real scoring algorithm — F2
 - **Live Order Tracking** (5-min poll, WebSocket, SMS, login-free page, map embed) — F3
 - Returns **workflow** (window, ≥3 photos, manual review queue, appeal, admin override, refund) — F4

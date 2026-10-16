@@ -16,22 +16,25 @@ const TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   PAYMENT_PENDING: ['PAYMENT_CONFIRMED', 'CANCELLED'],
   PAYMENT_CONFIRMED: ['PROCESSING', 'PENDING_MANUAL_LOGISTICS', 'CANCELLED'],
   PENDING_MANUAL_LOGISTICS: ['PROCESSING', 'CANCELLED'],
-  PROCESSING: ['PICKED_UP', 'CANCELLED'],
-  PICKED_UP: ['IN_TRANSIT'],
-  IN_TRANSIT: ['OUT_FOR_DELIVERY'],
+  PROCESSING: ['PACKED', 'CANCELLED'],
+  PACKED: ['HANDED_OVER_TO_COURIER', 'CANCELLED'],
+  HANDED_OVER_TO_COURIER: ['PICKED_UP', 'DELIVERED'],
+  PICKED_UP: ['IN_TRANSIT', 'DELIVERED'],
+  IN_TRANSIT: ['OUT_FOR_DELIVERY', 'DELIVERED'],
   OUT_FOR_DELIVERY: ['DELIVERED'],
   DELIVERED: ['COMPLETED'],
   COMPLETED: [],
   CANCELLED: [],
 };
 
-// Gap #3 — Sellers may manually trigger only cancellation (from any pre-shipment state) in this
-// feature. PROCESSING is reached via courier booking (Feature 8's future trigger, not a manual
-// seller button); shipment-progress states are exclusively system/poll-driven (Feature 8).
+// Seller-reported simulated delivery may move directly from handover or an in-transit milestone
+// to DELIVERED. The seller route checks the booked simulated shipment; buyer receipt remains a
+// separate DELIVERED -> COMPLETED transition.
 export const PRE_SHIPMENT_STATUSES: readonly OrderStatus[] = [
   'PAYMENT_PENDING',
   'PAYMENT_CONFIRMED',
   'PROCESSING',
+  'PACKED',
   'PENDING_MANUAL_LOGISTICS',
 ];
 

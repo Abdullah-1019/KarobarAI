@@ -36,6 +36,15 @@ export function cancelOrder(id: string): Promise<OrderDetailDTO> {
   return unwrap(apiClient.post<ApiEnvelope<OrderDetailDTO>>(`/orders/${id}/cancel`));
 }
 
+export function confirmOrderReceipt(id: string): Promise<OrderDetailDTO> {
+  return unwrap(apiClient.post<ApiEnvelope<OrderDetailDTO>>(`/orders/${id}/confirm-receipt`));
+}
+
+export function advanceSellerFulfillment(id: string,
+  stage: 'PROCESSING' | 'PACKED' | 'HANDED_OVER_TO_COURIER' | 'DELIVERED'): Promise<OrderDetailDTO> {
+  return unwrap(apiClient.post<ApiEnvelope<OrderDetailDTO>>(`/seller/orders/${id}/fulfillment`, { stage }));
+}
+
 // Auth is a Bearer token held in memory (apps/frontend/src/api/client.ts), not a cookie — a
 // plain window.open(url) would send no Authorization header and 401. Fetch as a blob through
 // apiClient instead, then open the resulting blob URL.

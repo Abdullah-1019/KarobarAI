@@ -15,7 +15,7 @@ afterEach(async () => {
   // Several tests below write config values — restore seeded defaults so other test files'
   // return-window/commission/min-order-value assumptions aren't affected (same precedent as
   // tests/settlement/settlementCycle.test.ts's own afterEach for this same table).
-  await prisma.platformConfig.update({ where: { configKey: 'return_window_days' }, data: { value: 14 } });
+  await prisma.platformConfig.update({ where: { configKey: 'return_window_days' }, data: { value: 1 } });
   await prisma.platformConfig.update({
     where: { configKey: 'courier_weights' },
     data: { value: { cost: 0.4, time: 0.3, reliability: 0.2, coverage: 0.1 } },
@@ -28,15 +28,17 @@ afterAll(async () => {
 });
 
 describe('GET /api/v1/admin/config (Task 6.1)', () => {
-  it('returns all five seeded config keys with correct writable flags', async () => {
+  it('returns seeded config keys, including disabled local payment gateways, with correct writable flags', async () => {
     const admin = await createTestUser('ADMIN');
     const res = await request(app).get('/api/v1/admin/config').set('Authorization', `Bearer ${admin.accessToken}`);
     expect(res.status).toBe(200);
-    expect(res.body.data.items).toHaveLength(5);
+    expect(res.body.data.items).toHaveLength(7);
     const byKey = (key: string) => res.body.data.items.find((i: { key: string }) => i.key === key);
     expect(byKey('commission_rate_default').value).toBe(0.05);
     expect(byKey('return_window_days').writable).toBe(true);
     expect(byKey('returns_confidence_threshold').writable).toBe(false); // Task 6.5
+    expect(byKey('jazzcash_enabled')).toMatchObject({ value: false, writable: false });
+    expect(byKey('easypaisa_enabled')).toMatchObject({ value: false, writable: false });
   });
 });
 
@@ -61,33 +63,35 @@ describe('PATCH /api/v1/admin/config/:key (Task 6.3)', () => {
     expect(auditRows).toHaveLength(1);
   });
 
-  it('a config change is visible to an existing consumer (Feature 10\'s return-eligibility check) without a deploy (Task 6.4)', async () => {
+  it('keeps the confirmed-receipt return window at 24 hours after a config edit', async () => {
     const admin = await createTestUser('ADMIN');
     const seller = await createTestUser('SELLER', { onboarded: true });
     const buyer = await createTestUser('BUYER');
     const product = await createTestProduct(seller.userId);
-    const tenDaysAgo = new Date();
-    tenDaysAgo.setDate(tenDaysAgo.getDate() - 10);
-    const order = await createTestOrder(buyer.userId, seller.userId, product, { status: 'DELIVERED', deliveredAt: tenDaysAgo });
+    const withinWindow = new Date(Date.now() - 23 * 60 * 60 * 1000);
+    const order = await createTestOrder(buyer.userId, seller.userId, product,
+      { status: 'COMPLETED', deliveredAt: withinWindow, buyerConfirmedAt: withinWindow });
 
-    // Default window (14 days) still covers a 10-day-old delivery — eligible.
+    // The buyer confirmed receipt 23 hours ago, within the fixed 24-hour window.
     const before = await request(app)
       .post('/api/v1/returns')
       .set('Authorization', `Bearer ${buyer.accessToken}`)
-      .send({ orderId: order.publicId, reason: 'test' });
+      .send({ orderId: order.publicId, reasonCode: 'NOT_AS_DESCRIBED' });
     expect(before.status).toBe(201);
 
     await request(app)
       .patch('/api/v1/admin/config/return_window_days')
       .set('Authorization', `Bearer ${admin.accessToken}`)
-      .send({ value: 5, reason: 'shrink window' });
+      .send({ value: 5, reason: 'test policy configuration' });
 
-    const order2 = await createTestOrder(buyer.userId, seller.userId, product, { status: 'DELIVERED', deliveredAt: tenDaysAgo });
+    const outsideWindow = new Date(Date.now() - 25 * 60 * 60 * 1000);
+    const order2 = await createTestOrder(buyer.userId, seller.userId, product,
+      { status: 'COMPLETED', deliveredAt: outsideWindow, buyerConfirmedAt: outsideWindow });
     const after = await request(app)
       .post('/api/v1/returns')
       .set('Authorization', `Bearer ${buyer.accessToken}`)
-      .send({ orderId: order2.publicId, reason: 'test' });
-    expect(after.status).toBe(422); // now outside the shrunk 5-day window — no redeploy needed
+      .send({ orderId: order2.publicId, reasonCode: 'NOT_AS_DESCRIBED' });
+    expect(after.status).toBe(422); // receipt confirmation was 25 hours ago
     expect(after.body.error.code).toBe('RETURN_WINDOW_CLOSED');
   });
 

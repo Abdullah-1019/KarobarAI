@@ -1,6 +1,3 @@
-process.env.COURIER_RETRY_DELAY_MS = '5'; // real 30s default would make retry/fallback tests take 90s+; shrunk for this file only
-
-import { Queue } from 'bullmq';
 import request from 'supertest';
 
 import { MockCourierAdapter } from '../../src/adapters/courier/mock';
@@ -8,24 +5,22 @@ import { prisma } from '../../src/core/prisma';
 import { redis } from '../../src/core/redis';
 import { app } from '../../src/server';
 import * as trackingService from '../../src/modules/tracking/tracking.service';
+import { DefinitiveCourierBookingError } from '../../src/modules/tracking/auto-select.service';
 import { createTestOrder, createTestProduct, createTestUser } from '../helpers/factories';
 import { resetDb, resetRedis } from '../helpers/reset';
 
 const bookSpy = jest.spyOn(MockCourierAdapter.prototype, 'book');
-const notificationQueueAddSpy = jest.spyOn(Queue.prototype, 'add');
 
 beforeEach(async () => {
   await resetDb();
   await resetRedis();
   bookSpy.mockClear();
-  notificationQueueAddSpy.mockClear();
 });
 
 afterAll(async () => {
   await prisma.$disconnect();
   await redis.quit();
   bookSpy.mockRestore();
-  notificationQueueAddSpy.mockRestore();
 });
 
 async function setUpScoredOrder(overrides: Parameters<typeof createTestOrder>[3] = {}) {
@@ -34,12 +29,13 @@ async function setUpScoredOrder(overrides: Parameters<typeof createTestOrder>[3]
   const product = await createTestProduct(seller.userId);
   const order = await createTestOrder(buyer.userId, seller.userId, product, { status: 'PAYMENT_CONFIRMED', ...overrides });
   await trackingService.initializeShipment(order.orderId);
+  await prisma.order.update({ where: { orderId: order.orderId }, data: { status: 'PACKED' } });
   const quotes = await prisma.courierQuote.findMany({ where: { orderId: order.orderId }, orderBy: { score: 'desc' } });
   return { seller, buyer, product, order, quotes };
 }
 
 describe('POST /api/v1/orders/:id/book-courier (Task 4 — happy path + override)', () => {
-  it('booking the top-scored courier succeeds: status -> PROCESSING, courier/tracking_no set, not flagged as override', async () => {
+  it('booking the top-scored courier keeps the packed status until handover', async () => {
     const { seller, order, quotes } = await setUpScoredOrder();
     const topScored = quotes[0]!.courier;
 
@@ -49,14 +45,14 @@ describe('POST /api/v1/orders/:id/book-courier (Task 4 — happy path + override
       .send({ courierCode: topScored });
 
     expect(res.status).toBe(200);
-    expect(res.body.data.status).toBe('PROCESSING');
+    expect(res.body.data.status).toBe('PACKED');
 
     const row = await prisma.order.findUniqueOrThrow({ where: { orderId: order.orderId } });
     expect(row.courier).toBe(topScored);
     expect(row.trackingNo).toMatch(new RegExp(`^MOCK-${topScored}-`));
     expect(row.courierOverridden).toBe(false);
 
-    const selectedQuote = await prisma.courierQuote.findFirst({ where: { orderId: order.orderId, courier: topScored } });
+    const selectedQuote = await prisma.courierQuote.findFirst({ where: { orderId: order.orderId, courier: topScored, selected: true } });
     expect(selectedQuote?.selected).toBe(true);
   });
 
@@ -87,49 +83,38 @@ describe('POST /api/v1/orders/:id/book-courier (Task 4 — happy path + override
   });
 });
 
-describe('POST /api/v1/orders/:id/book-courier (Task 4.2/4.3 — retry then fallback)', () => {
-  it('a courier failing all 3 attempts falls back to the next-best-scored courier, and booking still succeeds', async () => {
+describe('POST /api/v1/orders/:id/book-courier failure safety', () => {
+  it('does not retry or fall back after an uncertain booking outcome', async () => {
     const { seller, order, quotes } = await setUpScoredOrder();
-    const topScored = quotes[0]!.courier;
-    const secondBest = quotes[1]!.courier;
+    bookSpy.mockRejectedValueOnce(new Error('provider response lost'));
+    const send = () => request(app).post(`/api/v1/orders/${order.publicId}/book-courier`)
+      .set('Authorization', `Bearer ${seller.accessToken}`).send({ courierCode: quotes[0]!.courier });
 
-    bookSpy
-      .mockRejectedValueOnce(new Error('courier down'))
-      .mockRejectedValueOnce(new Error('courier down'))
-      .mockRejectedValueOnce(new Error('courier down'));
+    const failed = await send();
+    expect(failed.status).toBe(409);
+    expect(failed.body.error.code).toBe('COURIER_OUTCOME_UNCERTAIN');
+    expect(bookSpy).toHaveBeenCalledTimes(1);
+    expect((await prisma.courierShipment.findUniqueOrThrow({ where: { orderId: order.orderId } })).status).toBe('UNCERTAIN');
+    const retry = await send();
+    expect(retry.status).toBe(409);
+    expect(bookSpy).toHaveBeenCalledTimes(1);
+    expect((await prisma.order.findUniqueOrThrow({ where: { orderId: order.orderId } })).courier).toBeNull();
+  });
 
-    const res = await request(app)
-      .post(`/api/v1/orders/${order.publicId}/book-courier`)
-      .set('Authorization', `Bearer ${seller.accessToken}`)
-      .send({ courierCode: topScored });
+  it('records a definitive no-booking result and permits a new explicit request', async () => {
+    const { seller, order, quotes } = await setUpScoredOrder();
+    bookSpy.mockRejectedValueOnce(new DefinitiveCourierBookingError('no shipment'));
+    const send = () => request(app).post(`/api/v1/orders/${order.publicId}/book-courier`)
+      .set('Authorization', `Bearer ${seller.accessToken}`).send({ courierCode: quotes[0]!.courier });
 
-    expect(res.status).toBe(200);
-    expect(res.body.data.status).toBe('PROCESSING');
-    expect(bookSpy).toHaveBeenCalledTimes(4); // 3 failed attempts against topScored + 1 succeeding against secondBest
-
-    const row = await prisma.order.findUniqueOrThrow({ where: { orderId: order.orderId } });
-    expect(row.courier).toBe(secondBest);
-  }, 15000);
-
-  it('every courier exhausting retries lands the order in PENDING_MANUAL_LOGISTICS and enqueues a seller notification', async () => {
-    const { seller, order } = await setUpScoredOrder();
-    bookSpy.mockRejectedValue(new Error('all couriers down'));
-
-    const res = await request(app)
-      .post(`/api/v1/orders/${order.publicId}/book-courier`)
-      .set('Authorization', `Bearer ${seller.accessToken}`)
-      .send({ courierCode: 'TCS' });
-
-    expect(res.status).toBe(200);
-    expect(res.body.data.status).toBe('PENDING_MANUAL_LOGISTICS');
-    expect(bookSpy).toHaveBeenCalledTimes(9); // 3 couriers x 3 attempts each
-
-    const row = await prisma.order.findUniqueOrThrow({ where: { orderId: order.orderId } });
-    expect(row.courier).toBeNull();
-
-    const notifyCalls = notificationQueueAddSpy.mock.calls.filter((call) => call[1] && (call[1] as { type?: string }).type === 'COURIER_MANUAL_LOGISTICS');
-    expect(notifyCalls).toHaveLength(1);
-  }, 15000);
+    const failed = await send();
+    expect(failed.status).toBe(422);
+    expect(failed.body.error.code).toBe('COURIER_BOOKING_FAILED');
+    expect((await prisma.courierShipment.findUniqueOrThrow({ where: { orderId: order.orderId } })).status).toBe('FAILED');
+    const retried = await send();
+    expect(retried.status).toBe(200);
+    expect(bookSpy).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe('POST /api/v1/orders/:id/book-courier (Task 4.1 — guards + ownership)', () => {

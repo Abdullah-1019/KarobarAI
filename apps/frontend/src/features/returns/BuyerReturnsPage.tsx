@@ -3,7 +3,7 @@ import { useInfiniteQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 
-import { EmptyState, PageHeader, SkeletonLoader } from '../../components';
+import { EmptyState, PageHeader, ProductThumbnail, SkeletonLoader } from '../../components';
 import { buyerReturnsQueryKey, listBuyerReturns } from './returnsApi';
 import { formatReturnsError } from './returnsErrors';
 import { ReturnStatusTag } from './ReturnStatusTag';
@@ -49,11 +49,15 @@ export function BuyerReturnsPage() {
           {items.map((item) => (
             <Card key={item.id} style={{ marginBottom: 'var(--sp-3)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 'var(--sp-3)' }}>
+                {item.productImage && <ProductThumbnail src={item.productImage} size={72} />}
                 <div>
                   <Typography.Text type="secondary" style={{ fontSize: 'var(--fs-xs)' }}>
-                    {t('buyerList.orderLabel', { id: item.orderId })}
+                    {item.orderNumber ? `Order #${item.orderNumber}` : t('buyerList.orderLabel', { id: item.orderId })}
                   </Typography.Text>
-                  <div style={{ marginTop: 'var(--sp-1)' }}>{item.reason}</div>
+                  {item.productName && <div><Typography.Text strong>{item.productName}</Typography.Text></div>}
+                  <div style={{ marginTop: 'var(--sp-1)' }}>{item.reason.startsWith('OTHER: ')
+                    ? `${t('reasons.OTHER')}: ${item.reason.slice(7)}`
+                    : t(`reasons.${item.reason}`, { defaultValue: item.reason })}</div>
                   <Typography.Text type="secondary" style={{ fontSize: 'var(--fs-xs)' }}>
                     {t('buyerList.requested', { date: new Date(item.createdAt).toLocaleDateString() })}
                   </Typography.Text>
@@ -61,7 +65,7 @@ export function BuyerReturnsPage() {
                 <ReturnStatusTag status={item.status} />
               </div>
               <div style={{ marginTop: 'var(--sp-3)', textAlign: 'end' }}>
-                <Link to={`/orders/${item.orderId}/return/status`}>
+                <Link to={`/orders/${item.orderId}/return/${item.id}/status`}>
                   <Button size="small">{t('buyerList.viewReturn')}</Button>
                 </Link>
               </div>

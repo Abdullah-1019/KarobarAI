@@ -81,7 +81,7 @@ export function AuthenticatedTrackingPage({ scope }: AuthenticatedTrackingPagePr
         actions={<OrderStatusTag status={tracking.status} />}
       />
 
-      <TrackingStatusCard status={tracking.status} deliveryStageLabel={tracking.deliveryStageLabel} colorForStatus={colorForStatus} />
+      <TrackingStatusCard status={tracking.status} deliveryStageLabel={tracking.deliveryStageLabel} colorForStatus={colorForStatus} simulated={tracking.simulated} />
 
       {tracking.timeline.length === 0 && (
         <Alert

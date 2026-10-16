@@ -20,7 +20,18 @@ def test_chat_parses_allowlisted_json_envelope_without_native_tools() -> None:
         requests.append(payload)
         return httpx.Response(
             200,
-            json={"choices": [{"message": {"content": '{"tool_call":{"type":"search_products","payload":{"query":"shirts"}}}'}}]},
+            json={
+                "choices": [
+                    {
+                        "message": {
+                            "content": (
+                                '{"tool_call":{"type":"search_products",'
+                                '"payload":{"query":"shirts"}}}'
+                            )
+                        }
+                    }
+                ]
+            },
         )
 
     async def run() -> dict:
@@ -34,6 +45,32 @@ def test_chat_parses_allowlisted_json_envelope_without_native_tools() -> None:
     assert result == {"tool_call": {"type": "search_products", "payload": {"query": "shirts"}}}
     assert "tools" not in requests[0]
     assert "search_products" in requests[0]["messages"][0]["content"]
+
+
+def test_chat_system_prompt_requires_quantity_comparison_before_stock_claims() -> None:
+    captured: list[dict] = []
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        captured.append(json.loads(request.content))
+        return httpx.Response(
+            200,
+            json={"choices": [{"message": {"content": '{"reply":"صرف ایک دستیاب ہے۔"}'}}]},
+        )
+
+    async def run() -> dict:
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handle)) as http:
+            return await SLMClient(client=http, backoff_base_seconds=0).chat(
+                [
+                    {"role": "system", "content": "Use product facts."},
+                    {"role": "user", "content": "دو عدد چاہئیں۔"},
+                ]
+            )
+
+    assert asyncio.run(run()) == {"reply": "صرف ایک دستیاب ہے۔"}
+    prompt = captured[0]["messages"][0]["content"]
+    assert "compare it numerically" in prompt
+    assert "requested amount is unavailable" in prompt
+    assert "Never say the requested amount is available" in prompt
 
 
 def test_chat_corrects_invalid_json_and_retries_at_most_three_total_attempts() -> None:
@@ -62,7 +99,14 @@ def test_chat_fails_closed_after_three_invalid_attempts() -> None:
     def handle(_: httpx.Request) -> httpx.Response:
         nonlocal calls
         calls += 1
-        return httpx.Response(200, json={"choices": [{"message": {"content": '{"tool_call":{"type":"unknown","payload":{}}}'}}]})
+        return httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {"message": {"content": '{"tool_call":{"type":"unknown","payload":{}}}'}}
+                ]
+            },
+        )
 
     async def run() -> None:
         async with httpx.AsyncClient(transport=httpx.MockTransport(handle)) as http:
@@ -89,7 +133,9 @@ def test_embedding_client_retries_then_returns_768_dimension_vector() -> None:
 
     async def run() -> list[list[float]]:
         async with httpx.AsyncClient(transport=httpx.MockTransport(handle)) as http:
-            return await EmbeddingClient(client=http, backoff_base_seconds=0).embed(["cotton shirt"])
+            return await EmbeddingClient(client=http, backoff_base_seconds=0).embed(
+                ["cotton shirt"]
+            )
 
     result = asyncio.run(run())
     assert calls == 2

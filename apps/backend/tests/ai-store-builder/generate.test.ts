@@ -6,6 +6,7 @@ import request from 'supertest';
 
 import { prisma } from '../../src/core/prisma';
 import { redis } from '../../src/core/redis';
+import { config } from '../../src/core/config';
 import { app } from '../../src/server';
 import { saveStagingImages } from '../../src/modules/ai-store-builder/ai-store-builder.repository';
 import { createTestUser } from '../helpers/factories';
@@ -71,6 +72,27 @@ describe('POST /api/v1/products/ai-generate (Task 3/4/5)', () => {
     expect(mockedAxiosPost.mock.calls[0]?.[1]).toMatchObject({ image_url: 'https://cdn.example/staged/primary.jpg' });
   });
 
+  it('uses internal MinIO only for the AI fetch while retaining the public staged URL', async () => {
+    const seller = await createTestUser('SELLER', { onboarded: true });
+    const stagingId = randomUUID();
+    const publicUrl = `${config.storage.publicBaseUrl.replace(/\/+$/, '')}/${config.storage.bucket}/products/staging/example.jpg`;
+    await saveStagingImages(stagingId, [{ cdnUrl: publicUrl, position: 0 }]);
+    mockedAxiosPost.mockResolvedValueOnce({ data: VALID_AI_RESPONSE });
+    const originalBase = config.aiServiceImageBaseUrl;
+    config.aiServiceImageBaseUrl = 'http://minio:9000';
+    try {
+      const res = await request(app).post('/api/v1/products/ai-generate')
+        .set('Authorization', `Bearer ${seller.accessToken}`).send({ stagingId });
+      expect(res.status).toBe(200);
+      expect(mockedAxiosPost.mock.calls[0]?.[1]).toMatchObject({
+        image_url: `http://minio:9000/${config.storage.bucket}/products/staging/example.jpg`,
+      });
+      expect((await redis.get(`ai-store-builder:staging:${stagingId}`))).toContain(publicUrl);
+    } finally {
+      config.aiServiceImageBaseUrl = originalBase;
+    }
+  });
+
   it('resolves an exact category name match to a real category_id', async () => {
     const seller = await createTestUser('SELLER', { onboarded: true });
     const category = await prisma.category.findFirstOrThrow({ where: { slug: 'electronics' } });
@@ -79,7 +101,10 @@ describe('POST /api/v1/products/ai-generate (Task 3/4/5)', () => {
 
     const res = await request(app).post('/api/v1/products/ai-generate').set('Authorization', `Bearer ${seller.accessToken}`).send({ stagingId });
 
-    expect(res.body.data.draft.categoryId).toBe(category.categoryId.toString());
+    const matchedCategory = await prisma.category.findUniqueOrThrow({
+      where: { categoryId: BigInt(res.body.data.draft.categoryId) },
+    });
+    expect(matchedCategory.nameEn).toBe(category.nameEn);
   });
 
   it('an unmatched category guess resolves to null, not an error, preserving the raw guess', async () => {
@@ -148,6 +173,23 @@ describe('POST /api/v1/products/ai-generate (Task 3/4/5)', () => {
 
     expect(res.status).toBe(503);
     expect(res.body.error.code).toBe('AI_GENERATION_FAILED');
+  });
+
+  it.each([
+    [429, 'LISTING_PROVIDER_RATE_LIMITED', 'AI_LISTING_RATE_LIMITED'],
+    [503, 'LISTING_PROVIDER_NOT_CONFIGURED', 'AI_LISTING_NOT_CONFIGURED'],
+  ])('maps hosted provider status %i to a safe actionable error', async (status, providerError, expectedCode) => {
+    const seller = await createTestUser('SELLER', { onboarded: true });
+    const stagingId = await stageImages();
+    mockedAxiosPost.mockRejectedValueOnce({ response: { status, data: { error: providerError } } });
+
+    const res = await request(app).post('/api/v1/products/ai-generate')
+      .set('Authorization', `Bearer ${seller.accessToken}`).send({ stagingId });
+
+    expect(res.status).toBe(503);
+    expect(res.body.error.code).toBe(expectedCode);
+    expect(res.body.data).toBeNull();
+    expect(JSON.stringify(res.body)).not.toContain('GEMINI_API_KEY');
   });
 
   it('an unreachable AI Service (connection refused) maps to AI_SERVICE_UNAVAILABLE', async () => {

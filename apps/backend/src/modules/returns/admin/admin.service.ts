@@ -21,7 +21,11 @@ export async function listAdminReturns(filters: {
     filters.status
       ? { status: filters.status as ReturnStatus }
       : !filters.history
-        ? { status: { in: ADMIN_QUEUE_STATUSES } }
+        ? { OR: [{ status: { in: ADMIN_QUEUE_STATUSES } },
+          { status: 'APPROVED', fulfillment: { is: { status: 'AWAITING_COURIER' } } },
+          { fulfillment: { is: { status: { in: [
+            'RETURN_IN_TRANSIT', 'REPLACEMENT_IN_TRANSIT', 'REFUND_CONSENTED',
+          ] } } } }] }
         : {},
     filters.cursor,
     limit,

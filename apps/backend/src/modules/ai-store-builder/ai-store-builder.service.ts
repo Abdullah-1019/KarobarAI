@@ -18,6 +18,8 @@ import { logger } from '../../core/logger';
 import { prisma } from '../../core/prisma';
 import { validateImageFile } from '../../core/upload/imageValidation';
 import * as catalogService from '../catalog/catalog.service';
+import { toAiServiceImageUrl } from '../catalog/ai-image-url';
+import { generatedListingResponseSchema } from '../catalog/generated-listing.schema';
 import { resolveCategory } from './category-resolution.service';
 import * as repo from './ai-store-builder.repository';
 import { derivePreview } from './seo-metadata.service';
@@ -56,25 +58,12 @@ export async function uploadStagingImages(files: Array<{ buffer: Buffer; size: n
 // Task 3 — AI Request Pipeline
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Task 3.3/Assumption #3 — near the 30s user-facing ceiling (REQ-NF-Perf002), leaving headroom
-// for network/mapping overhead; the AI Service's own internal per-client budget (GeminiVisionClient:
-// 10s timeout x 2 attempts each, both primary and fallback) stays comfortably under this.
-const CORE_API_AI_TIMEOUT_MS = 28_000;
+// The backend deadline is configured independently from the hosted listing provider deadline.
+const CORE_API_AI_TIMEOUT_MS = config.aiServiceTimeoutMs;
 
 // Defensive re-validation of the AI Service's own response at the Core API boundary (Task 1's
 // Engineering Decision) — catches any contract drift between services; any shape violation is a
 // full failure, never a partially-populated result (Task 3.6).
-const generatedListingResponseSchema = z
-  .object({
-    title_en: z.string(),
-    title_ur: z.string(),
-    description_en: z.string(),
-    description_ur: z.string(),
-    category: z.string(),
-    tags: z.array(z.string()),
-  })
-  .strict();
-
 // Checks the error shape directly (code/response.status) rather than axios.isAxiosError() — an
 // SDK type-guard function that a whole-module `jest.mock('axios')` (this codebase's established
 // mocking convention, e.g. tests/catalog/creation.test.ts) auto-mocks to a no-op, which would
@@ -85,8 +74,13 @@ function classifyAiServiceError(err: unknown): { code: string; message: string }
   if (shaped?.code === 'ECONNABORTED') {
     return { code: 'AI_GENERATION_TIMEOUT', message: 'AI listing generation timed out' };
   }
-  // AI Service's own structured failure (Task 3.1's {error: "GENERATION_FAILED"}, 502) — both
-  // its primary and fallback LLM clients failed internally.
+  if (shaped?.response?.status === 429) {
+    return { code: 'AI_LISTING_RATE_LIMITED', message: 'AI listing provider is rate limited. Try again later.' };
+  }
+  if (shaped?.response?.status === 503) {
+    return { code: 'AI_LISTING_NOT_CONFIGURED', message: 'AI listing provider is not configured.' };
+  }
+  // AI Service's sanitized generation failure.
   if (shaped?.response?.status === 502) {
     return { code: 'AI_GENERATION_FAILED', message: 'AI listing generation failed' };
   }
@@ -94,16 +88,17 @@ function classifyAiServiceError(err: unknown): { code: string; message: string }
 }
 
 async function callAiService(imageUrl: string, hint: string | undefined) {
+  const aiImageUrl = toAiServiceImageUrl(imageUrl);
   try {
     const response = await axios.post(
       `${config.aiServiceUrl}/generate-listing`,
-      { image_url: imageUrl, hint },
+      { image_url: aiImageUrl, hint },
       { timeout: CORE_API_AI_TIMEOUT_MS },
     );
     return response.data as unknown;
   } catch (err) {
     const { code, message } = classifyAiServiceError(err);
-    logger.warn({ err, code }, '[ai-store-builder] AI Service call failed');
+    logger.warn({ code }, '[ai-store-builder] AI Service call failed');
     throw new DependencyError(message, undefined, code);
   }
 }

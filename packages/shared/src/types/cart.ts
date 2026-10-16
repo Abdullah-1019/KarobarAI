@@ -66,6 +66,10 @@ export interface CreatedOrderDTO {
   status: string;
   paymentMethod: PaymentMethod;
   paymentStatus: string;
+  /** Stripe PaymentIntent client secret; present only for the authenticated checkout response. */
+  paymentClientSecret?: string;
+  /** Exact USD amount encoded in the Stripe PaymentIntent, formatted as dollars and cents. */
+  paymentAmountUsd?: string;
   subtotal: string;
   shippingFee: string;
   totalAmount: string;

@@ -19,12 +19,17 @@ import { analyticsRouter } from './modules/analytics';
 import { authRouter } from './modules/auth';
 import { cartRouter } from './modules/cart';
 import { startProductEmbeddingWorker } from './modules/chatbot/product-embedding.service';
+import { buyerChatRouter } from './modules/chatbot/buyer-chat.routes';
+import { sellerChatRouter } from './modules/chatbot/seller-chat.routes';
 import { publicCatalogRouter, sellerProductRouter } from './modules/catalog';
 import { healthRouter } from './modules/health/health.routes';
 import { notificationRouter, startNotificationConsumer } from './modules/notification';
 import { checkoutRouter, orderRouter, sellerOrderRouter } from './modules/order';
 import { profileRouter } from './modules/profile';
+import { paymentRouter, stripeWebhookRouter } from './modules/payment';
 import { adminReturnsRouter, returnsRouter, sellerReturnsRouter } from './modules/returns';
+import { startReturnInspectionWorker } from './modules/returns/return-inspection.service';
+import { startReturnShipmentPollJob } from './modules/returns/return-fulfillment.service';
 import { startSettlementPollJob } from './modules/settlement';
 import {
   authenticatedTrackingRouter,
@@ -46,6 +51,9 @@ app.use(
     credentials: true,
   }),
 );
+// Stripe requires the untouched body bytes for signature verification. This route must precede
+// express.json(); mounting an express.raw route below the JSON parser would invalidate signatures.
+app.use('/api/v1/payments', stripeWebhookRouter);
 app.use(express.json({ limit: '1mb' }));
 app.use(cookieParser());
 app.use(
@@ -61,10 +69,13 @@ app.use('/api/v1/profile', profileRouter);
 app.use('/api/v1', publicCatalogRouter);
 app.use('/api/v1/seller/products', sellerProductRouter);
 app.use('/api/v1/cart', cartRouter);
+app.use('/api/v1/stores', buyerChatRouter);
+app.use('/api/v1/seller/chat', sellerChatRouter);
 app.use('/api/v1/addresses', addressRouter);
 app.use('/api/v1/checkout', checkoutRouter);
-app.use('/api/v1/orders', orderRouter);
+app.use('/api/v1/payments', paymentRouter);
 app.use('/api/v1/orders', courierRouter);
+app.use('/api/v1/orders', orderRouter);
 app.use('/api/v1/seller/orders', sellerOrderRouter);
 app.use('/api/v1/tracking', authenticatedTrackingRouter);
 app.use('/api/v1/t', publicTrackingRouter);
@@ -103,5 +114,7 @@ if (require.main === module) {
   startTrackingPollJob().catch((err) => logger.error({ err }, 'failed to start tracking poll job'));
   startNotificationConsumer();
   startProductEmbeddingWorker();
+  startReturnInspectionWorker();
+  startReturnShipmentPollJob().catch((err) => logger.error({ err }, 'failed to start return tracking poll job'));
   startSettlementPollJob().catch((err) => logger.error({ err }, 'failed to start settlement poll job'));
 }

@@ -3,14 +3,19 @@ import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 
 import { MockPaymentAdapter } from '../../src/adapters/payment/mock';
+import { PaymentOutcomeUncertainError, PaymentGatewayUnavailableError } from '../../src/core/errors/AppError';
 import { prisma } from '../../src/core/prisma';
 import { redis } from '../../src/core/redis';
 import { app } from '../../src/server';
 import { closeNotificationQueue } from '../../src/modules/notification';
 import { createAddress, createTestProduct, createTestUser } from '../helpers/factories';
 import { resetDb, resetRedis } from '../helpers/reset';
+import { StripeAdapter } from '../../src/modules/payment/stripe.adapter';
 
 const chargeSpy = jest.spyOn(MockPaymentAdapter.prototype, 'charge');
+const stripeAvailableSpy = jest.spyOn(StripeAdapter.prototype, 'assertAvailable').mockResolvedValue();
+const stripeInitiateSpy = jest.spyOn(StripeAdapter.prototype, 'initiate');
+const stripeResumeSpy = jest.spyOn(StripeAdapter.prototype, 'resume');
 // Checkout now enqueues ORDER_PLACED (Feature 9 gap closure) — mocked exactly like every other
 // BullMQ producer in this test suite, so these tests never depend on a live queue being drained.
 const queueAddSpy = jest.spyOn(Queue.prototype, 'add').mockResolvedValue({} as never);
@@ -19,6 +24,9 @@ beforeEach(async () => {
   await resetDb();
   await resetRedis();
   chargeSpy.mockClear();
+  stripeAvailableSpy.mockClear();
+  stripeInitiateSpy.mockReset();
+  stripeResumeSpy.mockReset();
   queueAddSpy.mockClear();
 });
 
@@ -27,6 +35,9 @@ afterAll(async () => {
   await prisma.$disconnect();
   await redis.quit();
   chargeSpy.mockRestore();
+  stripeAvailableSpy.mockRestore();
+  stripeInitiateSpy.mockRestore();
+  stripeResumeSpy.mockRestore();
   queueAddSpy.mockRestore();
 });
 
@@ -46,7 +57,23 @@ function checkoutRequest(accessToken: string, body: object, idempotencyKey = ran
 }
 
 describe('POST /api/v1/checkout (Task 7 — happy path)', () => {
-  it('single-seller checkout: creates one order, one order_item, a JazzCash payment row, decrements stock', async () => {
+  it('captures the database category at purchase for later return-provider routing', async () => {
+    const seller = await createTestUser('SELLER', { onboarded: true });
+    const buyer = await createTestUser('BUYER');
+    const clothing = await prisma.category.findUniqueOrThrow({ where: { slug: 'clothing' } });
+    const product = await createTestProduct(seller.userId, { titleEn: 'Plain garment',
+      categoryId: clothing.categoryId, price: 200, stock: 3, status: 'LIVE' });
+    const address = await createAddress(buyer.userId);
+    await addToCart(buyer.accessToken, product.publicId, 1);
+    const result = await checkoutRequest(buyer.accessToken, {
+      addressId: address.addressId.toString(), paymentMethod: 'COD',
+    });
+    expect(result.status).toBe(201);
+    const item = await prisma.orderItem.findFirstOrThrow({ where: { productId: product.productId } });
+    expect(item.categorySlugSnapshot).toBe('clothing');
+  });
+
+  it('rejects disabled JazzCash before creating an order or decrementing stock', async () => {
     const seller = await createTestUser('SELLER', { onboarded: true });
     const buyer = await createTestUser('BUYER');
     const product = await createTestProduct(seller.userId, { titleEn: 'Widget', price: 200, stock: 10, status: 'LIVE' });
@@ -58,55 +85,13 @@ describe('POST /api/v1/checkout (Task 7 — happy path)', () => {
       paymentMethod: 'JAZZCASH',
     });
 
-    expect(res.status).toBe(201);
-    expect(res.body.data.orders).toHaveLength(1);
-    const order = res.body.data.orders[0];
-    expect(order.subtotal).toBe('400.00');
-    expect(order.items).toHaveLength(1);
-    expect(order.items[0].titleSnapshot).toBe('Widget');
-    expect(order.items[0].quantity).toBe(2);
-    // Interim confirmPayment() gap-closure — a JazzCash/Easypaisa order's payment is confirmed
-    // synchronously within the checkout call itself (mock-mode fix; real confirmation is
-    // webhook-driven, Feature 12/16's job), so the response already reflects CONFIRMED, not the
-    // adapter's raw PENDING charge result.
-    expect(order.paymentStatus).toBe('CONFIRMED');
-    expect(order.status).toBe('PAYMENT_CONFIRMED');
-    expect(chargeSpy).toHaveBeenCalledTimes(1);
+    expect(res.status).toBe(503);
+    expect(res.body.error.code).toBe('PAYMENT_GATEWAY_UNAVAILABLE');
+    expect(chargeSpy).not.toHaveBeenCalled();
 
     const productRow = await prisma.product.findUniqueOrThrow({ where: { productId: product.productId } });
-    expect(productRow.stock).toBe(8);
-
-    const orderRow = await prisma.order.findUniqueOrThrow({ where: { publicId: order.id } });
-    expect(orderRow.buyerId).toBe(buyer.userId);
-    expect(orderRow.sellerId).toBe(seller.userId);
-    expect(orderRow.status).toBe('PAYMENT_CONFIRMED');
-    expect(Number(orderRow.commissionRateSnapshot)).toBeCloseTo(0.05);
-
-    const paymentRow = await prisma.payment.findUniqueOrThrow({ where: { orderId: orderRow.orderId } });
-    expect(paymentRow.status).toBe('CONFIRMED');
-    expect(paymentRow.confirmedAt).not.toBeNull();
-
-    // Cart is cleared of purchased items.
-    const cartRes = await request(app).get('/api/v1/cart').set('Authorization', `Bearer ${buyer.accessToken}`);
-    expect(cartRes.body.data.sellerGroups).toEqual([]);
-
-    // Feature 9 gap closure — checkout enqueues ORDER_PLACED for the buyer.
-    const placedCalls = queueAddSpy.mock.calls.filter(
-      (call) => call[1] && (call[1] as { type?: string }).type === 'ORDER_PLACED',
-    );
-    expect(placedCalls).toHaveLength(1);
-    expect(placedCalls[0]?.[1]).toMatchObject({ userId: buyer.userId.toString(), orderId: order.id });
-
-    // confirmPayment()'s own two side effects, previously unreachable from any caller: the
-    // courier hand-off enqueue (fixes the courier-recommendation-card gap) and the
-    // ORDER_PAYMENT_CONFIRMED notification.
-    const courierCalls = queueAddSpy.mock.calls.filter((call) => call[0] === 'assign');
-    expect(courierCalls).toHaveLength(1);
-    expect(courierCalls[0]?.[1]).toMatchObject({ orderId: orderRow.orderId.toString() });
-    const paymentConfirmedCalls = queueAddSpy.mock.calls.filter(
-      (call) => call[1] && (call[1] as { type?: string }).type === 'ORDER_PAYMENT_CONFIRMED',
-    );
-    expect(paymentConfirmedCalls).toHaveLength(1);
+    expect(productRow.stock).toBe(10);
+    expect(await prisma.order.count()).toBe(0);
   });
 
   it('multi-seller checkout: a 2-seller cart splits into exactly 2 orders, each with its own shipping line', async () => {
@@ -121,7 +106,7 @@ describe('POST /api/v1/checkout (Task 7 — happy path)', () => {
 
     const res = await checkoutRequest(buyer.accessToken, {
       addressId: address.addressId.toString(),
-      paymentMethod: 'JAZZCASH',
+      paymentMethod: 'COD',
     });
 
     expect(res.status).toBe(201);
@@ -130,9 +115,9 @@ describe('POST /api/v1/checkout (Task 7 — happy path)', () => {
       expect(Number(order.shippingFee)).toBeGreaterThan(0);
       // Both orders in the batch independently reach PAYMENT_CONFIRMED, not just the first.
       expect(order.status).toBe('PAYMENT_CONFIRMED');
-      expect(order.paymentStatus).toBe('CONFIRMED');
+      expect(order.paymentStatus).toBe('PENDING');
     }
-    expect(chargeSpy).toHaveBeenCalledTimes(2);
+    expect(chargeSpy).not.toHaveBeenCalled();
 
     const orderRows = await prisma.order.findMany({ where: { buyerId: buyer.userId } });
     expect(orderRows).toHaveLength(2);
@@ -300,6 +285,28 @@ describe('POST /api/v1/checkout — Idempotency (Task 7.2/8.2)', () => {
 });
 
 describe('POST /api/v1/checkout — concurrent oversell (Task 7.4/8.3)', () => {
+  it('same idempotency key submitted concurrently returns one persisted checkout without a P2002 response', async () => {
+    const seller = await createTestUser('SELLER', { onboarded: true });
+    const buyer = await createTestUser('BUYER');
+    const product = await createTestProduct(seller.userId, { price: 150, stock: 3, status: 'LIVE' });
+    const address = await createAddress(buyer.userId);
+    await addToCart(buyer.accessToken, product.publicId, 1);
+    const key = randomUUID();
+    const body = { addressId: address.addressId.toString(), paymentMethod: 'COD' };
+
+    const [first, second] = await Promise.all([
+      checkoutRequest(buyer.accessToken, body, key),
+      checkoutRequest(buyer.accessToken, body, key),
+    ]);
+
+    expect(first.status).toBe(201);
+    expect(second.status).toBe(201);
+    expect(second.body.data).toEqual(first.body.data);
+    expect(await prisma.order.count({ where: { buyerId: buyer.userId } })).toBe(1);
+    expect(await prisma.payment.count()).toBe(1);
+    expect((await prisma.product.findUniqueOrThrow({ where: { productId: product.productId } })).stock).toBe(2);
+  });
+
   it('two simultaneous checkouts for the last unit: exactly one succeeds, the other gets a stock-conflict error', async () => {
     const seller = await createTestUser('SELLER', { onboarded: true });
     const buyerA = await createTestUser('BUYER');
@@ -331,6 +338,113 @@ describe('POST /api/v1/checkout — concurrent oversell (Task 7.4/8.3)', () => {
 
     const orderCount = await prisma.order.count({ where: { sellerId: seller.userId } });
     expect(orderCount).toBe(1);
+  });
+
+  it('does not duplicate a COD order when the same buyer submits two new keys concurrently', async () => {
+    const seller = await createTestUser('SELLER', { onboarded: true });
+    const buyer = await createTestUser('BUYER');
+    const product = await createTestProduct(seller.userId, { price: 150, stock: 4, status: 'LIVE' });
+    const address = await createAddress(buyer.userId);
+    await addToCart(buyer.accessToken, product.publicId, 1);
+    const body = { addressId: address.addressId.toString(), paymentMethod: 'COD' };
+
+    const responses = await Promise.all([
+      checkoutRequest(buyer.accessToken, body, randomUUID()),
+      checkoutRequest(buyer.accessToken, body, randomUUID()),
+    ]);
+
+    expect(responses.some((response) => response.status === 201)).toBe(true);
+    expect(responses.every((response) => [201, 409, 422].includes(response.status))).toBe(true);
+    expect(await prisma.order.count({ where: { buyerId: buyer.userId } })).toBe(1);
+    expect((await prisma.product.findUniqueOrThrow({ where: { productId: product.productId } })).stock).toBe(3);
+    expect(await prisma.cartItem.count({ where: { cart: { buyerId: buyer.userId } } })).toBe(0);
+  });
+});
+
+describe('POST /api/v1/checkout — Stripe attempt idempotency and reconciliation', () => {
+  async function prepareStripeCart() {
+    const seller = await createTestUser('SELLER', { onboarded: true });
+    const buyer = await createTestUser('BUYER');
+    const product = await createTestProduct(seller.userId, { price: 150, stock: 4, status: 'LIVE' });
+    const address = await createAddress(buyer.userId);
+    await addToCart(buyer.accessToken, product.publicId, 1);
+    return { buyer, product, address, body: { addressId: address.addressId.toString(), paymentMethod: 'STRIPE' } };
+  }
+
+  it('does not reserve stock or create a second payment for concurrent new Stripe keys', async () => {
+    const { buyer, product, body } = await prepareStripeCart();
+    stripeInitiateSpy.mockResolvedValue({ paymentReference: 'pi_concurrent', clientSecret: 'pi_concurrent_secret' });
+    stripeResumeSpy.mockResolvedValue({ paymentReference: 'pi_concurrent', clientSecret: 'pi_concurrent_secret' });
+
+    const responses = await Promise.all([
+      checkoutRequest(buyer.accessToken, body, randomUUID()),
+      checkoutRequest(buyer.accessToken, body, randomUUID()),
+    ]);
+
+    expect(responses.some((response) => response.status === 201)).toBe(true);
+    expect(responses.every((response) => [201, 503].includes(response.status))).toBe(true);
+    expect(await prisma.order.count({ where: { buyerId: buyer.userId } })).toBe(1);
+    expect(await prisma.payment.count({ where: { method: 'STRIPE' } })).toBe(1);
+    expect((await prisma.product.findUniqueOrThrow({ where: { productId: product.productId } })).stock).toBe(3);
+    expect(new Set(stripeInitiateSpy.mock.calls.map((call) => call[1])).size).toBeLessThanOrEqual(1);
+  });
+
+  it('same-key retry reconciles an uncertain Stripe result without creating another order or payment', async () => {
+    const { buyer, product, address, body } = await prepareStripeCart();
+    const key = randomUUID();
+    stripeInitiateSpy
+      .mockRejectedValueOnce(new PaymentOutcomeUncertainError())
+      .mockResolvedValueOnce({ paymentReference: 'pi_test_reconciled', clientSecret: 'pi_test_reconciled_secret' });
+    stripeResumeSpy.mockResolvedValue({ paymentReference: 'pi_test_reconciled', clientSecret: 'pi_test_reconciled_secret' });
+
+    const uncertain = await checkoutRequest(buyer.accessToken, body, key);
+    expect(uncertain.status).toBe(503);
+    expect(uncertain.body.error.code).toBe('PAYMENT_OUTCOME_UNCERTAIN');
+    expect(await prisma.payment.count()).toBe(1);
+    expect(await prisma.payment.findFirstOrThrow()).toMatchObject({ status: 'PENDING', transactionRef: null });
+    expect((await prisma.product.findUniqueOrThrow({ where: { productId: product.productId } })).stock).toBe(3);
+
+    const newKey = await checkoutRequest(buyer.accessToken, body, randomUUID());
+    expect(newKey.status).toBe(201);
+    expect(newKey.body.data.orders[0]).toMatchObject({ paymentClientSecret: 'pi_test_reconciled_secret' });
+    expect(stripeInitiateSpy).toHaveBeenCalledTimes(2);
+
+    const reconciled = await checkoutRequest(buyer.accessToken, body, key);
+    expect(reconciled.status).toBe(201);
+    expect(reconciled.body.data.orders[0]).toMatchObject({ paymentClientSecret: 'pi_test_reconciled_secret' });
+    expect(reconciled.body.data.orders[0].id).toBe(newKey.body.data.orders[0].id);
+    expect(await prisma.order.count({ where: { buyerId: buyer.userId } })).toBe(1);
+    const payment = await prisma.payment.findFirstOrThrow();
+    expect(payment).toMatchObject({ status: 'PENDING', transactionRef: 'pi_test_reconciled' });
+    expect(stripeInitiateSpy.mock.calls[0]?.[1]).toBe(stripeInitiateSpy.mock.calls[1]?.[1]);
+    expect(stripeResumeSpy).toHaveBeenCalledTimes(1);
+    expect((await prisma.product.findUniqueOrThrow({ where: { productId: product.productId } })).stock).toBe(3);
+  });
+
+  it('reused key after a definitively failed attempt returns an actionable error; a fresh user attempt is allowed', async () => {
+    const { buyer, product, address, body } = await prepareStripeCart();
+    const key = randomUUID();
+    stripeInitiateSpy
+      .mockRejectedValueOnce(new PaymentGatewayUnavailableError('Stripe rejected the request.'))
+      .mockResolvedValueOnce({ paymentReference: 'pi_test_new_attempt', clientSecret: 'pi_test_new_secret' });
+
+    const failed = await checkoutRequest(buyer.accessToken, body, key);
+    expect(failed.status).toBe(409);
+    expect(failed.body.error.code).toBe('PAYMENT_ATTEMPT_FAILED');
+    expect(await prisma.payment.findFirstOrThrow()).toMatchObject({ status: 'FAILED' });
+    expect(await prisma.order.findFirstOrThrow()).toMatchObject({ status: 'CANCELLED' });
+    expect((await prisma.product.findUniqueOrThrow({ where: { productId: product.productId } })).stock).toBe(4);
+
+    const replay = await checkoutRequest(buyer.accessToken, body, key);
+    expect(replay.status).toBe(409);
+    expect(replay.body.error.code).toBe('PAYMENT_ATTEMPT_FAILED');
+    expect(stripeInitiateSpy).toHaveBeenCalledTimes(1);
+
+    const freshAttempt = await checkoutRequest(buyer.accessToken, body, randomUUID());
+    expect(freshAttempt.status).toBe(201);
+    expect(freshAttempt.body.data.orders[0].paymentClientSecret).toBe('pi_test_new_secret');
+    expect(await prisma.order.count({ where: { buyerId: buyer.userId } })).toBe(2);
+    expect(await prisma.payment.count()).toBe(2);
   });
 });
 

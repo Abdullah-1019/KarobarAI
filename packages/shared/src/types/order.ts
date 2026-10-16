@@ -1,4 +1,5 @@
 import type { OrderStatus, PaymentMethod } from '../enums/index';
+import type { ReturnStatus } from './return';
 
 // Feature 7 (Order Management) DTOs — Schema §4.10/4.11/4.21 (orders/order_items/tracking_events).
 
@@ -6,8 +7,8 @@ import type { OrderStatus, PaymentMethod } from '../enums/index';
 // Orders and Seller Orders import this same constant — never redefined per role.
 export const ORDER_STATUS_TABS = {
   Pending: ['PAYMENT_PENDING', 'PENDING_MANUAL_LOGISTICS'],
-  ConfirmedProcessing: ['PAYMENT_CONFIRMED', 'PROCESSING'],
-  Shipped: ['PICKED_UP', 'IN_TRANSIT', 'OUT_FOR_DELIVERY'],
+  ConfirmedProcessing: ['PAYMENT_CONFIRMED', 'PROCESSING', 'PACKED'],
+  Shipped: ['HANDED_OVER_TO_COURIER', 'PICKED_UP', 'IN_TRANSIT', 'OUT_FOR_DELIVERY'],
   Delivered: ['DELIVERED', 'COMPLETED'],
   Cancelled: ['CANCELLED'],
 } as const satisfies Record<string, readonly OrderStatus[]>;
@@ -16,6 +17,7 @@ export type OrderStatusTab = keyof typeof ORDER_STATUS_TABS;
 
 export interface OrderListItemDTO {
   id: string; // order publicId
+  orderNumber?: string;
   // Buyer's list shows the seller's storeName; Seller's list shows the order's snapshotted
   // recipient name (Task 4.3's "buyer, masked/summary" — full shipping PII stays Order-Detail-only).
   counterpartyName: string;
@@ -35,6 +37,8 @@ export interface OrderListDTO {
 
 export interface OrderItemDetailDTO {
   productId: string;
+  returnEligible: boolean;
+  resolution?: 'PURCHASED' | 'RETURNED' | 'EXCHANGED';
   titleSnapshot: string;
   unitPrice: string;
   quantity: number;
@@ -58,6 +62,7 @@ export interface OrderShippingDTO {
 
 export interface OrderDetailDTO {
   id: string;
+  orderNumber?: string;
   status: OrderStatus;
   paymentMethod: PaymentMethod;
   paymentStatus: string;
@@ -68,6 +73,7 @@ export interface OrderDetailDTO {
   // Buyer, at the API layer, not just hidden client-side.
   commission: { rate: string; amount: string } | null;
   items: OrderItemDetailDTO[];
+  returnCases: { id: string; status: ReturnStatus; productName: string | null }[];
   shipping: OrderShippingDTO;
   // Feature 7's Task 7 patch: courier assignment is entirely Feature 8's scope. This is always
   // "not_booked" here — never populated with real courier data by this feature.

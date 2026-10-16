@@ -9,6 +9,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl \
 WORKDIR /app
 
 COPY apps/ai-service/requirements.txt apps/ai-service/requirements-dev.txt ./
+# Install the CPU wheel explicitly; PyPI's Linux wheel may pull CUDA libraries.
+RUN pip install --no-cache-dir torch==2.5.1+cpu --index-url https://download.pytorch.org/whl/cpu
 RUN pip install --no-cache-dir -r requirements-dev.txt
 
 COPY apps/ai-service .

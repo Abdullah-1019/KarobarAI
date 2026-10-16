@@ -443,6 +443,8 @@ Each stage depends on the one before it: Cart Operations needs Cart Initializati
 
 ## **Task 7 — Payment Method Selection & Checkout Processing**
 
+> **Feature 19 implementation update (2026-10-10):** the previous mock JazzCash/EasyPaisa checkout described below is superseded for runtime behavior. COD remains available without a provider; Stripe test mode uses Stripe Elements and signed webhooks; JazzCash and EasyPaisa are disabled until merchant onboarding and their documented protocols are implemented. See `Feature-19-Payment-Gateway-Stripe-and-Local.md` for the adapter contract, USD demo conversion, webhook path, and verified status. No browser return is treated as payment confirmation.
+
 ### **Purpose**
 
 -   Build the terminal checkout action: select payment method (JazzCash/Easypaisa/COD, REQ-F-Payment-001) → split the persisted cart into **one order per seller** (D4) → create orders/order\_items/payments rows atomically → decrement stock.

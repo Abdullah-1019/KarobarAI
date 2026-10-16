@@ -42,7 +42,8 @@ function validateConfigValue(key: string, value: unknown): void {
       }
       const obj = value as Record<string, unknown>;
       const keys = Object.keys(obj);
-      if (keys.length !== COURIER_WEIGHT_KEYS.length || !COURIER_WEIGHT_KEYS.every((k) => typeof obj[k] === 'number')) {
+      if (keys.length !== COURIER_WEIGHT_KEYS.length || !COURIER_WEIGHT_KEYS.every((k) =>
+        typeof obj[k] === 'number' && Number.isFinite(obj[k]) && (obj[k] as number) >= 0 && (obj[k] as number) <= 1)) {
         throw new BusinessRuleError(
           `courier_weights must have exactly the fields: ${COURIER_WEIGHT_KEYS.join(', ')}`,
           { key, value },

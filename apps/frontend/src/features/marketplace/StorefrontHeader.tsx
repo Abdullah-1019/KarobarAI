@@ -1,16 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
-import { Drawer, Segmented } from 'antd';
+import { Drawer } from 'antd';
 import type { MenuProps } from 'antd';
-import { ClipboardList, Home, LogOut, Menu, Search, ShoppingCart, User } from 'lucide-react';
+import { ClipboardList, Home, LogOut, Menu, Search, ShoppingBag, Store, User } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, NavLink, useLocation } from 'react-router-dom';
 
-import { Button, Container } from '../../components';
+import { Button, Container, LanguageToggle } from '../../components';
 import { useLanguage, useScrolled } from '../../hooks';
 import type { AuthUser } from '../../lib/authStore';
 import { NotificationBell } from '../notifications';
 import { AccountMenu, GuestAccountLink } from '../profile';
 import { AnnouncementBar } from './AnnouncementBar';
+import { CategoriesMenu } from './CategoriesMenu';
 import { SearchBar } from './SearchBar';
 import { StorefrontLogo } from './StorefrontLogo';
 
@@ -20,14 +21,15 @@ interface StorefrontHeaderProps {
   onLogout: () => void;
 }
 
-// The Buyer storefront navbar (UIUX §10). Bespoke rather than reusing the shared AppHeader
-// (components/AppHeader) because it needs behavior AppHeader doesn't have and Seller/Admin don't
-// want: a dismissible announcement strip, a sticky bar that shrinks + blurs on scroll, the SVG
-// brand lockup, a mobile drawer and a mobile search overlay. Seller/Admin keep AppHeader.
+// The Buyer storefront navbar — Studio Light's floating pill nav (DESIGN-CONSULT §7; the sample
+// Home design). An ink announcement strip scrolls away above a sticky white pill holding the logo,
+// Shop / Sell links, search, the EN/اردو toggle, a round cart button and an ink "Log in" pill.
+// After 24px of scroll the pill turns more opaque and its shadow deepens. Bespoke rather than the
+// shared AppHeader (Seller/Admin keep that): it also owns the mobile drawer and search overlay.
 export function StorefrontHeader({ user, cartCount, onLogout }: StorefrontHeaderProps) {
   const { t } = useTranslation(['common', 'marketplace']);
-  const { language, dir, setLanguage } = useLanguage();
-  const scrolled = useScrolled(8);
+  const { dir } = useLanguage();
+  const scrolled = useScrolled(24);
   const { pathname } = useLocation();
   // On Home the hero's own large search is the primary action; the header copy appears once the
   // visitor scrolls past it, so the page never shows two search boxes at once.
@@ -42,7 +44,7 @@ export function StorefrontHeader({ user, cartCount, onLogout }: StorefrontHeader
   useEffect(() => {
     if (cartCount > prevCartCount.current) {
       setCartPop(true);
-      const id = setTimeout(() => setCartPop(false), 500);
+      const id = setTimeout(() => setCartPop(false), 400);
       prevCartCount.current = cartCount;
       return () => clearTimeout(id);
     }
@@ -78,58 +80,56 @@ export function StorefrontHeader({ user, cartCount, onLogout }: StorefrontHeader
       <AnnouncementBar />
 
       <nav className="storefront-nav" aria-label={t('common:landmarks.buyerNav')}>
-        <Container className="storefront-nav__row">
-          <button
-            type="button"
-            className="icon-btn buyer-mobile"
-            onClick={() => setMenuOpen(true)}
-            aria-label={t('marketplace:nav.openMenu')}
-          >
-            <Menu size={22} aria-hidden="true" />
-          </button>
-
-          <StorefrontLogo />
-
-          <div className={`storefront-nav__search buyer-desktop${heroOwnsSearch ? ' is-deferred' : ''}`}>
-            <SearchBar />
-          </div>
-
-          <div className="storefront-nav__actions">
+        <Container className="storefront-nav__shell">
+          <div className="storefront-nav__row">
             <button
               type="button"
               className="icon-btn buyer-mobile"
-              onClick={() => setSearchOpen(true)}
-              aria-label={t('marketplace:nav.openSearch')}
+              onClick={() => setMenuOpen(true)}
+              aria-label={t('marketplace:nav.openMenu')}
             >
-              <Search size={22} aria-hidden="true" />
+              <Menu size={20} aria-hidden="true" />
             </button>
 
-            <Segmented
-              className="buyer-desktop"
-              size="middle"
-              value={language}
-              onChange={(value) => setLanguage(value as 'EN' | 'UR')}
-              options={[
-                { label: 'EN', value: 'EN' },
-                { label: 'اردو', value: 'UR' },
-              ]}
-            />
+            <StorefrontLogo />
 
-            {user && <NotificationBell />}
+            <div className="storefront-nav__links buyer-desktop">
+              <NavLink to="/search" className="storefront-nav__link">
+                {t('marketplace:nav.shop')}
+              </NavLink>
+              <CategoriesMenu />
+              <NavLink to="/sell" className="storefront-nav__link">
+                {t('marketplace:nav.sell')}
+              </NavLink>
+            </div>
 
-            <Link to="/cart" className={`icon-btn cart-btn${cartPop ? ' is-pop' : ''}`} aria-label={t('common:nav.cart')}>
-              <ShoppingCart size={22} aria-hidden="true" />
-              {cartCount > 0 && <span className="cart-btn__badge">{cartBadge}</span>}
-            </Link>
+            <div className={`storefront-nav__search${heroOwnsSearch ? ' is-deferred' : ''}`}>
+              <SearchBar />
+            </div>
 
-            <span className="buyer-desktop storefront-nav__seller">
-              <Button variant="outline-saffron" to="/sell">
-                {t('marketplace:nav.becomeSeller')}
-              </Button>
-            </span>
+            <div className="storefront-nav__actions">
+              <button
+                type="button"
+                className={`icon-btn storefront-nav__search-btn${heroOwnsSearch ? ' is-deferred' : ''}`}
+                onClick={() => setSearchOpen(true)}
+                aria-label={t('marketplace:nav.openSearch')}
+              >
+                <Search size={20} aria-hidden="true" />
+              </button>
 
-            {/* Account avatar — visible at every width (the drawer is no longer the only way in). */}
-            {user ? <AccountMenu items={menuItems} /> : <GuestAccountLink label={t('marketplace:nav.login')} />}
+              <LanguageToggle className="buyer-desktop" />
+
+              {user && <NotificationBell />}
+
+              <Link to="/cart" className={`icon-btn cart-btn${cartPop ? ' is-pop' : ''}`} aria-label={t('common:nav.cart')}>
+                <ShoppingBag size={20} strokeWidth={1.9} aria-hidden="true" />
+                {cartCount > 0 && <span className="cart-btn__badge">{cartBadge}</span>}
+              </Link>
+
+              {/* Account: an ink "Log in" pill for guests (a round glyph on phones), the avatar menu
+                  once signed in. */}
+              {user ? <AccountMenu items={menuItems} /> : <GuestAccountLink label={t('marketplace:nav.login')} />}
+            </div>
           </div>
         </Container>
       </nav>
@@ -150,6 +150,10 @@ export function StorefrontHeader({ user, cartCount, onLogout }: StorefrontHeader
           <Link to="/search" className="storefront-drawer__link" onClick={() => setMenuOpen(false)}>
             <Search size={18} aria-hidden="true" />
             {t('common:nav.search')}
+          </Link>
+          <Link to="/sell" className="storefront-drawer__link" onClick={() => setMenuOpen(false)}>
+            <Store size={18} aria-hidden="true" />
+            {t('marketplace:nav.sell')}
           </Link>
           {user?.role === 'SELLER' ? (
             <Link to="/seller" className="storefront-drawer__link" onClick={() => setMenuOpen(false)}>
@@ -180,15 +184,7 @@ export function StorefrontHeader({ user, cartCount, onLogout }: StorefrontHeader
         </nav>
 
         <div className="storefront-drawer__section">
-          <Segmented
-            block
-            value={language}
-            onChange={(value) => setLanguage(value as 'EN' | 'UR')}
-            options={[
-              { label: t('common:languageToggle.en'), value: 'EN' },
-              { label: t('common:languageToggle.ur'), value: 'UR' },
-            ]}
-          />
+          <LanguageToggle />
         </div>
 
         <div className="storefront-drawer__section">

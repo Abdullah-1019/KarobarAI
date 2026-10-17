@@ -1,11 +1,11 @@
 /* Auth screens — single shared stylesheet for the whole (public) authentication surface.
-   Structure: ONE rounded container holding a split layout (inset espresso brand panel with a brass
-   block-print tile + clean cream form half), on the parchment canvas. Every rule is written with CSS logical properties only, so the
-   whole layout mirrors under dir="rtl" — the grid columns follow the writing direction, and the
-   panel (first child) automatically swaps sides. No left/right, no RTL-specific layout code.
+   Structure (Studio Light, DESIGN-CONSULT §8): a split layout on the warm-white page — a peach
+   wash brand panel (36px band, lilac blob, faint ink block-print, a real AI listing card) beside
+   the form, which sits straight on the page. Every rule is written with CSS logical properties,
+   so the whole layout mirrors under dir="rtl" — the panel (first child) swaps sides on its own.
 
-   Colours, radii and type come from the global Haveli tokens (global.css); the auth-scoped names
-   below are aliases only, so this surface can never drift from the rest of the app. */
+   Colours, radii and type come from the global Studio Light tokens (global.css); the auth-scoped
+   names below are aliases only, so this surface can never drift from the rest of the app. */
 
 .kaAuth,
 .kaAuth *,
@@ -19,27 +19,22 @@
    ------------------------------------------------------------------------------------------- */
 .kaAuth {
   /* Page / surfaces */
-  --auth-bg: var(--bg-canvas); /* parchment */
-  --form-bg: var(--bg-surface); /* cream — form half + toggle track */
-  --panel-bg: var(--brand-ink); /* espresso brand panel */
-  --panel-bg-2: var(--brand-ink-2); /* walnut gradient end */
-  --mint: var(--brand-primary-soft); /* peach-clay — selected states, soft fills (name kept) */
+  --auth-bg: var(--bg-canvas);
+  --form-bg: var(--bg-surface); /* white — form half + toggle track */
+  --panel-bg: var(--wash-peach);
+  --mint: var(--brand-primary-soft); /* persimmon-soft — selected states, soft fills (name kept) */
 
-  /* Fields */
-  --field-bg: var(--bg-sunken); /* sand */
-  --field-border: rgba(43, 29, 20, 0.2);
-  --field-border-hover: rgba(43, 29, 20, 0.38);
-
-  /* Placeholders/helper text sit on sand fields, so they use umber (secondary) rather than taupe
-     to keep a comfortable margin over the 4.5:1 floor on every surface they land on. */
-  --text-muted: var(--text-secondary); /* umber: ≈5.3:1 on sand, ≈6.2:1 on cream */
+  /* Fields inherit the global --field-* tokens (stone at rest, white + ink edge on focus).
+     Placeholders/helper text use graphite (secondary), not the caption grey, to keep a comfortable
+     margin over the 4.5:1 floor on every surface they land on. */
+  --text-muted: var(--text-secondary); /* graphite: 6.1:1 on stone, 6.9:1 on white */
   --danger: var(--error);
 
   /* Radii / elevation */
   --radius-container: var(--radius-xl);
-  --radius-panel: var(--radius-card);
-  --radius-field: var(--radius-md);
-  --shadow-container: 0 1px 2px rgba(43, 29, 20, 0.05), 0 24px 60px rgba(43, 29, 20, 0.1);
+  --radius-panel: 36px; /* big bands (DESIGN-CONSULT §4) */
+  --radius-field: var(--radius-input);
+  --shadow-container: var(--shadow-xl);
 
   display: flex;
   align-items: center;
@@ -52,54 +47,85 @@
 }
 
 /* -------------------------------------------------------------------------------------------
-   Container
+   Container — no outer card: the brand panel is a 36px wash band and the form sits straight on
+   the warm-white page beside it (one surface, never a card nested in a card).
    ------------------------------------------------------------------------------------------- */
 .kaContainer {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  gap: clamp(24px, 4vw, 64px);
   width: 100%;
-  max-width: 1160px;
-  min-height: 680px;
+  max-width: 1240px;
+  min-height: min(760px, calc(100dvh - 48px));
   margin: auto;
-  background: var(--form-bg);
-  border-radius: var(--radius-container);
-  box-shadow: var(--shadow-container);
-  overflow: hidden;
 }
 
 /* -------------------------------------------------------------------------------------------
-   Brand panel (inset card)
+   Brand panel — a peach wash with a slow lilac blob, ink copy, the faint ink block-print (one of
+   the two places Studio Light keeps it), and a real AI listing card.
    ------------------------------------------------------------------------------------------- */
 .kaPanel {
   position: relative;
+  isolation: isolate;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  margin: 14px;
-  padding: 32px;
+  gap: 32px;
+  padding: clamp(28px, 3.4vw, 44px);
   border-radius: var(--radius-panel);
   overflow: hidden;
-  color: var(--text-on-dark);
-  background: linear-gradient(160deg, var(--panel-bg), var(--panel-bg-2));
+  color: var(--text-primary);
+  background: var(--panel-bg);
+}
+/* Lilac blob drifting behind the card (static under reduced motion via the global rule). */
+.kaPanel::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  width: 520px;
+  height: 520px;
+  inset-inline-end: -180px;
+  inset-block-end: -160px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--wash-lilac-blob) 0%, transparent 68%);
+  animation: ka-blob-drift 20s var(--ease) infinite alternate;
+}
+/* A warmer peach blob near the copy. */
+.kaPanel::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  width: 420px;
+  height: 420px;
+  inset-inline-start: -160px;
+  inset-block-start: -140px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--wash-peach-blob) 0%, transparent 70%);
+  animation: ka-blob-drift 24s var(--ease) infinite alternate-reverse;
+}
+@keyframes ka-blob-drift {
+  to {
+    transform: translate(26px, -22px);
+  }
 }
 
-/* The brand's brass block-print tile (--pattern-blockprint, global.css) on the espresso panel. */
+/* The block-print tile in ink at 5%, gathered toward the card side and fading out behind the
+   copy (mask mirrors under RTL). */
 .kaPanelPattern {
   position: absolute;
   inset: 0;
-  z-index: 0;
+  z-index: -1;
   pointer-events: none;
   background-image: var(--pattern-blockprint);
   background-size: var(--pattern-size) var(--pattern-size);
-  opacity: 0.12; /* same tint as the hero's block-print */
   background-position: center;
+  opacity: 0.05;
+  -webkit-mask-image: linear-gradient(to left, #000 15%, transparent 75%);
+  mask-image: linear-gradient(to left, #000 15%, transparent 75%);
 }
-
-/* Lift the panel content above the pattern — but not the pattern itself, which must stay
-   absolutely positioned behind everything. */
-.kaPanel > :not(.kaPanelPattern) {
-  position: relative;
-  z-index: 1;
+[dir='rtl'] .kaPanelPattern {
+  -webkit-mask-image: linear-gradient(to right, #000 15%, transparent 75%);
+  mask-image: linear-gradient(to right, #000 15%, transparent 75%);
 }
 
 .kaPanelTop {
@@ -116,69 +142,77 @@
   text-decoration: none;
 }
 
-/* The shared BrandLogo lockup, set in parchment on the espresso panel. */
-.kaBrand .storefront-logo {
-  color: var(--text-on-dark);
-}
-
 .kaBackPill {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 36px;
-  padding-inline: 14px;
+  height: 44px;
+  padding-inline: 16px;
   border-radius: 9999px;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  background: rgba(255, 255, 255, 0.14);
-  color: var(--text-on-dark);
-  font-size: 13px;
-  font-weight: 500;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: 13.5px;
+  font-weight: 600;
   text-decoration: none;
   white-space: nowrap;
-  transition: background var(--dur-fast) var(--ease);
+  box-shadow: var(--shadow-xs);
+  transition:
+    box-shadow var(--dur-fast) var(--ease),
+    transform var(--dur-slow) var(--ease-spring);
 }
 .kaBackPill:hover {
-  background: rgba(255, 255, 255, 0.22);
+  box-shadow: var(--shadow-sm);
+}
+.kaBackPill:active {
+  transform: scale(0.97);
+  transition-duration: var(--dur-instant);
 }
 
 .kaPanelMid {
   display: flex;
   flex-direction: column;
+  gap: 28px;
 }
 
 .kaPanelHeadline {
   margin: 0;
-  max-width: 14ch;
-  font-size: 38px;
-  font-weight: 700;
-  line-height: 1.1;
-  letter-spacing: -0.02em;
+  max-width: 13ch;
+  font-size: clamp(36px, 3.6vw, 52px);
+  font-weight: var(--fw-display);
+  line-height: 1.04;
+  letter-spacing: var(--tracking-display);
   text-wrap: balance;
-  color: var(--text-on-dark);
+  color: var(--text-primary);
 }
 
 /* -------------------------------------------------------------------------------------------
-   AI listing mockup card (pure HTML/CSS, no images)
+   AI listing card — the sample Home's "Written by AI" card in miniature: real product art on its
+   tint, both titles, tags, the price and a live dot. Tilted like a card set down on the wash.
    ------------------------------------------------------------------------------------------- */
 .kaMock {
   width: 100%;
-  max-width: 380px;
-  margin-top: 28px;
-  padding: 16px;
-  border-radius: 18px;
+  max-width: 400px;
+  padding: 14px;
+  border-radius: 24px;
   background: var(--bg-surface);
-  box-shadow: 0 20px 40px rgba(12, 7, 4, 0.35);
+  box-shadow: var(--shadow-xl);
   transform: rotate(-2deg);
+  animation: ka-card-settle var(--dur-enter) var(--ease-soft) both;
+}
+@keyframes ka-card-settle {
+  from {
+    transform: translateY(14px) rotate(-4deg);
+  }
 }
 
 .kaMockChip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 10px;
+  padding: 5px 12px;
   border-radius: 9999px;
-  background: var(--accent-marigold-soft);
-  color: var(--accent-ink);
+  background: var(--brand-ink);
+  color: var(--text-on-dark);
   font-size: 12px;
   font-weight: 600;
 }
@@ -186,20 +220,23 @@
 .kaMockRow {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   margin-top: 12px;
 }
 
 .kaMockPhoto {
-  display: flex;
   flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  width: 64px;
-  height: 64px;
-  border-radius: 12px;
-  background: linear-gradient(150deg, var(--mint), var(--accent-marigold-soft));
-  color: var(--brand-primary);
+  width: 88px;
+  height: 104px;
+  border-radius: 18px;
+  overflow: hidden;
+  background: var(--cat-fashion-bg);
+}
+.kaMockPhoto img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .kaMockText {
@@ -207,15 +244,15 @@
 }
 
 .kaMockTitleEn {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--text-primary);
 }
 
 .kaMockTitleUr {
   font-family: var(--font-urdu);
-  font-size: 15px;
-  line-height: 1.9;
+  font-size: 16px;
+  line-height: 2;
   color: var(--text-secondary);
 }
 
@@ -227,11 +264,16 @@
 }
 
 .kaMockTag {
-  padding: 3px 8px;
+  padding: 4px 12px;
   border-radius: 9999px;
-  background: var(--mint);
-  color: var(--brand-primary-active);
-  font-size: 12px;
+  background: var(--bg-sunken);
+  color: var(--text-primary);
+  font-size: 12.5px;
+}
+.kaMockTag:lang(ur) {
+  font-family: var(--font-urdu);
+  padding-block: 0;
+  line-height: 1.9;
 }
 
 .kaMockFooter {
@@ -239,29 +281,34 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-top: 12px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
 }
 
 .kaMockPrice {
-  font-size: 15px;
-  font-weight: 700;
+  font-family: var(--font-heading);
+  font-size: 18px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
   color: var(--text-primary);
 }
 
 .kaLive {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  font-size: 11px;
+  gap: 6px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--success);
 }
 
 .kaLiveDot {
-  width: 7px;
-  height: 7px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: var(--success);
+  box-shadow: 0 0 0 3px var(--success-soft);
 }
 
 /* -------------------------------------------------------------------------------------------
@@ -280,18 +327,22 @@
 .kaCaption {
   grid-area: 1 / 1;
   margin: 0;
-  max-width: 24ch;
-  font-size: 20px;
+  max-width: 26ch;
+  font-size: 19px;
   font-weight: 600;
   line-height: 1.4;
-  color: var(--text-on-dark);
+  color: var(--text-primary);
   opacity: 0;
+  transform: translateY(6px);
   pointer-events: none;
-  transition: opacity 300ms ease;
+  transition:
+    opacity var(--dur-slow) var(--ease),
+    transform var(--dur-slow) var(--ease-soft);
 }
 
 .kaCaption[data-active='true'] {
   opacity: 1;
+  transform: none;
 }
 
 .kaDots {
@@ -303,39 +354,42 @@
 
 .kaDot {
   position: relative;
-  width: 28px;
+  width: 24px;
   height: 4px;
   padding: 0;
   border: 0;
   border-radius: 9999px;
-  background: rgba(255, 255, 255, 0.35);
+  background: rgb(var(--shadow-ink) / 0.18);
   cursor: pointer;
   transition: background var(--dur-fast) var(--ease);
 }
-/* Enlarge the pointer target without changing the 28×4 pill (WCAG 2.5.5). */
+/* Enlarge the pointer target without changing the drawn pill (WCAG 2.5.5). */
 .kaDot::before {
   content: '';
   position: absolute;
-  inset: -10px 0;
+  inset: -20px -2px;
 }
 .kaDot[data-active='true'] {
-  background: var(--text-on-dark);
+  background: var(--brand-ink);
 }
 .kaDot:hover {
-  background: rgba(255, 255, 255, 0.6);
+  background: rgb(var(--shadow-ink) / 0.4);
 }
 .kaDot[data-active='true']:hover {
-  background: var(--text-on-dark);
+  background: var(--brand-ink);
+}
+.kaDot:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--brand-ring);
 }
 
 /* -------------------------------------------------------------------------------------------
-   Form half
+   Form half — straight on the page, a 440px column centred in its half.
    ------------------------------------------------------------------------------------------- */
 .kaFormSide {
   display: flex;
   flex-direction: column;
-  padding-block: 24px 32px;
-  padding-inline: 56px;
+  padding-block: 8px 24px;
 }
 
 /* Top row: language toggle aligned to the inline-end, flush with the form column's edge. On
@@ -347,9 +401,8 @@
   gap: 12px;
   width: 100%;
   max-width: 440px;
-  height: 36px;
   margin-inline: auto;
-  margin-bottom: 22px;
+  margin-bottom: 24px;
 }
 
 .kaMobileBrand {
@@ -375,64 +428,56 @@
   margin-inline: auto;
 }
 
-/* Optional leading icon tile (Register etc.). */
-.kaIconTile {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  margin-bottom: 12px;
-  border-radius: 12px;
-  background: var(--mint);
-  color: var(--brand-primary);
-}
-
 .kaTitle {
   margin: 0;
-  font-size: 30px;
-  font-weight: 600;
-  line-height: 1.2;
-  letter-spacing: -0.01em;
+  font-size: clamp(32px, 2.6vw, 40px);
+  font-weight: var(--fw-display);
+  line-height: 1.08;
+  letter-spacing: var(--tracking-heading);
   color: var(--text-primary);
+  text-wrap: balance;
 }
 
 .kaSubtitle {
-  margin: 4px 0 16px;
-  font-size: 15px;
-  line-height: 1.5;
+  margin: 10px 0 24px;
+  font-size: 16px;
+  line-height: 1.55;
   color: var(--text-secondary);
 }
 
 .kaFooter {
-  margin-top: 16px;
+  margin-top: 20px;
   text-align: center;
-  font-size: 13.5px;
+  font-size: 14px;
   line-height: 1.6;
   color: var(--text-secondary);
 }
 .kaFooter a {
-  color: var(--brand-primary);
+  color: var(--text-primary);
   font-weight: 600;
-  text-decoration: none;
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 4px;
+  text-decoration-color: var(--border-strong);
+  transition: text-decoration-color var(--dur-fast) var(--ease);
 }
 .kaFooter a:hover {
-  text-decoration: underline;
+  text-decoration-color: currentColor;
 }
 
 /* -------------------------------------------------------------------------------------------
-   RTL / Urdu — Nastaliq needs a taller line box, and renders smaller, so sizes gain +1px.
+   RTL / Urdu — Nastaliq needs a taller line box, and renders smaller, so sizes gain a little.
    ------------------------------------------------------------------------------------------- */
 [dir='rtl'] .kaPanelHeadline {
   font-family: var(--font-urdu);
-  font-size: 39px;
-  line-height: 1.8;
+  font-size: clamp(32px, 3.2vw, 44px);
+  line-height: 1.85;
   letter-spacing: normal;
 }
 
 [dir='rtl'] .kaTitle {
   font-family: var(--font-urdu);
-  font-size: 31px;
+  font-size: clamp(28px, 2.4vw, 34px);
   line-height: 1.9;
   letter-spacing: normal;
 }
@@ -444,49 +489,85 @@
 
 [dir='rtl'] .kaCaption {
   font-family: var(--font-urdu);
-  font-size: 21px;
+  font-size: 20px;
   line-height: 1.9;
 }
 
 [dir='rtl'] .kaMock {
   transform: rotate(2deg);
 }
+@keyframes ka-card-settle-rtl {
+  from {
+    transform: translateY(14px) rotate(4deg);
+  }
+}
+[dir='rtl'] .kaMock {
+  animation-name: ka-card-settle-rtl;
+}
 
 /* -------------------------------------------------------------------------------------------
-   Responsive
+   Responsive — below 1024px the panel steps aside and the form owns the page.
    ------------------------------------------------------------------------------------------- */
 @media (max-width: 1023px) {
   .kaContainer {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     max-width: 520px;
-    border-radius: 24px;
+    min-height: 0;
   }
   .kaPanel {
     display: none;
   }
-  .kaFormSide {
-    padding-inline: 24px;
-  }
+  /* Phones and tablets: the studio arrives as a slim peach band carrying the logo and the
+     language toggle (static blob + the faint ink block-print), and the form starts under it. */
   .kaTopRow {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    align-items: flex-start;
     justify-content: space-between;
+    max-width: 520px;
+    min-height: 136px;
+    padding: 18px 18px 18px 20px;
+    border-radius: 28px;
+    background: var(--panel-bg);
+    margin-bottom: 28px;
+  }
+  .kaTopRow::before {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    width: 300px;
+    height: 300px;
+    inset-inline-end: -110px;
+    inset-block-end: -170px;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--wash-lilac-blob) 0%, transparent 68%);
+  }
+  .kaTopRow::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background-image: var(--pattern-blockprint);
+    background-size: 56px 56px;
+    opacity: 0.05;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 10%, #000 90%);
+    mask-image: linear-gradient(to bottom, transparent 10%, #000 90%);
   }
   .kaMobileBrand {
     display: inline-flex;
+    margin-block-start: 10px;
   }
 }
 
 @media (max-width: 639px) {
   .kaAuth {
-    padding: 0;
+    align-items: flex-start;
+    padding: 12px 16px 24px;
   }
+  /* Phones start at the top: the band is the first thing seen, not floating mid-screen. */
   .kaContainer {
-    max-width: 100%;
-    min-height: 100dvh;
-    border-radius: 0;
-    box-shadow: none;
-  }
-  .kaFormSide {
-    padding-inline: 20px;
+    margin-block: 0;
   }
 }
 
@@ -527,11 +608,13 @@
 .kaFieldLabelLink {
   font-size: 13px;
   font-weight: 600;
-  color: var(--brand-primary);
-  text-decoration: none;
+  color: var(--text-primary);
+  text-decoration: underline;
+  text-decoration-color: var(--border-strong);
+  text-underline-offset: 4px;
 }
 .kaFieldLabelLink:hover {
-  text-decoration: underline;
+  text-decoration-color: currentColor;
 }
 .kaFieldError {
   margin: 6px 0 0;
@@ -574,7 +657,7 @@
 .kaInput:focus {
   outline: none;
   background: var(--bg-surface);
-  border-color: var(--brand-primary);
+  border-color: var(--field-border-focus);
   box-shadow: 0 0 0 3px var(--brand-ring);
 }
 .kaControl--icon .kaInput {
@@ -620,10 +703,10 @@
 }
 .kaPwToggle:hover {
   color: var(--text-primary);
-  background: rgba(43, 29, 20, 0.06);
+  background: rgb(var(--shadow-ink) / 0.06);
 }
 .kaPwToggle:focus-visible {
-  outline: 2px solid var(--brand-primary);
+  outline: 3px solid var(--brand-ring);
   outline-offset: 2px;
 }
 
@@ -645,7 +728,7 @@
 }
 .kaPhone:focus-within {
   background: var(--bg-surface);
-  border-color: var(--brand-primary);
+  border-color: var(--field-border-focus);
   box-shadow: 0 0 0 3px var(--brand-ring);
 }
 .kaPhone[data-invalid='true'] {
@@ -709,7 +792,7 @@
   --lbl: var(--danger);
 }
 .kaStrength[data-level='2'] {
-  --seg: var(--accent-marigold);
+  --seg: var(--warning);
   --lbl: var(--warning);
 }
 .kaStrength[data-level='3'] {
@@ -806,16 +889,17 @@
   border-color: var(--field-border-hover);
 }
 .kaRoleCard[data-selected='true'] {
-  border-color: var(--brand-primary);
-  background: var(--mint);
+  border-color: var(--brand-ink);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-sm);
 }
 .kaRoleCard:focus-within {
-  outline: 2px solid var(--brand-primary);
+  outline: 3px solid var(--brand-ring);
   outline-offset: 2px;
 }
 .kaRoleIcon {
   display: flex;
-  color: var(--brand-primary);
+  color: var(--text-primary);
 }
 .kaRoleTitle {
   font-size: 14px;
@@ -831,7 +915,7 @@
   position: absolute;
   inset-inline-end: 12px;
   top: 12px;
-  color: var(--brand-primary);
+  color: var(--brand-ink);
   opacity: 0;
   transition: opacity var(--dur-fast, 150ms) var(--ease, ease);
 }
@@ -843,10 +927,9 @@
 .kaMethods {
   display: flex;
   gap: 4px;
-  padding: 3px;
-  border: 1px solid var(--field-border);
-  border-radius: 12px;
-  background: var(--field-bg);
+  padding: 4px;
+  border-radius: 9999px;
+  background: var(--bg-sunken);
   margin-bottom: 16px;
 }
 .kaMethodTab {
@@ -855,7 +938,7 @@
   align-items: center;
   justify-content: center;
   height: 40px;
-  border-radius: 9px;
+  border-radius: 9999px;
   font-size: 14px;
   font-weight: 600;
   color: var(--text-secondary);
@@ -871,21 +954,23 @@
   box-shadow: var(--shadow-xs);
 }
 .kaMethodTab:focus-within {
-  outline: 2px solid var(--brand-primary);
+  outline: 3px solid var(--brand-ring);
   outline-offset: 2px;
 }
 
 /* Primary button ------------------------------------------------------------------------ */
 .kaBtn {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   width: 100%;
-  height: 48px;
+  height: 52px;
   border: 0;
-  border-radius: var(--radius-field);
+  border-radius: 9999px;
   background: var(--brand-primary);
+  box-shadow: var(--shadow-cta);
   color: var(--text-on-brand);
   font-family: inherit;
   font-size: 15px;
@@ -893,25 +978,31 @@
   cursor: pointer;
   transition:
     background var(--dur-fast, 150ms) var(--ease, ease),
-    transform var(--dur-fast, 150ms) var(--ease, ease),
+    transform var(--dur-slow, 320ms) var(--ease-spring),
     box-shadow var(--dur-fast, 150ms) var(--ease, ease);
 }
-.kaBtn:hover:not(:disabled) {
-  background: var(--brand-primary-hover);
-  transform: translateY(-1px);
-  box-shadow: 0 8px 18px rgba(174, 84, 41, 0.24);
+@media (hover: hover) and (pointer: fine) {
+  .kaBtn:hover:not(:disabled) {
+    background: var(--brand-primary-hover);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-cta-hover);
+  }
 }
 .kaBtn:active:not(:disabled) {
-  transform: translateY(0);
+  background: var(--brand-primary-press);
+  transform: scale(0.97);
+  box-shadow: var(--shadow-xs);
+  transition-duration: var(--dur-instant);
 }
 .kaBtn:disabled {
-  background: var(--border-strong);
-  color: var(--text-secondary);
+  background: var(--bg-sunken);
+  color: var(--text-disabled);
+  box-shadow: none;
   cursor: not-allowed;
 }
 .kaBtn:focus-visible {
-  outline: 2px solid var(--brand-primary);
-  outline-offset: 2px;
+  outline: none;
+  box-shadow: var(--shadow-cta), 0 0 0 2px var(--bg-canvas), 0 0 0 5px var(--brand-ring);
 }
 .kaSpinner {
   width: 18px;
@@ -949,7 +1040,7 @@
 }
 .kaAlert--success {
   background: var(--success-soft);
-  border: 1px solid rgba(79, 122, 58, 0.25);
+  border: 1px solid rgb(63 106 44 / 0.25);
   color: var(--success);
 }
 .kaAlert--info {
@@ -988,7 +1079,7 @@
 .kaOtpBox:focus {
   outline: none;
   background: var(--bg-surface);
-  border-color: var(--brand-primary);
+  border-color: var(--field-border-focus);
   box-shadow: 0 0 0 3px var(--brand-ring);
 }
 .kaOtp[data-invalid='true'] .kaOtpBox {
@@ -1029,14 +1120,15 @@
   border-color: var(--field-border-hover);
 }
 .kaCheckbox input:checked + .kaCheckboxBox {
-  background: var(--brand-primary);
-  border-color: var(--brand-primary);
+  background: var(--brand-ink);
+  border-color: var(--brand-ink);
+  color: var(--text-on-dark);
 }
 .kaCheckbox input:checked + .kaCheckboxBox svg {
   opacity: 1;
 }
 .kaCheckbox input:focus-visible + .kaCheckboxBox {
-  outline: 2px solid var(--brand-primary);
+  outline: 3px solid var(--brand-ring);
   outline-offset: 2px;
 }
 .kaCheckboxField[data-invalid='true'] .kaCheckboxBox {
@@ -1071,7 +1163,7 @@
   cursor: default;
 }
 .kaTextButton:focus-visible {
-  outline: 2px solid var(--brand-primary);
+  outline: 3px solid var(--brand-ring);
   outline-offset: 2px;
   border-radius: 4px;
 }
@@ -1158,8 +1250,8 @@
   margin-bottom: 16px;
 }
 .kaResultIcon--success {
-  background: var(--mint);
-  color: var(--brand-primary);
+  background: var(--success-soft);
+  color: var(--success);
 }
 .kaResultIcon--error {
   background: var(--error-soft);

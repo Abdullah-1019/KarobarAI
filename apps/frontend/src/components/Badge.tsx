@@ -4,7 +4,8 @@ import { BadgeCheck } from 'lucide-react';
 type BadgeVariant = 'new' | 'sale' | 'cod' | 'verified' | 'low-stock' | 'out-of-stock';
 
 interface BadgeProps {
-  /** new = saffron NEW; sale = terracotta discount; cod = mint COD pill; verified = tick + label. */
+  /** new = ink NEW pill; sale = red discount; cod = stone COD pill; verified = ink seal + label;
+   * low-stock = red on red-soft; out-of-stock = caption grey on stone. */
   variant: BadgeVariant;
   children: ReactNode;
   className?: string;

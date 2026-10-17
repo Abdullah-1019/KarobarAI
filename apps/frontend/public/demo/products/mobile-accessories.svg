@@ -1,21 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500" role="img" aria-label="Mobile accessories — placeholder illustration">
-  <!-- KarobarAI placeholder product illustration (mobile-accessories). Hand-authored SVG, Haveli palette (Batch 0.8). Not a product photo. -->
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E3E7EF"/><stop offset="1" stop-color="#FFFDF9"/></linearGradient>
-    <pattern id='bp' width='48' height='48' patternUnits='userSpaceOnUse'><g fill='none' stroke='#3A4D7A' stroke-width='1' opacity='0.35'><rect x='8' y='8' width='32' height='32'/><rect x='8' y='8' width='32' height='32' transform='rotate(45 24 24)'/><circle cx='24' cy='24' r='4'/></g></pattern>
-    <radialGradient id="fade" cx="0.85" cy="0.1" r="0.6"><stop offset="0" stop-color="#fff" stop-opacity="1"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
-    <mask id="m"><rect width="400" height="500" fill="url(#fade)"/></mask>
-  </defs>
-  <rect width="400" height="500" fill="url(#bg)"/>
-  <rect width="400" height="500" fill="url(#bp)" mask="url(#m)"/>
-  <ellipse cx="200" cy="412" rx="118" ry="16" fill="#2B1D14" opacity="0.10"/>
-  <!-- phone + braided cable -->
-  <rect x="140" y="104" width="120" height="236" rx="22" fill="#2B1D14"/>
-  <rect x="150" y="122" width="100" height="196" rx="12" fill="#5A3A22"/>
-  <rect x="150" y="122" width="100" height="196" rx="12" fill="url(#bp)" opacity="0.9"/>
-  <circle cx="200" cy="113" r="3.5" fill="#D4C4AB"/>
-  <rect x="186" y="326" width="28" height="5" rx="2.5" fill="#D4C4AB"/>
-  <path d="M200 340v20c0 30 60 18 70 40s-20 30-40 20" fill="none" stroke="#AE5429" stroke-width="7" stroke-linecap="round" stroke-dasharray="2 6"/>
-  <path d="M200 340v20c0 30 60 18 70 40s-20 30-40 20" fill="none" stroke="#9A4722" stroke-width="3" stroke-linecap="round"/>
-  <rect x="216" y="404" width="22" height="14" rx="4" fill="#2B1D14"/>
+  <!-- KarobarAI placeholder product illustration (mobile-accessories). Hand-authored SVG: the Haveli drawing with its background and block-print removed and recoloured for Studio Light, as a transparent cut-out for tinted tiles (same art as the approved sample Home design). Not a product photo. -->
+  <ellipse cx="200" cy="412" rx="118" ry="16" fill="#17171A" opacity="0.10"></ellipse>
+  <rect x="140" y="104" width="120" height="236" rx="22" fill="#17171A"></rect>
+  <rect x="150" y="122" width="100" height="196" rx="12" fill="#3A3A40"></rect>
+  <rect x="150" y="122" width="100" height="196" rx="12" fill="url(#bp)" opacity="0.9"></rect>
+  <circle cx="200" cy="113" r="3.5" fill="#CFCCC6"></circle>
+  <rect x="186" y="326" width="28" height="5" rx="2.5" fill="#CFCCC6"></rect>
+  <path d="M200 340v20c0 30 60 18 70 40s-20 30-40 20" fill="none" stroke="#BF4A1F" stroke-width="7" stroke-linecap="round" stroke-dasharray="2 6"></path>
+  <path d="M200 340v20c0 30 60 18 70 40s-20 30-40 20" fill="none" stroke="#A63E17" stroke-width="3" stroke-linecap="round"></path>
+  <rect x="216" y="404" width="22" height="14" rx="4" fill="#17171A"></rect>
 </svg>

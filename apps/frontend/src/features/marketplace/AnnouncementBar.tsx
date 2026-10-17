@@ -7,7 +7,7 @@ import { Container } from '../../components';
 const DISMISS_KEY = 'karobarai:announcement-dismissed';
 const ROTATE_MS = 4000;
 
-// Buyer storefront announcement strip (36px) above the navbar. Cycles three messages every 4s and
+// Buyer storefront announcement strip (36px, ink) above the floating pill nav. Cycles three messages every 4s and
 // can be dismissed for the session (sessionStorage — reappears next session, matching a
 // promo-announcement, not a permanent preference).
 export function AnnouncementBar() {
@@ -43,7 +43,10 @@ export function AnnouncementBar() {
   return (
     <div className="announce">
       <Container className="announce__inner">
-        <p className="announce__text">{messages[index]}</p>
+        {/* Keyed so each rotation replays the small rise-in. */}
+        <p key={index} className="announce__text" aria-live="off">
+          {messages[index]}
+        </p>
         <button type="button" className="announce__close" onClick={dismiss} aria-label={t('nav.dismissAnnouncement')}>
           <X size={15} aria-hidden="true" />
         </button>

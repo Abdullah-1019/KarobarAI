@@ -1,6 +1,9 @@
 ---
+# RETIRED (2026-10-17): the Haveli tokens below are anti-reference. Studio Light replaced them; the
+# source of truth is docs/frontend/DESIGN-CONSULT.md + src/app/global.css until this file is rewritten.
 name: KarobarAI
-description: A bilingual (English/Urdu) marketplace and AI store builder for Pakistani sellers, dressed as a Lahore haveli at golden hour.
+status: retired
+description: "RETIRED Haveli design system, kept for history only. Do not build from these tokens; use docs/frontend/DESIGN-CONSULT.md (Studio Light) and src/app/global.css."
 colors:
   parchment: "#faf6ef"
   cream: "#fffdf9"
@@ -292,6 +295,13 @@ components:
     rounded: "{rounded.pill}"
     size: "64px"
 ---
+
+> **RETIRED — do not build from this file.** On 2026-10-17 Rafia replaced the "Haveli" world described
+> below with **Studio Light** (warm white, ink, one persimmon CTA, peach/lilac washes, Outfit + Inter).
+> Until this file is rewritten from the shipped build at the end of the migration, the source of truth
+> is `docs/frontend/DESIGN-CONSULT.md` plus the live tokens in `src/app/global.css`. Everything below
+> (espresso, brass, parchment, copper, Fraunces) is anti-reference.
+
 
 # Design System: KarobarAI
 

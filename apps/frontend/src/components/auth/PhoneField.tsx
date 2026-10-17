@@ -66,7 +66,9 @@ export const PhoneField = forwardRef<HTMLInputElement, PhoneFieldProps>(function
           <span className="kaPhoneFlag" aria-hidden="true">
             🇵🇰
           </span>
-          <span className="kaPhoneCode">+92</span>
+          <span className="kaPhoneCode" dir="ltr">
+            +92
+          </span>
         </span>
         <input
           ref={ref}

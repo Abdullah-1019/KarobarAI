@@ -22,6 +22,7 @@ import {
   toast,
 } from '../../components';
 import { ProductCard } from '../marketplace/ProductCard';
+import { tintFor } from '../marketplace/categoryVisuals';
 
 // Synthetic fixtures for the dev gallery only (route is DEV-gated) — labelled "Sample", never shown
 // to real users, so the card can be reviewed without a running backend.
@@ -37,13 +38,13 @@ const PLACEHOLDER_SLUGS = [
 ];
 const now = new Date().toISOString();
 const SAMPLE_PRODUCTS: ProductDetailDTO[] = [
-  { slug: 'fashion-clothing', title: 'Sample · Block-print cotton kurta', price: '2499.00', stock: 18, createdAt: now },
-  { slug: 'home-kitchen', title: 'Sample · Hand-painted ceramic mug set', price: '1850.00', stock: 3, createdAt: '2025-01-01T00:00:00.000Z' },
-  { slug: 'mobile-accessories', title: 'Sample · Braided fast-charging cable', price: '899.00', stock: 0, createdAt: now },
+  { slug: 'fashion-clothing', nameEn: 'Fashion & Clothing', nameUr: 'فیشن اور ملبوسات', title: 'Sample · Block-print cotton kurta', titleUr: 'بلاک پرنٹ سوتی کرتا', price: '2499.00', stock: 18, createdAt: now },
+  { slug: 'home-kitchen', nameEn: 'Home & Kitchen', nameUr: 'گھر اور کچن', title: 'Sample · Hand-painted ceramic mug set', titleUr: 'ہاتھ سے پینٹ شدہ مگ سیٹ', price: '1850.00', stock: 3, createdAt: '2025-01-01T00:00:00.000Z' },
+  { slug: 'mobile-accessories', nameEn: 'Mobile Accessories', nameUr: 'موبائل لوازمات', title: 'Sample · Braided fast-charging cable', titleUr: 'تیز چارجنگ کیبل', price: '899.00', stock: 0, createdAt: now },
 ].map((p, i) => ({
   id: `sample-${i}`,
   titleEn: p.title,
-  titleUr: null,
+  titleUr: p.titleUr,
   descriptionEn: null,
   descriptionUr: null,
   price: p.price,
@@ -51,7 +52,7 @@ const SAMPLE_PRODUCTS: ProductDetailDTO[] = [
   condition: 'NEW',
   status: 'LIVE',
   aiGenerated: false,
-  category: null,
+  category: { id: `sample-cat-${i}`, slug: p.slug, nameEn: p.nameEn, nameUr: p.nameUr },
   images: [{ id: `sample-img-${i}`, url: `/demo/products/${p.slug}.svg`, position: 0 }],
   createdAt: p.createdAt,
 }));
@@ -68,10 +69,14 @@ export function UiGalleryPage() {
         <SectionHeader title="Buttons" />
         <div className="dev-gallery__grid">
           <Button variant="primary">Primary</Button>
-          <Button variant="cta">CTA</Button>
-          <Button variant="outline">Outline</Button>
-          <Button variant="ghost">Ghost</Button>
-          <Button variant="danger-ghost">Delete</Button>
+          <Button variant="cta" size="lg" arrow>Start selling</Button>
+          <Button variant="secondary">Log in</Button>
+          <Button variant="outline" arrow>All categories</Button>
+          <Button variant="ghost">Read more</Button>
+          <Button variant="icon" aria-label="Cart" icon={<ShoppingCart size={20} />} />
+          <Button variant="icon" ink aria-label="Next" icon={<Star size={18} />} />
+          <Button variant="danger">Delete</Button>
+          <Button variant="danger-ghost">Remove</Button>
           <Button variant="primary" size="sm" icon={<Check size={16} />}>Small</Button>
           <Button variant="primary" size="lg" icon={<ShoppingCart size={18} />}>Large</Button>
           <Button variant="primary" loading>Loading</Button>
@@ -131,7 +136,7 @@ export function UiGalleryPage() {
               key={slug}
               src={`/demo/products/${slug}.svg`}
               alt=""
-              style={{ width: '100%', aspectRatio: '4 / 5', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}
+              style={{ width: '100%', aspectRatio: '4 / 5', borderRadius: 18, background: tintFor(slug) }}
             />
           ))}
         </div>

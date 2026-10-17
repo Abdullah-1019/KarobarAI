@@ -42,8 +42,12 @@ export function useAddToCart() {
   const addToCart = useCallback(
     (product: AddableProduct, quantity = 1) => {
       if (user?.role === 'BUYER') {
-        mutation.mutate({ productId: product.id, quantity });
-        return;
+        // Resolves true once the server has the item (onError has already toasted a failure), so
+        // a caller can play its "added" moment only for a real add.
+        return mutation
+          .mutateAsync({ productId: product.id, quantity })
+          .then(() => true)
+          .catch(() => false);
       }
       addGuestItem(
         {
@@ -55,6 +59,7 @@ export function useAddToCart() {
         quantity,
       );
       toast.success(t('marketplace:product.addedToCart'));
+      return Promise.resolve(true);
     },
     [user, mutation, addGuestItem, t],
   );

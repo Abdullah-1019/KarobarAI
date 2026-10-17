@@ -36,10 +36,15 @@ export function HomePage() {
   });
 
   const hasProducts = !!data && (data.featured.length > 0 || data.newArrivals.length > 0);
+  // New arrivals skip what Featured already shows, so the page never repeats a row — unless that
+  // would leave fewer than four, in which case the full list is the more useful page.
+  const featuredIds = new Set(data?.featured.map((p) => p.id));
+  const freshArrivals = data?.newArrivals.filter((p) => !featuredIds.has(p.id)) ?? [];
+  const newArrivals = freshArrivals.length >= 4 ? freshArrivals : (data?.newArrivals ?? []);
 
   return (
     <div>
-      <Hero categories={data?.categories} />
+      <Hero categories={data?.categories} products={data ? [...data.featured, ...data.newArrivals] : undefined} />
       <TrustStrip />
 
       {isPending && (
@@ -68,6 +73,7 @@ export function HomePage() {
             <Section
               id="categories"
               title={t('home.browseCategories')}
+              subtitle={t('home.categoriesSub')}
               action={
                 <Link to="/search" className="section-action-link">
                   {t('home.allCategories')}
@@ -82,13 +88,13 @@ export function HomePage() {
           {hasProducts ? (
             <>
               {data.featured.length > 0 && (
-                <Section tone="sand" title={t('home.featuredTitle')}>
-                  <FeaturedProducts products={data.featured} />
+                <Section>
+                  <FeaturedProducts title={t('home.featuredTitle')} products={data.featured} />
                 </Section>
               )}
-              {data.newArrivals.length > 0 && (
+              {newArrivals.length > 0 && (
                 <Section title={t('home.newArrivalsTitle')}>
-                  <NewArrivalsGrid products={data.newArrivals} />
+                  <NewArrivalsGrid products={newArrivals} />
                 </Section>
               )}
             </>

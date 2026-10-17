@@ -38,7 +38,9 @@ export function ProductThumbnail({ src, alt = '', size = 64, fill = false, radiu
 
   return (
     <div style={{ ...box, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <ImageOff size={iconSize} strokeWidth={1.5} color="var(--text-disabled)" aria-hidden="true" />
+      {/* Hidden once the image is in: transparent cut-out art (the demo illustrations) would
+          otherwise show the icon through it. */}
+      {!loaded && <ImageOff size={iconSize} strokeWidth={1.5} color="var(--text-disabled)" aria-hidden="true" />}
       {src && !failed && (
         <img
           src={src}

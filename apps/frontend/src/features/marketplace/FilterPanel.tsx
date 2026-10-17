@@ -38,9 +38,9 @@ export function FilterPanel({ categories, value, onChange, showCategory = true }
     <div className="filter-panel">
       {showCategory && (
         <section className="filter-panel__group">
-          <h3 className="filter-panel__title" id="filter-category">
+          <h2 className="filter-panel__title" id="filter-category">
             {t('filters.category')}
-          </h3>
+          </h2>
           <Select
             allowClear
             aria-labelledby="filter-category"
@@ -54,7 +54,7 @@ export function FilterPanel({ categories, value, onChange, showCategory = true }
       )}
 
       <section className="filter-panel__group">
-        <h3 className="filter-panel__title">{t('filters.priceRange')}</h3>
+        <h2 className="filter-panel__title">{t('filters.priceRange')}</h2>
         <div className="filter-panel__price">
           <label className="filter-panel__field">
             <span>{t('browse.minLabel')}</span>
@@ -80,9 +80,9 @@ export function FilterPanel({ categories, value, onChange, showCategory = true }
       </section>
 
       <section className="filter-panel__group">
-        <h3 className="filter-panel__title" id="filter-condition">
+        <h2 className="filter-panel__title" id="filter-condition">
           {t('filters.condition')}
-        </h3>
+        </h2>
         <div className="filter-chips" role="group" aria-labelledby="filter-condition">
           <button
             type="button"

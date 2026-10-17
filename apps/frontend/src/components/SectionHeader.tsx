@@ -23,7 +23,7 @@ export function SectionHeader({ title, subtitle, action, align = 'start', classN
       }}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-1)' }}>
-        <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, letterSpacing: '-0.01em', fontSize: 'clamp(1.25rem, 2vw, 1.75rem)' }}>{title}</h2>
+        <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 'var(--fw-display)', letterSpacing: 'var(--tracking-heading)', fontSize: 'clamp(1.25rem, 2vw, 1.75rem)' }}>{title}</h2>
         {subtitle && <p style={{ margin: 0, color: 'var(--text-secondary)' }}>{subtitle}</p>}
       </div>
       {action && <div>{action}</div>}

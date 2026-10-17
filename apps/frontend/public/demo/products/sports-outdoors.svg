@@ -1,22 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500" role="img" aria-label="Sports &amp; outdoors — placeholder illustration">
-  <!-- KarobarAI placeholder product illustration (sports-outdoors). Hand-authored SVG, Haveli palette (Batch 0.8). Not a product photo. -->
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F6E7C4"/><stop offset="1" stop-color="#FFFDF9"/></linearGradient>
-    <pattern id='bp' width='48' height='48' patternUnits='userSpaceOnUse'><g fill='none' stroke='#A87A2C' stroke-width='1' opacity='0.35'><rect x='8' y='8' width='32' height='32'/><rect x='8' y='8' width='32' height='32' transform='rotate(45 24 24)'/><circle cx='24' cy='24' r='4'/></g></pattern>
-    <radialGradient id="fade" cx="0.85" cy="0.1" r="0.6"><stop offset="0" stop-color="#fff" stop-opacity="1"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
-    <mask id="m"><rect width="400" height="500" fill="url(#fade)"/></mask>
-  </defs>
-  <rect width="400" height="500" fill="url(#bg)"/>
-  <rect width="400" height="500" fill="url(#bp)" mask="url(#m)"/>
-  <ellipse cx="200" cy="412" rx="118" ry="16" fill="#2B1D14" opacity="0.10"/>
-  <!-- cricket bat + ball -->
+  <!-- KarobarAI placeholder product illustration (sports-outdoors). Hand-authored SVG: the Haveli drawing with its background and block-print removed and recoloured for Studio Light, as a transparent cut-out for tinted tiles (same art as the approved sample Home design). Not a product photo. -->
+  <ellipse cx="200" cy="412" rx="118" ry="16" fill="#17171A" opacity="0.10"></ellipse>
   <g transform="rotate(-22 200 260)">
-    <rect x="186" y="96" width="28" height="96" rx="12" fill="#2B1D14"/>
-    <g stroke="#C9963F" stroke-width="3"><path d="M188 108h24"/><path d="M188 120h24"/><path d="M188 132h24"/><path d="M188 144h24"/><path d="M188 156h24"/><path d="M188 168h24"/><path d="M188 180h24"/></g>
-    <path d="M170 192h60l6 196c0 10-8 18-18 18h-36c-10 0-18-8-18-18z" fill="#D4C4AB"/>
-    <path d="M200 200v196" stroke="#A87A2C" stroke-width="3"/>
-    <rect x="172" y="226" width="56" height="20" fill="#AE5429"/>
+    <rect x="186" y="96" width="28" height="96" rx="12" fill="#17171A"></rect>
+    <g stroke="#E0A43A" stroke-width="3"><path d="M188 108h24"></path><path d="M188 120h24"></path><path d="M188 132h24"></path><path d="M188 144h24"></path><path d="M188 156h24"></path><path d="M188 168h24"></path><path d="M188 180h24"></path></g>
+    <path d="M170 192h60l6 196c0 10-8 18-18 18h-36c-10 0-18-8-18-18z" fill="#CFCCC6"></path>
+    <path d="M200 200v196" stroke="#B98A3A" stroke-width="3"></path>
+    <rect x="172" y="226" width="56" height="20" fill="#BF4A1F"></rect>
   </g>
-  <circle cx="290" cy="364" r="34" fill="#AE5429"/>
-  <path d="M262 346c18 12 38 12 56 0M262 382c18-12 38-12 56 0" fill="none" stroke="#FFFDF9" stroke-width="3" stroke-dasharray="4 5"/>
+  <circle cx="290" cy="364" r="34" fill="#BF4A1F"></circle>
+  <path d="M262 346c18 12 38 12 56 0M262 382c18-12 38-12 56 0" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-dasharray="4 5"></path>
 </svg>

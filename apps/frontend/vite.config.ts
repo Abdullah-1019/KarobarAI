@@ -11,10 +11,10 @@ export default defineConfig({
       manifest: {
         name: 'KarobarAI',
         short_name: 'KarobarAI',
-        // UIUX §5.1 — brand primary (karobar green) for installed-PWA chrome/splash, warm paper
-        // canvas as the splash background, replacing the generic white placeholder.
-        theme_color: '#1a6b49',
-        background_color: '#fbf8f3',
+        // Studio Light (docs/frontend/DESIGN-CONSULT.md): installed-PWA chrome and splash use the
+        // warm-white page colour, matching <meta name="theme-color"> in index.html.
+        theme_color: '#faf9f7',
+        background_color: '#faf9f7',
         // Hand-authored on-brand SVG mark (public/pwa-icon.svg) — Chrome/Android install icon.
         // `purpose: 'any'` only: proper cross-platform coverage (a maskable PNG with safe-zone
         // padding for Android adaptive icons, a raster apple-touch-icon for iOS) needs PNG

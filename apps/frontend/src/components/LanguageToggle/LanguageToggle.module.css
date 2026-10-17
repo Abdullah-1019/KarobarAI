@@ -1,9 +1,8 @@
-/* Segmented "pill" language toggle — self-contained, no AntD. Root cause it replaces: AntD's
-   Segmented only mounts its moving thumb mid-transition and paints the selected item with an
-   elevated (white) fill, so the selected label was an invisible white-on-white blob on the auth
-   card. Here the thumb is a real, persistent element and the track/thumb colors are explicit
-   token pairs (track = form card, thumb = auth page background), so no state depends on a
-   transient node.
+/* Segmented "pill" language toggle — self-contained, no AntD (AntD's Segmented only mounts its
+   moving thumb mid-transition, which left an invisible white-on-white selection on the auth card).
+   Studio Light (DESIGN-CONSULT §7): a stone track with a white thumb that slides between EN and
+   اردو in 220ms. The thumb is a real, persistent element, so no state depends on a transient
+   node. Header and auth card use the same look.
 
    Motion: all durations collapse to ~0 under the app-wide `prefers-reduced-motion` rule in
    app/global.css (documented there), so no per-component override is needed. */
@@ -13,28 +12,21 @@
   align-items: center;
 }
 
-/* Track (outer container) — the raised pill the two labels sit in. The 1px border is an inset
-   ring rather than a real border so the 3px gutter (and therefore the 30px thumb height) is
-   measured against the full 36px box. */
+/* Track — a 44px stone pill (the full touch height); a 4px gutter holds the 36px thumb. */
 .rail {
   box-sizing: border-box;
-  width: 96px;
-  height: 36px;
-  padding: 3px;
+  width: 108px;
+  height: 44px;
+  padding: 4px;
   border-radius: 9999px;
-  background: var(--form-bg, var(--bg-surface));
-  box-shadow:
-    inset 0 0 0 1px var(--field-border, rgba(0, 0, 0, 0.1)),
-    inset 0 1px 2px rgba(0, 0, 0, 0.06);
-  transition: box-shadow var(--dur-fast, 150ms) var(--ease, ease);
+  background: var(--bg-sunken);
+  transition: background-color var(--dur-fast, 150ms) var(--ease, ease);
 }
 
-/* Hover border-darkening is a pointer-only affordance. */
+/* Hover darkens the track a touch — a pointer-only affordance. */
 @media (hover: hover) {
   .rail:hover {
-    box-shadow:
-      inset 0 0 0 1px var(--field-border-hover, rgba(0, 0, 0, 0.2)),
-      inset 0 1px 2px rgba(0, 0, 0, 0.06);
+    background: color-mix(in srgb, var(--bg-sunken) 88%, var(--brand-ink));
   }
 }
 
@@ -61,12 +53,10 @@
   inset-inline-start: 0;
   width: 50%;
   border-radius: 9999px;
-  background: var(--auth-bg, var(--bg-canvas));
-  box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.12),
-    0 1px 2px rgba(0, 0, 0, 0.08);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-xs);
   transform: translateX(var(--thumb-translate, 0%)) scale(var(--thumb-scale, 1));
-  transition: transform var(--dur-base, 220ms) cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform var(--dur-base, 220ms) var(--ease-soft);
 }
 
 /* Press feedback: the thumb shrinks slightly while a segment is held. */
@@ -101,9 +91,9 @@
 }
 
 .option:focus-visible {
-  outline: 2px solid var(--brand-primary);
-  outline-offset: 2px;
+  outline: none;
   border-radius: 9999px;
+  box-shadow: 0 0 0 3px var(--brand-ring);
 }
 
 /* "EN" — Latin, uppercase, tight. */
@@ -141,14 +131,8 @@
   border: 0;
 }
 
-/* Mobile: larger track and label; 40px height also satisfies the 40px minimum touch target
-   (WCAG 2.5.5) without a ::before hit-area expansion. */
+/* Mobile: a slightly larger label; the 44px track already meets the touch minimum. */
 @media (max-width: 767px) {
-  .rail {
-    width: 104px;
-    height: 40px;
-  }
-
   .label {
     font-size: 14px;
   }

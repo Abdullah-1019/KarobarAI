@@ -1,11 +1,12 @@
-import { BadgeCheck, Banknote, RotateCcw, Truck } from 'lucide-react';
+import { Banknote, Languages, RotateCcw, Truck } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-// The trust strip (SCR-B01) — a white card straddling the bottom edge of the hero (pulled up with
-// a negative margin), listing the four platform-level guarantees. Rendered as a real list so screen
-// readers announce the four items; the icons are decorative. The same facts already ship as plain
-// features elsewhere; this just surfaces them above the fold. Reserve-stock/returns specifics are
-// product policy, not fabricated claims (rule K).
+// The trust row (SCR-B01), under the hero: four platform facts as four light cards, each with its
+// icon on a different wash tint (the sample Home design). Only things the platform really does:
+// cash on delivery, courier tracking, photo-backed returns within the policy window, and shopping
+// in Urdu or English. ("Verified sellers" was dropped: the product data carries no seller
+// verification, so the claim could not be shown anywhere it matters.) A real list, so screen
+// readers announce four items; the icons are decorative.
 export function TrustStrip() {
   const { t } = useTranslation('marketplace');
 
@@ -13,16 +14,16 @@ export function TrustStrip() {
     { key: 'cod', icon: Banknote, label: t('trust.cod'), sub: t('trust.codSub') },
     { key: 'tracking', icon: Truck, label: t('trust.tracking'), sub: t('trust.trackingSub') },
     { key: 'returns', icon: RotateCcw, label: t('trust.returns'), sub: t('trust.returnsSub') },
-    { key: 'verified', icon: BadgeCheck, label: t('trust.verified'), sub: t('trust.verifiedSub') },
+    { key: 'bilingual', icon: Languages, label: t('trust.bilingual'), sub: t('trust.bilingualSub') },
   ];
 
   return (
     <div className="trust">
       <ul className="trust__list">
         {items.map(({ key, icon: Icon, label, sub }) => (
-          <li key={key} className="trust__item">
+          <li key={key} className={`trust__item trust__item--${key}`}>
             <span className="trust__icon">
-              <Icon size={22} aria-hidden="true" />
+              <Icon size={22} strokeWidth={1.8} aria-hidden="true" />
             </span>
             <span className="trust__text">
               <strong className="trust__label">{label}</strong>

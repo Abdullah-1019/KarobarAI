@@ -51,7 +51,11 @@ export function CategoryPage() {
           <div className="cat-banner__copy">
             <Breadcrumb items={[{ label: t('common:nav.home'), to: '/' }, { label: name }]} />
             <h1 className="cat-banner__title">{name}</h1>
-            {otherName && otherName !== name && <p className="cat-banner__other">{otherName}</p>}
+            {otherName && otherName !== name && (
+              <p className="cat-banner__other" lang={language === 'UR' ? 'en' : 'ur'}>
+                {otherName}
+              </p>
+            )}
             <p className="cat-banner__blurb">{t('browse.categoryBlurb')}</p>
           </div>
           <div className="cat-banner__art" aria-hidden="true">

@@ -16,8 +16,9 @@ interface SectionProps {
   children: ReactNode;
 }
 
-// A page-level content band: vertical rhythm + an optional alternating background + a heading row
-// (title with the saffron underline accent, subtitle, and a trailing action). Sits directly inside
+// A page-level content band: vertical rhythm + a heading row (Outfit title, subtitle, and a
+// trailing action). Studio Light sections sit on the page itself — no tinted slabs; the old tones
+// are kept as names only so existing call sites compile. Sits directly inside
 // the storefront content column, so its edges already match the header/footer container — it does
 // not re-wrap in `Container` (which would double the inline padding).
 export function Section({ id, tone = 'cream', title, subtitle, action, className, children }: SectionProps) {

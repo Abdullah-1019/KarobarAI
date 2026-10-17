@@ -8,6 +8,10 @@ import { message } from 'antd';
 // without replacing the message API app-wide (40+ existing call sites) for one duration knob.
 const ERROR_DURATION_SECONDS = 6;
 
+// Toasts open clear of the sticky header (ink strip 36px + 12px gap + 64px nav pill = 112px at the
+// top of the page) with a 12px gap, instead of AntD's default 8px, where they landed under the strip.
+message.config({ top: 124, maxCount: 3 });
+
 export const toast = {
   success: (content: string) => message.success(content),
   error: (content: string) => message.error(content, ERROR_DURATION_SECONDS),

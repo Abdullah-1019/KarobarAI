@@ -22,7 +22,7 @@ const VARIANT_ICON: Record<StatusVariant, ComponentType<LucideProps>> = {
 
 // Core status pill shared by every domain status display (orders, returns, products, users).
 // Tonal fill + icon + label, so status never rides on colour alone. Styling lives in global.css
-// (.status-tag) on the Haveli status tokens.
+// (.status-tag) on the Studio Light status tokens.
 export function StatusTag({ variant, label, icon }: StatusTagProps) {
   const Icon = icon ?? VARIANT_ICON[variant];
 

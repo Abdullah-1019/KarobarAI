@@ -1,14 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="KarobarAI">
-  <!-- Karobar green background, brand-primary (UIUX §5.1 #1A6B49); rounded-square app-icon
-       proportions consistent with the brand's rounded, warm shape language. -->
-  <rect width="512" height="512" rx="104" fill="#1A6B49"/>
-  <!-- A simple bazaar-stall silhouette (awning + counter) in warm paper cream (#FBF8F3) — the
-       "warmth of a Pakistani bazaar" from the design brief's own thesis (UIUX §0), kept as a
-       bold two-shape mark so it reads clearly at small sizes. -->
-  <polygon points="256,150 382,280 130,280" fill="#FBF8F3"/>
-  <rect x="146" y="280" width="220" height="132" rx="14" fill="#FBF8F3"/>
-  <!-- Marigold accent (UIUX §5.1 #F4A024) — a garland/finial detail at the stall peak, echoing
-       "the marigold garlands of celebration" from the same thesis. Used sparingly, as a single
-       accent dot, matching marigold's reserved "celebration only" role (§5.1, §12). -->
-  <circle cx="256" cy="140" r="22" fill="#F4A024"/>
+  <!-- Studio Light app icon (docs/frontend/DESIGN-CONSULT.md): an ink tile (#17171A) carrying the
+       BrandLogo mark — the shopping bag in warm white (#FAF9F7) and the AI spark in the AI accent
+       (#F2A27E). Same geometry as src/components/BrandLogo.tsx, scaled 14× from its 32px viewBox. -->
+  <rect width="512" height="512" rx="112" fill="#17171A"/>
+  <g transform="translate(16 32) scale(14)" fill="none" stroke="#FAF9F7" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M8.5 11.5h15l-1.1 14.1a2 2 0 0 1-2 1.9H11.6a2 2 0 0 1-2-1.9L8.5 11.5Z"/>
+    <path d="M12.5 11.5V8.8a3.5 3.5 0 0 1 7 0v2.7"/>
+  </g>
+  <path transform="translate(16 32) scale(14)" d="M24.5 3.2l1.05 2.7 2.7 1.05-2.7 1.05L24.5 10.7l-1.05-2.7-2.7-1.05 2.7-1.05L24.5 3.2Z" fill="#F2A27E"/>
 </svg>

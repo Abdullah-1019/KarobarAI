@@ -59,7 +59,7 @@ Unlike Daraz, Shopify or Amazon, which assume English fluency, business email an
 
 - **Name:** KarobarAI ("karobar" = business in Urdu).
 - **Bilingual:** English and Urdu on every user-facing surface, switching with no page reload. Urdu is RTL; Nastaliq script for Urdu.
-- **Binding visual direction (set by Rafia, 2026-10-16):** move away from the common green-and-white marketplace look and from Daraz-style bright orange, towards a warm, premium, trustworthy palette (beige base, copper-type CTA, orange-type urgency, brass/brown). It should feel real, charming and alive, not dry. The full direction is in `docs/frontend/REDESIGN-PLAN-HAVELI.md`. Visual specifics belong to the design system, not this file.
+- **Binding visual direction ("Studio Light", approved by Rafia 2026-10-17; replaces the 2026-10-16 "Haveli" direction):** move away from the common green-and-white marketplace look, from Daraz-style bright orange, and from the dark-brown "coffee brand" feel. Light, airy and premium: a near-white base, near-black ink, one warm persimmon action, soft washes instead of dark blocks, and a geometric sans for headlines, kept Pakistani through Urdu in Nastaliq, real local content, and COD and returns up front. It should feel real, charming and alive, not dry. The full direction is in `docs/frontend/DESIGN-CONSULT.md`. Visual specifics belong to the design system, not this file.
 - **AI honesty:** AI-generated content is labelled as such and stays editable by the seller. Fallback between models is invisible to the user.
 
 ## Evidence on Hand

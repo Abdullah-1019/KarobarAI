@@ -1,21 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500" role="img" aria-label="Fashion &amp; clothing — placeholder illustration">
-  <!-- KarobarAI placeholder product illustration (fashion-clothing). Hand-authored SVG, Haveli palette (Batch 0.8). Not a product photo. -->
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F6E7C4"/><stop offset="1" stop-color="#FFFDF9"/></linearGradient>
-    <pattern id='bp' width='48' height='48' patternUnits='userSpaceOnUse'><g fill='none' stroke='#A87A2C' stroke-width='1' opacity='0.35'><rect x='8' y='8' width='32' height='32'/><rect x='8' y='8' width='32' height='32' transform='rotate(45 24 24)'/><circle cx='24' cy='24' r='4'/></g></pattern>
-    <radialGradient id="fade" cx="0.85" cy="0.1" r="0.6"><stop offset="0" stop-color="#fff" stop-opacity="1"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
-    <mask id="m"><rect width="400" height="500" fill="url(#fade)"/></mask>
-  </defs>
-  <rect width="400" height="500" fill="url(#bg)"/>
-  <rect width="400" height="500" fill="url(#bp)" mask="url(#m)"/>
-  <ellipse cx="200" cy="412" rx="118" ry="16" fill="#2B1D14" opacity="0.10"/>
-  <!-- kurta on a hanger -->
-  <path d="M200 92c-8 0-12 6-12 12" fill="none" stroke="#5A3A22" stroke-width="5" stroke-linecap="round"/>
-  <path d="M148 120h104" stroke="#5A3A22" stroke-width="6" stroke-linecap="round"/>
-  <path d="M168 122l-62 40 20 38 30-14v204h88V186l30 14 20-38-62-40c-6 16-20 26-32 26s-26-10-32-26z" fill="#AE5429"/>
-  <path d="M184 124c4 14 9 22 16 22s12-8 16-22" fill="none" stroke="#F6E7C4" stroke-width="4" stroke-linecap="round"/>
-  <path d="M200 146v70" stroke="#9A4722" stroke-width="3"/>
-  <g fill="#F6E7C4"><circle cx="200" cy="160" r="3"/><circle cx="200" cy="174" r="3"/><circle cx="200" cy="188" r="3"/><circle cx="200" cy="202" r="3"/></g>
-  <path d="M156 360h88" stroke="#C9963F" stroke-width="10"/>
-  <g fill="#9A4722"><path d="M160 355l8 10 8-10z"/><path d="M176 355l8 10 8-10z"/><path d="M192 355l8 10 8-10z"/><path d="M208 355l8 10 8-10z"/><path d="M224 355l8 10 8-10z"/></g>
+  <!-- KarobarAI placeholder product illustration (fashion-clothing). Hand-authored SVG: the Haveli drawing with its background and block-print removed and recoloured for Studio Light, as a transparent cut-out for tinted tiles (same art as the approved sample Home design). Not a product photo. -->
+  <ellipse cx="200" cy="412" rx="118" ry="16" fill="#17171A" opacity="0.10"></ellipse>
+  <path d="M200 92c-8 0-12 6-12 12" fill="none" stroke="#3A3A40" stroke-width="5" stroke-linecap="round"></path>
+  <path d="M148 120h104" stroke="#3A3A40" stroke-width="6" stroke-linecap="round"></path>
+  <path d="M168 122l-62 40 20 38 30-14v204h88V186l30 14 20-38-62-40c-6 16-20 26-32 26s-26-10-32-26z" fill="#BF4A1F"></path>
+  <path d="M184 124c4 14 9 22 16 22s12-8 16-22" fill="none" stroke="#FBE9DE" stroke-width="4" stroke-linecap="round"></path>
+  <path d="M200 146v70" stroke="#A63E17" stroke-width="3"></path>
+  <g fill="#FBE9DE"><circle cx="200" cy="160" r="3"></circle><circle cx="200" cy="174" r="3"></circle><circle cx="200" cy="188" r="3"></circle><circle cx="200" cy="202" r="3"></circle></g>
+  <path d="M156 360h88" stroke="#E0A43A" stroke-width="10"></path>
+  <g fill="#A63E17"><path d="M160 355l8 10 8-10z"></path><path d="M176 355l8 10 8-10z"></path><path d="M192 355l8 10 8-10z"></path><path d="M208 355l8 10 8-10z"></path><path d="M224 355l8 10 8-10z"></path></g>
 </svg>

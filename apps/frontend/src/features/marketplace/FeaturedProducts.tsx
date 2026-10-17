@@ -7,13 +7,15 @@ import { ProductCard } from './ProductCard';
 
 interface FeaturedProductsProps {
   products: ProductDetailDTO[];
+  /** Section heading — rendered here (not by Section) so the rail arrows sit beside it. */
+  title: string;
 }
 
-// Featured rail (Phase 6). A native scroll-snap track rather than a JS carousel/autoplay: it costs
-// no dependency, degrades to a plain swipeable row on touch (where the arrows are hidden by CSS),
-// and stays keyboard-reachable because the cards inside are links. The arrows are an enhancement
-// for mouse users only — shown under `@media (hover: hover)`.
-export function FeaturedProducts({ products }: FeaturedProductsProps) {
+// Featured rail. A native scroll-snap track rather than a JS carousel/autoplay: it costs no
+// dependency, degrades to a plain swipeable row on touch, and stays keyboard-reachable because the
+// cards inside are links. The heading row carries the sample's pair of round arrows — a white
+// "previous" and an ink "next" — for mouse users (hidden on touch, where the row swipes).
+export function FeaturedProducts({ products, title }: FeaturedProductsProps) {
   const { t } = useTranslation(['marketplace']);
   const trackRef = useRef<HTMLUListElement>(null);
   const [atStart, setAtStart] = useState(true);
@@ -54,6 +56,32 @@ export function FeaturedProducts({ products }: FeaturedProductsProps) {
 
   return (
     <div className="featured">
+      <header className="section-head">
+        <div className="section-head-text">
+          <h2 className="section-title">{title}</h2>
+        </div>
+        <div className="featured__arrows">
+          <button
+            type="button"
+            className="featured__arrow featured__arrow--prev"
+            aria-label={t('featured.prev')}
+            onClick={() => scrollByCard(-1)}
+            disabled={atStart}
+          >
+            <ChevronLeft size={20} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            className="featured__arrow featured__arrow--next"
+            aria-label={t('featured.next')}
+            onClick={() => scrollByCard(1)}
+            disabled={atEnd}
+          >
+            <ChevronRight size={20} aria-hidden="true" />
+          </button>
+        </div>
+      </header>
+
       <ul className="featured__track" ref={trackRef}>
         {products.map((product) => (
           <li key={product.id} className="featured__item">
@@ -61,25 +89,6 @@ export function FeaturedProducts({ products }: FeaturedProductsProps) {
           </li>
         ))}
       </ul>
-
-      <button
-        type="button"
-        className="featured__arrow featured__arrow--prev"
-        aria-label={t('featured.prev')}
-        onClick={() => scrollByCard(-1)}
-        disabled={atStart}
-      >
-        <ChevronLeft size={20} aria-hidden="true" />
-      </button>
-      <button
-        type="button"
-        className="featured__arrow featured__arrow--next"
-        aria-label={t('featured.next')}
-        onClick={() => scrollByCard(1)}
-        disabled={atEnd}
-      >
-        <ChevronRight size={20} aria-hidden="true" />
-      </button>
     </div>
   );
 }

@@ -14,6 +14,9 @@ interface SearchBarProps {
   /** Called after a successful submit (e.g. to close the mobile overlay). */
   onSubmitted?: () => void;
   className?: string;
+  /** `hero` = the Home hero's big search: a leading magnifier and a persimmon "Search" pill as
+   * the page's one CTA (the sample Home design). Default = the compact header/overlay pill. */
+  variant?: 'default' | 'hero';
 }
 
 const ROTATE_MS = 3000;
@@ -28,7 +31,9 @@ export function SearchBar({
   rotatePlaceholders = true,
   onSubmitted,
   className,
+  variant = 'default',
 }: SearchBarProps) {
+  const hero = variant === 'hero';
   const { t } = useTranslation('marketplace');
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -109,6 +114,7 @@ export function SearchBar({
           placeholder={suggestions[placeholderIndex]}
           autoFocus={autoFocus}
           allowClear
+          prefix={hero ? <Search size={22} strokeWidth={2} aria-hidden="true" className="storefront-search__lead" /> : undefined}
           suffix={
             <span className="storefront-search__suffix">
               <Tooltip title={t('search.photo')}>
@@ -121,13 +127,19 @@ export function SearchBar({
                   <Camera size={18} aria-hidden="true" />
                 </button>
               </Tooltip>
-              <button
-                type="submit"
-                className="storefront-search__icon"
-                aria-label={t('search.submit')}
-              >
-                <Search size={18} aria-hidden="true" />
-              </button>
+              {hero ? (
+                <button type="submit" className="btn btn--primary storefront-search__go">
+                  <span className="btn__label">{t('search.submit')}</span>
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  className="storefront-search__icon"
+                  aria-label={t('search.submit')}
+                >
+                  <Search size={18} aria-hidden="true" />
+                </button>
+              )}
             </span>
           }
         />

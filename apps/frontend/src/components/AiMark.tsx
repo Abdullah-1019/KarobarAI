@@ -1,6 +1,7 @@
 interface AiMarkProps {
   size?: number;
-  /** Defaults to brass. Pass `currentColor` to inherit from the surrounding text. */
+  /** Defaults to ink (light grounds). On ink chips pass `var(--ai-accent)`; `currentColor`
+   * inherits from the surrounding text. */
   color?: string;
   className?: string;
 }

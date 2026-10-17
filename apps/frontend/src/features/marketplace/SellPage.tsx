@@ -1,15 +1,11 @@
 import { Collapse } from 'antd';
-import { BarChart3, Banknote, Camera, ClipboardCheck, RotateCcw, Rocket, Truck } from 'lucide-react';
+import { BarChart3, Banknote, Camera, RotateCcw, Truck } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { AiMark, Button } from '../../components';
 import { AiListingDemo } from './AiListingDemo';
 
-const STEPS = [
-  { key: 'step1', icon: Camera },
-  { key: 'step2', icon: ClipboardCheck },
-  { key: 'step3', icon: Rocket },
-] as const;
+const STEPS = ['step1', 'step2', 'step3'] as const;
 
 const FEATURES = [
   { key: 'featureCod', icon: Banknote },
@@ -32,7 +28,8 @@ export function SellPage() {
   return (
     <div className="sell">
       <section className="sell-hero">
-        <span className="sell-hero__pattern blockprint-layer" aria-hidden="true" />
+        <span className="hero__blob hero__blob--peach" aria-hidden="true" />
+        <span className="hero__blob hero__blob--lilac" aria-hidden="true" />
         <div className="sell-hero__inner">
           <div className="sell-hero__copy">
             <h1 className="sell-hero__title">{t('sell.title')}</h1>
@@ -41,7 +38,7 @@ export function SellPage() {
               <Button variant="cta" size="lg" to="/register?role=seller">
                 {t('sell.cta')}
               </Button>
-              <Button variant="outline-light" size="lg" to="/login">
+              <Button variant="secondary" size="lg" to="/login">
                 {t('sell.login')}
               </Button>
             </div>
@@ -55,12 +52,50 @@ export function SellPage() {
           {t('sell.stepsTitle')}
         </h2>
         <ol className="sell-steps">
-          {STEPS.map(({ key, icon: Icon }, index) => (
+          {STEPS.map((key, index) => (
             <li key={key} className="sell-step">
-              <span className="sell-step__marker" aria-hidden="true">
-                <Icon size={22} />
-                <span className="sell-step__num">{index + 1}</span>
-              </span>
+              {/* Each step shows a fragment of the real flow in the demo card's language, not an
+                  icon disc: the photo, the AI's two titles, the order that arrives. Decorative. */}
+              <div className={`step-art step-art--${index + 1}`} aria-hidden="true">
+                <span className="step-art__num">{index + 1}</span>
+                {index === 0 && (
+                  <>
+                    <span className="step-art__photo">
+                      <img src="/demo/products/fashion-clothing.svg" alt="" width={400} height={500} />
+                    </span>
+                    <span className="step-art__file">
+                      <Camera size={16} />
+                      {t('sell.stepArt.photo')}
+                    </span>
+                  </>
+                )}
+                {index === 1 && (
+                  <>
+                    <span className="step-art__chip">
+                      <AiMark size={11} color="var(--ai-accent)" />
+                      {t('sell.demo.ready')}
+                    </span>
+                    <span className="step-art__line" lang="en" dir="ltr">
+                      {t('sell.demo.titleEn')}
+                    </span>
+                    <span className="step-art__line step-art__line--ur" lang="ur" dir="rtl">
+                      {t('sell.demo.titleUr')}
+                    </span>
+                  </>
+                )}
+                {index === 2 && (
+                  <span className="step-art__order">
+                    <span className="step-art__thumb">
+                      <img src="/demo/products/fashion-clothing.svg" alt="" width={400} height={500} />
+                    </span>
+                    <span className="step-art__order-text">
+                      <strong>{t('sell.stepArt.order')}</strong>
+                      <span>{t('sell.stepArt.cod')}</span>
+                    </span>
+                    <span className="step-art__dot" />
+                  </span>
+                )}
+              </div>
               <h3 className="sell-step__title">{t(`sell.${key}Title`)}</h3>
               <p className="sell-step__body">{t(`sell.${key}Body`)}</p>
             </li>
@@ -74,7 +109,7 @@ export function SellPage() {
         </h2>
         <div className="sell-features">
           <article className="sell-feature-main">
-            <AiMark size={28} color="var(--accent-marigold)" />
+            <AiMark size={28} />
             <h3 className="sell-feature-main__title">{t('sell.featureMainTitle')}</h3>
             <p className="sell-feature-main__body">{t('sell.featureMainBody')}</p>
             <ul className="sell-feature-main__pairs" aria-hidden="true">
@@ -106,7 +141,7 @@ export function SellPage() {
         </div>
       </section>
 
-      <section className="sell-section sell-section--narrow" aria-labelledby="sell-faq-title">
+      <section className="sell-section sell-section--faq" aria-labelledby="sell-faq-title">
         <h2 id="sell-faq-title" className="sell-section__title">
           {t('sell.faqTitle')}
         </h2>

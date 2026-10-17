@@ -1,19 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500" role="img" aria-label="Electronics — placeholder illustration">
-  <!-- KarobarAI placeholder product illustration (electronics). Hand-authored SVG, Haveli palette (Batch 0.8). Not a product photo. -->
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F1E8DA"/><stop offset="1" stop-color="#FFFDF9"/></linearGradient>
-    <pattern id='bp' width='48' height='48' patternUnits='userSpaceOnUse'><g fill='none' stroke='#5A3A22' stroke-width='1' opacity='0.35'><rect x='8' y='8' width='32' height='32'/><rect x='8' y='8' width='32' height='32' transform='rotate(45 24 24)'/><circle cx='24' cy='24' r='4'/></g></pattern>
-    <radialGradient id="fade" cx="0.85" cy="0.1" r="0.6"><stop offset="0" stop-color="#fff" stop-opacity="1"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
-    <mask id="m"><rect width="400" height="500" fill="url(#fade)"/></mask>
-  </defs>
-  <rect width="400" height="500" fill="url(#bg)"/>
-  <rect width="400" height="500" fill="url(#bp)" mask="url(#m)"/>
-  <ellipse cx="200" cy="412" rx="118" ry="16" fill="#2B1D14" opacity="0.10"/>
-  <!-- over-ear headphones -->
-  <path d="M120 270v-40c0-50 36-90 80-90s80 40 80 90v40" fill="none" stroke="#2B1D14" stroke-width="16" stroke-linecap="round"/>
-  <rect x="98" y="250" width="52" height="96" rx="24" fill="#2B1D14"/>
-  <rect x="250" y="250" width="52" height="96" rx="24" fill="#2B1D14"/>
-  <rect x="112" y="262" width="28" height="72" rx="14" fill="#AE5429"/>
-  <rect x="260" y="262" width="28" height="72" rx="14" fill="#AE5429"/>
-  <path d="M152 150c14-12 30-18 48-18s34 6 48 18" fill="none" stroke="#C9963F" stroke-width="4" stroke-linecap="round"/>
+  <!-- KarobarAI placeholder product illustration (electronics). Hand-authored SVG: the Haveli drawing with its background and block-print removed and recoloured for Studio Light, as a transparent cut-out for tinted tiles (same art as the approved sample Home design). Not a product photo. -->
+  <ellipse cx="200" cy="412" rx="118" ry="16" fill="#17171A" opacity="0.10"></ellipse>
+  <path d="M120 270v-40c0-50 36-90 80-90s80 40 80 90v40" fill="none" stroke="#17171A" stroke-width="16" stroke-linecap="round"></path>
+  <rect x="98" y="250" width="52" height="96" rx="24" fill="#17171A"></rect>
+  <rect x="250" y="250" width="52" height="96" rx="24" fill="#17171A"></rect>
+  <rect x="112" y="262" width="28" height="72" rx="14" fill="#BF4A1F"></rect>
+  <rect x="260" y="262" width="28" height="72" rx="14" fill="#BF4A1F"></rect>
+  <path d="M152 150c14-12 30-18 48-18s34 6 48 18" fill="none" stroke="#E0A43A" stroke-width="4" stroke-linecap="round"></path>
 </svg>

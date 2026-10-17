@@ -3,10 +3,10 @@ import { Link } from 'react-router-dom';
 
 import { useLanguage } from '../hooks';
 
-// KarobarAI brand lockup — an inline SVG bag+spark mark (copper bag, brass spark) beside the
-// "Karobar" wordmark with "AI" in copper. The wordmark is the only localized part: Urdu renders
-// "کاروبار", English "Karobar". "AI" stays Latin in both (it's the product name). Colour follows
-// `currentColor` for the wordmark, so it reads on cream headers and the espresso footer alike.
+// KarobarAI brand lockup — an inline SVG bag+spark mark (persimmon bag, AI-accent spark: the same
+// spark as the PWA icon) beside the "Karobar" wordmark with "AI" in persimmon. The wordmark is the
+// only localized part: Urdu renders "کاروبار", English "Karobar". "AI" stays Latin in both (it's the product name). Colour follows
+// `currentColor` for the wordmark, so it reads on white headers and the ink footer alike.
 // `to` lets the Seller/Admin headers point the logo at their own home. Used by every header,
 // the footer and the auth panel — the one KarobarAI lockup.
 export function BrandLogo({ to = '/' }: { to?: string }) {
@@ -33,7 +33,7 @@ export function BrandLogo({ to = '/' }: { to?: string }) {
         />
         <path
           d="M24.5 3.2l1.05 2.7 2.7 1.05-2.7 1.05L24.5 10.7l-1.05-2.7-2.7-1.05 2.7-1.05L24.5 3.2Z"
-          fill="var(--accent-marigold)"
+          fill="var(--ai-accent)"
         />
       </svg>
       <span className="storefront-logo__word">

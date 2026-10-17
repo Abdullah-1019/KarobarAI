@@ -3,7 +3,7 @@ interface PriceDisplayProps {
   size?: 'sm' | 'md' | 'lg';
   /** Subtotal/secondary context — text-secondary instead of text-primary. */
   muted?: boolean;
-  /** `brand` paints the figure in emerald (the product-card money colour, Phase 6). */
+  /** `brand` paints the figure in the brand colour (rare: persimmon is reserved for the CTA). */
   tone?: 'default' | 'brand';
   /** Heavier weight — the "money sits high in visual hierarchy" case on product cards. */
   strong?: boolean;
@@ -29,8 +29,11 @@ export function PriceDisplay({ amount, size = 'md', muted = false, tone = 'defau
   return (
     <span
       style={{
-        fontSize: SIZE_FS[size],
-        fontWeight: strong ? 700 : size === 'lg' ? 600 : 500,
+        // Prices are set in the display face (DESIGN-CONSULT §3: Outfit 600, tabular). A context
+        // can resize them through --price-fs without a new size step (the product card uses 20px).
+        fontFamily: 'var(--font-heading)',
+        fontSize: `var(--price-fs, ${SIZE_FS[size]})`,
+        fontWeight: strong || size === 'lg' ? 600 : 500,
         color: tone === 'brand' ? 'var(--brand-primary)' : muted ? 'var(--text-secondary)' : 'var(--text-primary)',
         fontVariantNumeric: 'tabular-nums',
         whiteSpace: 'nowrap',

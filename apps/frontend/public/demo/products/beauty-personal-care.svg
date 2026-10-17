@@ -1,21 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500" role="img" aria-label="Beauty &amp; personal care — placeholder illustration">
-  <!-- KarobarAI placeholder product illustration (beauty-personal-care). Hand-authored SVG, Haveli palette (Batch 0.8). Not a product photo. -->
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F6E3D6"/><stop offset="1" stop-color="#FFFDF9"/></linearGradient>
-    <pattern id='bp' width='48' height='48' patternUnits='userSpaceOnUse'><g fill='none' stroke='#AE5429' stroke-width='1' opacity='0.35'><rect x='8' y='8' width='32' height='32'/><rect x='8' y='8' width='32' height='32' transform='rotate(45 24 24)'/><circle cx='24' cy='24' r='4'/></g></pattern>
-    <radialGradient id="fade" cx="0.85" cy="0.1" r="0.6"><stop offset="0" stop-color="#fff" stop-opacity="1"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
-    <mask id="m"><rect width="400" height="500" fill="url(#fade)"/></mask>
-  </defs>
-  <rect width="400" height="500" fill="url(#bg)"/>
-  <rect width="400" height="500" fill="url(#bp)" mask="url(#m)"/>
-  <ellipse cx="200" cy="412" rx="118" ry="16" fill="#2B1D14" opacity="0.10"/>
-  <!-- attar bottle + lipstick -->
-  <path d="M150 210h80l14 26v126c0 14-10 24-24 24h-60c-14 0-24-10-24-24V236z" fill="#F6E7C4" stroke="#A87A2C" stroke-width="3"/>
-  <path d="M136 280h108v60H136z" fill="#C9963F" opacity="0.35"/>
-  <rect x="168" y="168" width="44" height="42" rx="6" fill="#A87A2C"/>
-  <path d="M190 120l18 48h-36z" fill="#2B1D14"/>
-  <path d="M190 300l12 12-12 12-12-12z" fill="#FFFDF9"/>
-  <rect x="262" y="276" width="44" height="110" rx="8" fill="#2B1D14"/>
-  <rect x="262" y="276" width="44" height="16" fill="#C9963F"/>
-  <path d="M268 276v-44c0-10 10-22 32-34v78z" fill="#AE5429"/>
+  <!-- KarobarAI placeholder product illustration (beauty-personal-care). Hand-authored SVG: the Haveli drawing with its background and block-print removed and recoloured for Studio Light, as a transparent cut-out for tinted tiles (same art as the approved sample Home design). Not a product photo. -->
+  <ellipse cx="200" cy="412" rx="118" ry="16" fill="#17171A" opacity="0.10"></ellipse>
+  <path d="M150 210h80l14 26v126c0 14-10 24-24 24h-60c-14 0-24-10-24-24V236z" fill="#FBE9DE" stroke="#B98A3A" stroke-width="3"></path>
+  <path d="M136 280h108v60H136z" fill="#E0A43A" opacity="0.35"></path>
+  <rect x="168" y="168" width="44" height="42" rx="6" fill="#B98A3A"></rect>
+  <path d="M190 120l18 48h-36z" fill="#17171A"></path>
+  <path d="M190 300l12 12-12 12-12-12z" fill="#FFFFFF"></path>
+  <rect x="262" y="276" width="44" height="110" rx="8" fill="#17171A"></rect>
+  <rect x="262" y="276" width="44" height="16" fill="#E0A43A"></rect>
+  <path d="M268 276v-44c0-10 10-22 32-34v78z" fill="#BF4A1F"></path>
 </svg>

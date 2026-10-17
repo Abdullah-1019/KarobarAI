@@ -47,8 +47,9 @@ const CATEGORY_RULES: CategoryRule[] = [
 ];
 const FALLBACK_RULE: CategoryRule = { test: /^$/, key: 'other', icon: Tag };
 
-// The hand-authored Haveli illustration for each known category family (public/demo/products).
-// Unmatched admin-created categories fall back to their icon on a tonal disc.
+// The hand-drawn cut-out illustration for each known category family (public/demo/products):
+// transparent art that sits on the category's tint. Unmatched admin-created categories fall back
+// to their icon on a tonal disc.
 export const CATEGORY_ART: Partial<Record<CategoryKey, string>> = {
   beauty: '/demo/products/beauty-personal-care.svg',
   books: '/demo/products/books-stationery.svg',
@@ -62,4 +63,10 @@ export const CATEGORY_ART: Partial<Record<CategoryKey, string>> = {
 
 export function ruleFor(slug: string): CategoryRule {
   return CATEGORY_RULES.find((rule) => rule.test.test(slug)) ?? FALLBACK_RULE;
+}
+
+/** The category's tile tint (DESIGN-CONSULT §2 category tints); stone for unmatched categories. */
+export function tintFor(slug: string): string {
+  const { key } = ruleFor(slug);
+  return key === 'other' ? 'var(--bg-sunken)' : `var(--cat-${key}-bg)`;
 }

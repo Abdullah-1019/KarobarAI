@@ -3,16 +3,14 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 
-import { ArrowIcon, Button, EmptyState, Reveal, Section } from '../../components';
+import { ArrowIcon, Button, EmptyState, Section } from '../../components';
 import { Hero } from './Hero';
 import { TrustStrip } from './TrustStrip';
 import { ProductGridSkeleton } from './ProductGridSkeleton';
 import { CategoryGrid } from './CategoryGrid';
 import { FeaturedProducts } from './FeaturedProducts';
 import { NewArrivalsGrid } from './NewArrivalsGrid';
-import { HowItWorks } from './HowItWorks';
 import { AiBanner } from './AiBanner';
-import { PaymentStrip } from './PaymentStrip';
 import { HOME_FEED_QUERY_KEY, getHomeFeed } from './marketplaceApi';
 import { formatMarketplaceError } from './marketplaceErrors';
 
@@ -41,7 +39,7 @@ export function HomePage() {
 
   return (
     <div>
-      <Hero />
+      <Hero categories={data?.categories} />
       <TrustStrip />
 
       {isPending && (
@@ -67,63 +65,48 @@ export function HomePage() {
       {data && (
         <>
           {data.categories.length > 0 && (
-            <Reveal>
-              <Section
-                id="categories"
-                title={t('home.browseCategories')}
-                action={
-                  <Link to="/search" className="section-action-link">
-                    {t('home.allCategories')}
-                    <ArrowIcon size={16} />
-                  </Link>
-                }
-              >
-                <CategoryGrid categories={data.categories} />
-              </Section>
-            </Reveal>
+            <Section
+              id="categories"
+              title={t('home.browseCategories')}
+              action={
+                <Link to="/search" className="section-action-link">
+                  {t('home.allCategories')}
+                  <ArrowIcon size={16} />
+                </Link>
+              }
+            >
+              <CategoryGrid categories={data.categories} />
+            </Section>
           )}
 
           {hasProducts ? (
             <>
               {data.featured.length > 0 && (
-                <Reveal>
-                  <Section title={t('home.featuredTitle')}>
-                    <FeaturedProducts products={data.featured} />
-                  </Section>
-                </Reveal>
+                <Section tone="sand" title={t('home.featuredTitle')}>
+                  <FeaturedProducts products={data.featured} />
+                </Section>
               )}
               {data.newArrivals.length > 0 && (
-                <Reveal>
-                  <Section title={t('home.newArrivalsTitle')}>
-                    <NewArrivalsGrid products={data.newArrivals} />
-                  </Section>
-                </Reveal>
+                <Section title={t('home.newArrivalsTitle')}>
+                  <NewArrivalsGrid products={data.newArrivals} />
+                </Section>
               )}
             </>
           ) : (
-            <Reveal>
-              <Section>
-                <EmptyState
-                  title={t('home.empty.title')}
-                  description={t('home.empty.description')}
-                  actionLabel={t('hero.startSelling')}
-                  onAction={() => navigate('/register')}
-                />
-              </Section>
-            </Reveal>
+            <Section>
+              <EmptyState
+                title={t('home.empty.title')}
+                description={t('home.empty.description')}
+                actionLabel={t('hero.startSelling')}
+                onAction={() => navigate('/sell')}
+              />
+            </Section>
           )}
         </>
       )}
-
-      <Reveal>
-        <HowItWorks />
-      </Reveal>
-      <Reveal>
-        <AiBanner />
-      </Reveal>
-      <Reveal>
-        <PaymentStrip />
-      </Reveal>
+      {/* Selling is explained in full on /sell; Home keeps a single invitation to it. Payment options
+          are shown at checkout, where they matter, rather than as a strip here. */}
+      <AiBanner />
     </div>
   );
 }

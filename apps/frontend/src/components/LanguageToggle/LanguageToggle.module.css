@@ -88,7 +88,7 @@
   border: 0;
   background: transparent;
   font: inherit;
-  color: var(--text-secondary, var(--auth-muted, #6e6459));
+  color: var(--text-secondary);
   font-weight: 500;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
@@ -96,19 +96,19 @@
 }
 
 .option[aria-checked='true'] {
-  color: var(--text-primary, var(--auth-ink, #221e19));
+  color: var(--text-primary);
   font-weight: 600;
 }
 
 .option:focus-visible {
-  outline: 2px solid var(--brand-primary, #1a6b49);
+  outline: 2px solid var(--brand-primary);
   outline-offset: 2px;
   border-radius: 9999px;
 }
 
 /* "EN" — Latin, uppercase, tight. */
 .label {
-  font-family: 'IBM Plex Sans', 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-body);
   font-size: 13px;
   line-height: 1;
   letter-spacing: 0.02em;
@@ -120,7 +120,7 @@
 /* "اردو" — Nastaliq renders visually smaller and its ascenders/descenders overrun the line box,
    so it takes a taller line-height and a nudge down to sit optically centered. */
 .labelUr {
-  font-family: 'Noto Nastaliq Urdu', 'IBM Plex Sans Arabic', serif;
+  font-family: var(--font-urdu);
   font-size: 15px;
   line-height: 1.6;
   padding-block-start: 2px;

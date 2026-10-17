@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { AutoComplete, Input, Tooltip } from 'antd';
 import { Camera, Search } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { autocomplete } from './marketplaceApi';
 
@@ -23,10 +23,24 @@ const SUGGESTION_KEYS = ['s1', 's2', 's3', 's4'] as const;
 // 2-character minimum, REQ-F-Browse-002), a rotating hint placeholder, and a disabled "search by
 // photo" camera affordance with an explanatory tooltip (the feature isn't built yet). Submits on
 // Enter or the trailing button, navigating to the text-search route.
-export function SearchBar({ autoFocus, rotatePlaceholders = true, onSubmitted, className }: SearchBarProps) {
+export function SearchBar({
+  autoFocus,
+  rotatePlaceholders = true,
+  onSubmitted,
+  className,
+}: SearchBarProps) {
   const { t } = useTranslation('marketplace');
   const navigate = useNavigate();
-  const [value, setValue] = useState('');
+  const { pathname } = useLocation();
+  const [searchParams] = useSearchParams();
+  const urlQuery = pathname === '/search' ? (searchParams.get('q') ?? '') : '';
+  const [value, setValue] = useState(urlQuery);
+
+  // On /search the field mirrors the query being shown, so the visitor can see and refine it;
+  // elsewhere it starts empty.
+  useEffect(() => {
+    setValue(urlQuery);
+  }, [urlQuery]);
   const [options, setOptions] = useState<{ value: string }[]>([]);
   const [focused, setFocused] = useState(false);
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
@@ -35,7 +49,10 @@ export function SearchBar({ autoFocus, rotatePlaceholders = true, onSubmitted, c
 
   useEffect(() => {
     if (!rotatePlaceholders || focused || value) return;
-    const id = setInterval(() => setPlaceholderIndex((i) => (i + 1) % suggestions.length), ROTATE_MS);
+    const id = setInterval(
+      () => setPlaceholderIndex((i) => (i + 1) % suggestions.length),
+      ROTATE_MS,
+    );
     return () => clearInterval(id);
   }, [rotatePlaceholders, focused, value, suggestions.length]);
 
@@ -95,11 +112,20 @@ export function SearchBar({ autoFocus, rotatePlaceholders = true, onSubmitted, c
           suffix={
             <span className="storefront-search__suffix">
               <Tooltip title={t('search.photo')}>
-                <button type="button" className="storefront-search__icon" disabled aria-label={t('search.photo')}>
+                <button
+                  type="button"
+                  className="storefront-search__icon"
+                  disabled
+                  aria-label={t('search.photo')}
+                >
                   <Camera size={18} aria-hidden="true" />
                 </button>
               </Tooltip>
-              <button type="submit" className="storefront-search__icon" aria-label={t('search.submit')}>
+              <button
+                type="submit"
+                className="storefront-search__icon"
+                aria-label={t('search.submit')}
+              >
                 <Search size={18} aria-hidden="true" />
               </button>
             </span>

@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { ArrowLeft, ArrowRight, ShoppingBag, Sparkles, type LucideIcon } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ShoppingBag, type LucideIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
 import { useLanguage } from '../../hooks';
 import { LanguageToggle } from '../LanguageToggle/LanguageToggle';
 import './auth.css';
+import { AiMark } from '../AiMark';
+import { BrandLogo } from '../BrandLogo';
 
 interface AuthLayoutProps {
   /** Optional leading icon tile above the heading (e.g. UserPlus on Register). */
@@ -20,22 +22,11 @@ interface AuthLayoutProps {
 
 // The KarobarAI mark, shared by the panel (white badge) and the mobile header (brand green). Fills
 // are driven by the surrounding scope in auth.css so one geometry serves both colour treatments.
-function BrandMark({ size }: { size: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 512 512" aria-hidden="true">
-      <rect width="512" height="512" rx="104" className="kaLogoBg" />
-      <polygon points="256,150 382,280 130,280" className="kaLogoFg1" />
-      <rect x="146" y="280" width="220" height="132" rx="14" className="kaLogoFg2" />
-      <circle cx="256" cy="140" r="22" className="kaLogoDot" />
-    </svg>
-  );
-}
-
 const CAPTION_KEYS = ['slide1', 'slide2', 'slide3'] as const;
 const ROTATE_MS = 5000;
 
 /**
- * Shared chrome for every public auth screen: one rounded container holding an inset green brand
+ * Shared chrome for every public auth screen: one rounded container holding an inset espresso brand
  * panel (logo, back pill, AI listing mockup, caption carousel) and the clean form half (top row
  * with the language toggle, vertically-centered 440px content column). All layout is logical CSS,
  * so the whole thing mirrors under dir="rtl" with no RTL-specific code.
@@ -72,10 +63,9 @@ export function AuthLayout({ icon: Icon, title, subtitle, footer, children }: Au
           <div className="kaPanelPattern" aria-hidden="true" />
 
           <div className="kaPanelTop">
-            <Link to="/" className="kaBrand" aria-label="KarobarAI">
-              <BrandMark size={36} />
-              <span className="kaBrandWord">KarobarAI</span>
-            </Link>
+            <span className="kaBrand">
+              <BrandLogo />
+            </span>
             <Link to="/" className="kaBackPill">
               <BackIcon size={14} aria-hidden="true" />
               <span>{t('auth:backToHome')}</span>
@@ -87,7 +77,7 @@ export function AuthLayout({ icon: Icon, title, subtitle, footer, children }: Au
 
             <div className="kaMock">
               <span className="kaMockChip">
-                <Sparkles size={12} aria-hidden="true" />
+                <AiMark size={12} color="var(--accent-marigold-strong)" />
                 {t('auth:mockup.chip')}
               </span>
 
@@ -159,10 +149,9 @@ export function AuthLayout({ icon: Icon, title, subtitle, footer, children }: Au
 
         <main className="kaFormSide">
           <div className="kaTopRow">
-            <Link to="/" className="kaMobileBrand" aria-label="KarobarAI">
-              <BrandMark size={30} />
-              <span className="kaMobileBrandWord">KarobarAI</span>
-            </Link>
+            <span className="kaMobileBrand">
+              <BrandLogo />
+            </span>
             <LanguageToggle />
           </div>
 

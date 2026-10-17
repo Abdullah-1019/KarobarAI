@@ -8,6 +8,8 @@ import { Container } from './Container';
 interface AppHeaderProps {
   homeHref: string;
   brandLabel: string;
+  /** Full brand lockup (logo mark + wordmark); falls back to `brandLabel` text when omitted. */
+  brand?: ReactNode;
   /** Buyer only — the storefront search bar. Fills the header's flexible middle space; when
    * omitted (Seller/Admin), that same space just acts as a spacer pushing the rest to the end. */
   search?: ReactNode;
@@ -40,16 +42,18 @@ interface AppHeaderProps {
 //
 // RTL: a plain flex row — under `dir="rtl"` on <html> the row axis mirrors on its own, so
 // brand/search/language/actions/account reorder without any LTR/RTL-specific markup here.
-export function AppHeader({ homeHref, brandLabel, search, actions, notificationSlot, accountSlot, guestActions, contained = false }: AppHeaderProps) {
+export function AppHeader({ homeHref, brandLabel, brand, search, actions, notificationSlot, accountSlot, guestActions, contained = false }: AppHeaderProps) {
   const { language, setLanguage } = useLanguage();
 
   const row = (
     <>
-      <Link to={homeHref} style={{ flexShrink: 0, color: 'inherit' }}>
-        <Typography.Title level={4} style={{ margin: 0, whiteSpace: 'nowrap', color: 'inherit' }}>
-          {brandLabel}
-        </Typography.Title>
-      </Link>
+      {brand ?? (
+        <Link to={homeHref} style={{ flexShrink: 0, color: 'inherit' }}>
+          <Typography.Title level={4} style={{ margin: 0, whiteSpace: 'nowrap', color: 'inherit' }}>
+            {brandLabel}
+          </Typography.Title>
+        </Link>
+      )}
 
       {search && (
         <div className="karobarai-app-header-search" style={{ flex: 1, minWidth: 0 }}>

@@ -14,14 +14,18 @@ interface ProductCardProps {
 // backend home feed documents). A 14-day window gives the badge a shelf life of its own instead of
 // stamping every listing as new the day it appears.
 const NEW_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
+// "Only X left" urgency threshold — read from the real `stock` field only, never invented.
+const LOW_STOCK_MAX = 5;
 
 function isNew(createdAt: string): boolean {
   const created = new Date(createdAt).getTime();
   return !Number.isNaN(created) && Date.now() - created < NEW_WINDOW_MS;
 }
 
-// UIUX §13 product card, rebuilt for the Home redesign (Phase 6): 4:5 photo, NEW sticker, a
-// one-tap "quick add" that slides up on desktop hover, an emerald price, and a mint COD pill.
+// Haveli product card (Batch 0.6): a cream card with a 4:5 photo that zooms gently on hover while
+// the card lifts, a brass NEW sticker, a sindoor "Only X left" pill when stock is genuinely low, an
+// espresso price, and a one-tap "quick add" that slides up on desktop hover. Cash on Delivery is a
+// site-wide promise (stated once in the shell), so it is no longer repeated on every card.
 //
 // The whole card is clickable via a "stretched link": the title <Link> paints a ::after cover over
 // the card (z-index 1) instead of wrapping the markup, so the quick-add <button> can sit alongside
@@ -42,6 +46,7 @@ export function ProductCard({ product }: ProductCardProps) {
   const image = product.images[0]?.url ?? null;
   const outOfStock = product.stock <= 0 || product.status !== 'LIVE';
   const showNew = !outOfStock && isNew(product.createdAt);
+  const lowStock = !outOfStock && product.stock <= LOW_STOCK_MAX;
 
   return (
     <article className="product-card">
@@ -51,11 +56,12 @@ export function ProductCard({ product }: ProductCardProps) {
           alt=""
           fill
           radius="md"
-          style={{ aspectRatio: '4 / 5', borderRadius: 'var(--radius-image)' }}
+          style={{ aspectRatio: '4 / 5', borderRadius: 'var(--radius-md)' }}
         />
-        {showNew && (
+        {(showNew || lowStock) && (
           <span className="product-card__badges">
-            <Badge variant="new">{t('product.new')}</Badge>
+            {showNew && <Badge variant="new">{t('product.new')}</Badge>}
+            {lowStock && <Badge variant="low-stock">{t('product.onlyLeft', { count: product.stock })}</Badge>}
           </span>
         )}
         {outOfStock && (
@@ -82,9 +88,8 @@ export function ProductCard({ product }: ProductCardProps) {
           </Link>
         </h3>
         <div className="product-card__price">
-          <PriceDisplay amount={product.price} size="md" tone="brand" strong />
+          <PriceDisplay amount={product.price} size="md" strong />
         </div>
-        {!outOfStock && <Badge variant="cod">{t('product.codAvailable')}</Badge>}
       </div>
     </article>
   );

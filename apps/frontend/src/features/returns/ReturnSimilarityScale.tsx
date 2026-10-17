@@ -20,7 +20,7 @@ export function ReturnSimilarityScale({
           borderRadius: 9,
           overflow: 'hidden',
           background:
-            'linear-gradient(to right, #f3d8d8 0% 60%, #f6e9c4 60% 80%, #d5eee8 80% 100%)',
+            'linear-gradient(to right, var(--error-soft) 0% 60%, var(--warning-soft) 60% 80%, var(--success-soft) 80% 100%)',
         }}
       >
         <span
@@ -30,7 +30,7 @@ export function ReturnSimilarityScale({
             top: 0,
             width: 4,
             height: 18,
-            background: '#173a36',
+            background: 'var(--brand-ink)',
           }}
         />
       </div>

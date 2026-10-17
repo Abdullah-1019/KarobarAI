@@ -1,13 +1,22 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500" role="img" aria-label="Books and stationery demo photo">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500" role="img" aria-label="Books &amp; stationery — placeholder illustration">
+  <!-- KarobarAI placeholder product illustration (books-stationery). Hand-authored SVG, Haveli palette (Batch 0.8). Not a product photo. -->
   <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#E7F0FD"/>
-      <stop offset="1" stop-color="#FFFFFF"/>
-    </linearGradient>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E3E7EF"/><stop offset="1" stop-color="#FFFDF9"/></linearGradient>
+    <pattern id='bp' width='48' height='48' patternUnits='userSpaceOnUse'><g fill='none' stroke='#3A4D7A' stroke-width='1' opacity='0.35'><rect x='8' y='8' width='32' height='32'/><rect x='8' y='8' width='32' height='32' transform='rotate(45 24 24)'/><circle cx='24' cy='24' r='4'/></g></pattern>
+    <radialGradient id="fade" cx="0.85" cy="0.1" r="0.6"><stop offset="0" stop-color="#fff" stop-opacity="1"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+    <mask id="m"><rect width="400" height="500" fill="url(#fade)"/></mask>
   </defs>
-  <rect width="400" height="500" fill="url(#g)"/>
-  <circle cx="200" cy="215" r="96" fill="#2F6FDE" opacity="0.14"/>
-  <rect x="150" y="165" width="100" height="100" rx="18" fill="#2F6FDE" opacity="0.22"/>
-  <text x="200" y="392" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="600" fill="#2F6FDE">Books</text>
-  <text x="200" y="424" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="16" fill="#2F6FDE" opacity="0.7">Demo photo</text>
+  <rect width="400" height="500" fill="url(#bg)"/>
+  <rect width="400" height="500" fill="url(#bp)" mask="url(#m)"/>
+  <ellipse cx="200" cy="412" rx="118" ry="16" fill="#2B1D14" opacity="0.10"/>
+  <!-- stacked books + pen -->
+  <rect x="108" y="330" width="190" height="46" rx="6" fill="#3A4D7A"/>
+  <rect x="108" y="344" width="190" height="6" fill="#F6E7C4"/>
+  <rect x="126" y="284" width="170" height="46" rx="6" fill="#AE5429"/>
+  <rect x="140" y="296" width="60" height="22" rx="3" fill="#F6E3D6"/>
+  <rect x="98" y="238" width="180" height="46" rx="6" fill="#5A3A22"/>
+  <rect x="98" y="250" width="180" height="5" fill="#C9963F"/>
+  <rect x="98" y="267" width="180" height="5" fill="#C9963F"/>
+  <path d="M150 210l120-60" stroke="#2B1D14" stroke-width="10" stroke-linecap="round"/>
+  <path d="M262 154l14-7" stroke="#C9963F" stroke-width="10" stroke-linecap="round"/>
 </svg>

@@ -1,5 +1,9 @@
 import type { ReactNode } from 'react';
+import { ConfigProvider } from 'antd';
 import { useTranslation } from 'react-i18next';
+
+import { compactDensity } from '../app/theme';
+import { useMediaQuery } from '../hooks';
 
 interface AppShellProps {
   header: ReactNode;
@@ -9,6 +13,11 @@ interface AppShellProps {
   bottomTabs?: ReactNode;
   /** Site footer — currently the Buyer storefront only. Rendered after the content row. */
   footer?: ReactNode;
+  /**
+   * `compact` — Seller/Admin workspaces (Operate surfaces): 40px AntD controls on tablet/desktop.
+   * Phones always keep the 48px touch-first default.
+   */
+  density?: 'comfortable' | 'compact';
   children: ReactNode;
 }
 
@@ -22,10 +31,11 @@ interface AppShellProps {
 // there's no LTR/RTL branching here (UIUX §10, §31). A "skip to content" link is the first
 // focusable element (keyboard users jump past the nav); `<main>` is its target and is
 // programmatically focusable so focus actually moves there.
-export function AppShell({ header, sidebar, bottomTabs, footer, children }: AppShellProps) {
+export function AppShell({ header, sidebar, bottomTabs, footer, density = 'comfortable', children }: AppShellProps) {
   const { t } = useTranslation('common');
+  const isWide = useMediaQuery('(min-width: 768px)');
 
-  return (
+  const shell = (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <a href="#main-content" className="skip-link">
         {t('a11y.skipToContent')}
@@ -41,4 +51,6 @@ export function AppShell({ header, sidebar, bottomTabs, footer, children }: AppS
       {bottomTabs}
     </div>
   );
+
+  return density === 'compact' && isWide ? <ConfigProvider theme={compactDensity}>{shell}</ConfigProvider> : shell;
 }

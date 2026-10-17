@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
-import { Drawer, Dropdown, Segmented } from 'antd';
+import { Drawer, Segmented } from 'antd';
 import type { MenuProps } from 'antd';
 import { ClipboardList, Home, LogOut, Menu, Search, ShoppingCart, User } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 
 import { Button, Container } from '../../components';
 import { useLanguage, useScrolled } from '../../hooks';
 import type { AuthUser } from '../../lib/authStore';
 import { NotificationBell } from '../notifications';
+import { AccountMenu, GuestAccountLink } from '../profile';
 import { AnnouncementBar } from './AnnouncementBar';
 import { SearchBar } from './SearchBar';
 import { StorefrontLogo } from './StorefrontLogo';
@@ -27,6 +28,11 @@ export function StorefrontHeader({ user, cartCount, onLogout }: StorefrontHeader
   const { t } = useTranslation(['common', 'marketplace']);
   const { language, dir, setLanguage } = useLanguage();
   const scrolled = useScrolled(8);
+  const { pathname } = useLocation();
+  // On Home the hero's own large search is the primary action; the header copy appears once the
+  // visitor scrolls past it, so the page never shows two search boxes at once.
+  const pastHeroSearch = useScrolled(360);
+  const heroOwnsSearch = pathname === '/' && !pastHeroSearch;
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [cartPop, setCartPop] = useState(false);
@@ -84,7 +90,7 @@ export function StorefrontHeader({ user, cartCount, onLogout }: StorefrontHeader
 
           <StorefrontLogo />
 
-          <div className="storefront-nav__search buyer-desktop">
+          <div className={`storefront-nav__search buyer-desktop${heroOwnsSearch ? ' is-deferred' : ''}`}>
             <SearchBar />
           </div>
 
@@ -117,26 +123,13 @@ export function StorefrontHeader({ user, cartCount, onLogout }: StorefrontHeader
             </Link>
 
             <span className="buyer-desktop storefront-nav__seller">
-              <Button variant="outline-saffron" to="/register?role=seller">
+              <Button variant="outline-saffron" to="/sell">
                 {t('marketplace:nav.becomeSeller')}
               </Button>
             </span>
 
-            {user ? (
-              <span className="buyer-desktop">
-                <Dropdown menu={{ items: menuItems }}>
-                  <Button variant="ghost" icon={<User size={18} aria-hidden="true" />}>
-                    {t('common:nav.profile')}
-                  </Button>
-                </Dropdown>
-              </span>
-            ) : (
-              <span className="buyer-desktop">
-                <Button variant="ghost" to="/login">
-                  {t('marketplace:nav.login')}
-                </Button>
-              </span>
-            )}
+            {/* Account avatar — visible at every width (the drawer is no longer the only way in). */}
+            {user ? <AccountMenu items={menuItems} /> : <GuestAccountLink label={t('marketplace:nav.login')} />}
           </div>
         </Container>
       </nav>
@@ -217,7 +210,7 @@ export function StorefrontHeader({ user, cartCount, onLogout }: StorefrontHeader
                 {t('marketplace:nav.login')}
               </Button>
               <div style={{ marginTop: 'var(--sp-3)' }}>
-                <Button variant="cta" fullWidth to="/register?role=seller">
+                <Button variant="cta" fullWidth to="/sell">
                   {t('marketplace:nav.becomeSeller')}
                 </Button>
               </div>

@@ -1,12 +1,11 @@
 /* Auth screens — single shared stylesheet for the whole (public) authentication surface.
-   Structure: ONE rounded container holding a split layout (inset green brand panel + clean form
-   half), on the warm-cream canvas. Every rule is written with CSS logical properties only, so the
+   Structure: ONE rounded container holding a split layout (inset espresso brand panel with a brass
+   block-print tile + clean cream form half), on the parchment canvas. Every rule is written with CSS logical properties only, so the
    whole layout mirrors under dir="rtl" — the grid columns follow the writing direction, and the
    panel (first child) automatically swaps sides. No left/right, no RTL-specific layout code.
 
-   Colours reuse the app's existing tokens wherever a close equivalent exists (brand green, accent
-   marigold, text/error/success, radii, motion). Only genuinely missing token names are introduced
-   below; two exceptions are called out inline (--text-muted, forced by the 4.5:1 contrast rule). */
+   Colours, radii and type come from the global Haveli tokens (global.css); the auth-scoped names
+   below are aliases only, so this surface can never drift from the rest of the app. */
 
 .kaAuth,
 .kaAuth *,
@@ -20,29 +19,27 @@
    ------------------------------------------------------------------------------------------- */
 .kaAuth {
   /* Page / surfaces */
-  --auth-bg: #f7f3ec; /* warm cream canvas */
-  --form-bg: var(--bg-surface); /* #ffffff — form half + toggle track */
-  --panel-bg: #14573c; /* deep green panel */
-  --panel-bg-2: #0f4630; /* gradient end */
-  --mint: var(--brand-primary-soft); /* #e7f2ec — selected states, soft fills */
+  --auth-bg: var(--bg-canvas); /* parchment */
+  --form-bg: var(--bg-surface); /* cream — form half + toggle track */
+  --panel-bg: var(--brand-ink); /* espresso brand panel */
+  --panel-bg-2: var(--brand-ink-2); /* walnut gradient end */
+  --mint: var(--brand-primary-soft); /* peach-clay — selected states, soft fills (name kept) */
 
   /* Fields */
-  --field-bg: #f7f5f0;
-  --field-border: rgba(20, 40, 30, 0.12);
-  --field-border-hover: rgba(20, 40, 30, 0.24);
+  --field-bg: var(--bg-sunken); /* sand */
+  --field-border: rgba(43, 29, 20, 0.2);
+  --field-border-hover: rgba(43, 29, 20, 0.38);
 
-  /* --text-tertiary (#8b8175) is only ~3.8:1 on white, below the 4.5:1 floor this design commits
-     to for placeholders/helper text, so --text-muted is defined explicitly here. Darkened from the
-     spec's #6b7770 (~4.3:1 on the #f7f5f0 field background) to clear 4.5:1 on every surface it
-     lands on (white and --field-bg) — ≈4.6:1. */
-  --text-muted: #667069;
+  /* Placeholders/helper text sit on sand fields, so they use umber (secondary) rather than taupe
+     to keep a comfortable margin over the 4.5:1 floor on every surface they land on. */
+  --text-muted: var(--text-secondary); /* umber: ≈5.3:1 on sand, ≈6.2:1 on cream */
   --danger: var(--error);
 
   /* Radii / elevation */
-  --radius-container: 28px;
-  --radius-panel: 22px;
-  --radius-field: 12px;
-  --shadow-container: 0 1px 2px rgba(16, 24, 20, 0.04), 0 24px 60px rgba(16, 24, 20, 0.08);
+  --radius-container: var(--radius-xl);
+  --radius-panel: var(--radius-card);
+  --radius-field: var(--radius-md);
+  --shadow-container: 0 1px 2px rgba(43, 29, 20, 0.05), 0 24px 60px rgba(43, 29, 20, 0.1);
 
   display: flex;
   align-items: center;
@@ -50,7 +47,7 @@
   min-height: 100dvh;
   padding: 24px;
   background: var(--auth-bg);
-  font-family: 'IBM Plex Sans', 'IBM Plex Sans Arabic', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-body);
   color: var(--text-primary);
 }
 
@@ -82,22 +79,25 @@
   padding: 32px;
   border-radius: var(--radius-panel);
   overflow: hidden;
-  color: #fff;
+  color: var(--text-on-dark);
   background: linear-gradient(160deg, var(--panel-bg), var(--panel-bg-2));
 }
 
-/* Ajrak / Islamic 8-point-star tile, white at ~5.5%, as an inline data-URI (no external asset). */
+/* The brand's brass block-print tile (--pattern-blockprint, global.css) on the espresso panel. */
 .kaPanelPattern {
   position: absolute;
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72' viewBox='0 0 72 72'%3E%3Cg fill='none' stroke='%23ffffff' stroke-opacity='0.055' stroke-width='1.1'%3E%3Crect x='12' y='12' width='48' height='48'/%3E%3Crect x='12' y='12' width='48' height='48' transform='rotate(45 36 36)'/%3E%3Ccircle cx='36' cy='36' r='6.5'/%3E%3Cpath d='M0 36h12M60 36h12M36 0v12M36 60v12'/%3E%3C/g%3E%3C/svg%3E");
-  background-size: 72px 72px;
+  background-image: var(--pattern-blockprint);
+  background-size: var(--pattern-size) var(--pattern-size);
+  opacity: 0.12; /* same tint as the hero's block-print */
   background-position: center;
 }
 
-.kaPanel > * {
+/* Lift the panel content above the pattern — but not the pattern itself, which must stay
+   absolutely positioned behind everything. */
+.kaPanel > :not(.kaPanelPattern) {
   position: relative;
   z-index: 1;
 }
@@ -116,27 +116,9 @@
   text-decoration: none;
 }
 
-.kaBrandWord {
-  font-size: 20px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  color: #fff;
-}
-
-/* Logo mark — recoloured as a crisp white badge on the green panel (same geometry as the app's
-   KarobarAI mark, which reads green-on-white everywhere else). */
-.kaBrand .kaLogoBg {
-  fill: #ffffff;
-}
-.kaBrand .kaLogoFg1 {
-  fill: var(--panel-bg);
-}
-.kaBrand .kaLogoFg2 {
-  fill: #2f7d5b;
-}
-.kaBrand .kaLogoDot,
-.kaMobileBrand .kaLogoDot {
-  fill: var(--accent-marigold);
+/* The shared BrandLogo lockup, set in parchment on the espresso panel. */
+.kaBrand .storefront-logo {
+  color: var(--text-on-dark);
 }
 
 .kaBackPill {
@@ -148,7 +130,7 @@
   border-radius: 9999px;
   border: 1px solid rgba(255, 255, 255, 0.22);
   background: rgba(255, 255, 255, 0.14);
-  color: #fff;
+  color: var(--text-on-dark);
   font-size: 13px;
   font-weight: 500;
   text-decoration: none;
@@ -172,7 +154,7 @@
   line-height: 1.1;
   letter-spacing: -0.02em;
   text-wrap: balance;
-  color: #fff;
+  color: var(--text-on-dark);
 }
 
 /* -------------------------------------------------------------------------------------------
@@ -184,8 +166,8 @@
   margin-top: 28px;
   padding: 16px;
   border-radius: 18px;
-  background: #fff;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+  background: var(--bg-surface);
+  box-shadow: 0 20px 40px rgba(12, 7, 4, 0.35);
   transform: rotate(-2deg);
 }
 
@@ -195,8 +177,8 @@
   gap: 6px;
   padding: 4px 10px;
   border-radius: 9999px;
-  background: var(--mint);
-  color: var(--brand-primary);
+  background: var(--accent-marigold-soft);
+  color: var(--accent-ink);
   font-size: 12px;
   font-weight: 600;
 }
@@ -216,7 +198,7 @@
   width: 64px;
   height: 64px;
   border-radius: 12px;
-  background: linear-gradient(150deg, var(--mint), #bfe3d2);
+  background: linear-gradient(150deg, var(--mint), var(--accent-marigold-soft));
   color: var(--brand-primary);
 }
 
@@ -231,7 +213,7 @@
 }
 
 .kaMockTitleUr {
-  font-family: 'Noto Nastaliq Urdu', 'IBM Plex Sans Arabic', serif;
+  font-family: var(--font-urdu);
   font-size: 15px;
   line-height: 1.9;
   color: var(--text-secondary);
@@ -248,7 +230,7 @@
   padding: 3px 8px;
   border-radius: 9999px;
   background: var(--mint);
-  color: #2f6f52;
+  color: var(--brand-primary-active);
   font-size: 12px;
 }
 
@@ -302,7 +284,7 @@
   font-size: 20px;
   font-weight: 600;
   line-height: 1.4;
-  color: #fff;
+  color: var(--text-on-dark);
   opacity: 0;
   pointer-events: none;
   transition: opacity 300ms ease;
@@ -337,13 +319,13 @@
   inset: -10px 0;
 }
 .kaDot[data-active='true'] {
-  background: #ffffff;
+  background: var(--text-on-dark);
 }
 .kaDot:hover {
   background: rgba(255, 255, 255, 0.6);
 }
 .kaDot[data-active='true']:hover {
-  background: #ffffff;
+  background: var(--text-on-dark);
 }
 
 /* -------------------------------------------------------------------------------------------
@@ -376,20 +358,8 @@
   gap: 8px;
   text-decoration: none;
 }
-.kaMobileBrand .kaLogoBg {
-  fill: var(--brand-primary);
-}
-.kaMobileBrand .kaLogoFg1 {
-  fill: #ffffff;
-}
-.kaMobileBrand .kaLogoFg2 {
-  fill: #cfe6da;
-}
-.kaMobileBrandWord {
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--text-primary);
-  letter-spacing: -0.01em;
+.kaMobileBrand .storefront-logo__word {
+  font-size: var(--fs-xl);
 }
 
 .kaFormContent {
@@ -454,14 +424,14 @@
    RTL / Urdu — Nastaliq needs a taller line box, and renders smaller, so sizes gain +1px.
    ------------------------------------------------------------------------------------------- */
 [dir='rtl'] .kaPanelHeadline {
-  font-family: 'Noto Nastaliq Urdu', 'IBM Plex Sans Arabic', serif;
+  font-family: var(--font-urdu);
   font-size: 39px;
   line-height: 1.8;
   letter-spacing: normal;
 }
 
 [dir='rtl'] .kaTitle {
-  font-family: 'Noto Nastaliq Urdu', 'IBM Plex Sans Arabic', serif;
+  font-family: var(--font-urdu);
   font-size: 31px;
   line-height: 1.9;
   letter-spacing: normal;
@@ -473,7 +443,7 @@
 }
 
 [dir='rtl'] .kaCaption {
-  font-family: 'Noto Nastaliq Urdu', 'IBM Plex Sans Arabic', serif;
+  font-family: var(--font-urdu);
   font-size: 21px;
   line-height: 1.9;
 }
@@ -603,9 +573,9 @@
 }
 .kaInput:focus {
   outline: none;
-  background: #fff;
+  background: var(--bg-surface);
   border-color: var(--brand-primary);
-  box-shadow: 0 0 0 3px rgba(20, 87, 60, 0.15);
+  box-shadow: 0 0 0 3px var(--brand-ring);
 }
 .kaControl--icon .kaInput {
   padding-inline-start: 40px;
@@ -629,7 +599,7 @@
   border-color: var(--danger);
 }
 .kaControl[data-invalid='true'] .kaInput:focus {
-  box-shadow: 0 0 0 3px rgba(180, 35, 24, 0.15);
+  box-shadow: 0 0 0 3px rgba(179, 38, 30, 0.16);
 }
 
 /* Password reveal */
@@ -650,7 +620,7 @@
 }
 .kaPwToggle:hover {
   color: var(--text-primary);
-  background: rgba(20, 40, 30, 0.06);
+  background: rgba(43, 29, 20, 0.06);
 }
 .kaPwToggle:focus-visible {
   outline: 2px solid var(--brand-primary);
@@ -674,15 +644,15 @@
   border-color: var(--field-border-hover);
 }
 .kaPhone:focus-within {
-  background: #fff;
+  background: var(--bg-surface);
   border-color: var(--brand-primary);
-  box-shadow: 0 0 0 3px rgba(20, 87, 60, 0.15);
+  box-shadow: 0 0 0 3px var(--brand-ring);
 }
 .kaPhone[data-invalid='true'] {
   border-color: var(--danger);
 }
 .kaPhone[data-invalid='true']:focus-within {
-  box-shadow: 0 0 0 3px rgba(180, 35, 24, 0.15);
+  box-shadow: 0 0 0 3px rgba(179, 38, 30, 0.16);
 }
 .kaPhonePrefix {
   display: flex;
@@ -739,12 +709,13 @@
   --lbl: var(--danger);
 }
 .kaStrength[data-level='2'] {
-  --seg: #d97706;
-  --lbl: #b45309;
+  --seg: var(--accent-marigold);
+  --lbl: var(--warning);
 }
 .kaStrength[data-level='3'] {
-  --seg: #65a30d;
-  --lbl: #4d7c0f;
+  --seg: var(--success);
+  --lbl: var(--success);
+  opacity: 0.85;
 }
 .kaStrength[data-level='4'] {
   --seg: var(--success);
@@ -895,9 +866,9 @@
     box-shadow var(--dur-fast, 150ms) var(--ease, ease);
 }
 .kaMethodTab[data-selected='true'] {
-  background: #fff;
+  background: var(--bg-surface);
   color: var(--text-primary);
-  box-shadow: 0 1px 2px rgba(16, 24, 20, 0.1);
+  box-shadow: var(--shadow-xs);
 }
 .kaMethodTab:focus-within {
   outline: 2px solid var(--brand-primary);
@@ -915,7 +886,7 @@
   border: 0;
   border-radius: var(--radius-field);
   background: var(--brand-primary);
-  color: #fff;
+  color: var(--text-on-brand);
   font-family: inherit;
   font-size: 15px;
   font-weight: 600;
@@ -928,13 +899,14 @@
 .kaBtn:hover:not(:disabled) {
   background: var(--brand-primary-hover);
   transform: translateY(-1px);
-  box-shadow: 0 8px 18px rgba(20, 87, 60, 0.22);
+  box-shadow: 0 8px 18px rgba(174, 84, 41, 0.24);
 }
 .kaBtn:active:not(:disabled) {
   transform: translateY(0);
 }
 .kaBtn:disabled {
-  background: rgba(20, 87, 60, 0.45);
+  background: var(--border-strong);
+  color: var(--text-secondary);
   cursor: not-allowed;
 }
 .kaBtn:focus-visible {
@@ -971,19 +943,19 @@
   margin-top: 1px;
 }
 .kaAlert--error {
-  background: #fef3f2;
-  border: 1px solid #fecdca;
+  background: var(--error-soft);
+  border: 1px solid rgba(179, 38, 30, 0.22);
   color: var(--danger);
 }
 .kaAlert--success {
-  background: #ecfdf3;
-  border: 1px solid #a6f4c5;
-  color: #067647;
+  background: var(--success-soft);
+  border: 1px solid rgba(79, 122, 58, 0.25);
+  color: var(--success);
 }
 .kaAlert--info {
-  background: var(--mint);
-  border: 1px solid #bfe3d2;
-  color: var(--brand-primary);
+  background: var(--info-soft);
+  border: 1px solid rgba(58, 77, 122, 0.2);
+  color: var(--info);
 }
 
 /* OTP ----------------------------------------------------------------------------------- */
@@ -1015,9 +987,9 @@
 }
 .kaOtpBox:focus {
   outline: none;
-  background: #fff;
+  background: var(--bg-surface);
   border-color: var(--brand-primary);
-  box-shadow: 0 0 0 3px rgba(20, 87, 60, 0.15);
+  box-shadow: 0 0 0 3px var(--brand-ring);
 }
 .kaOtp[data-invalid='true'] .kaOtpBox {
   border-color: var(--danger);
@@ -1041,10 +1013,10 @@
   width: 18px;
   height: 18px;
   margin-top: 1px;
-  border: 1.5px solid var(--field-border);
+  border: 1.5px solid var(--text-tertiary); /* ≥3:1 boundary for a non-text control */
   border-radius: 5px;
-  background: #fff;
-  color: #fff;
+  background: var(--bg-surface);
+  color: var(--text-on-brand);
   transition:
     background var(--dur-fast, 150ms) var(--ease, ease),
     border-color var(--dur-fast, 150ms) var(--ease, ease);
@@ -1190,7 +1162,7 @@
   color: var(--brand-primary);
 }
 .kaResultIcon--error {
-  background: #fef3f2;
+  background: var(--error-soft);
   color: var(--danger);
 }
 .kaResultTitle {
@@ -1246,7 +1218,7 @@
 [dir='rtl'] .kaMatch,
 [dir='rtl'] .kaOtpMeta,
 [dir='rtl'] .kaResendRow {
-  font-family: 'Noto Nastaliq Urdu', 'IBM Plex Sans Arabic', serif;
+  font-family: var(--font-urdu-ui); /* Naskh: running UI text; Nastaliq stays on headings */
 }
 [dir='rtl'] .kaRoleTitle,
 [dir='rtl'] .kaMethodTab,
@@ -1254,12 +1226,12 @@
 [dir='rtl'] .kaCheckboxLabel,
 [dir='rtl'] .kaResultTitle,
 [dir='rtl'] .kaTextButton {
-  line-height: 1.9;
+  line-height: 1.7;
 }
 [dir='rtl'] .kaRoleDesc {
-  font-family: 'Noto Nastaliq Urdu', 'IBM Plex Sans Arabic', serif;
+  font-family: var(--font-urdu-ui);
   font-size: 13px;
-  line-height: 2;
+  line-height: 1.75;
 }
 
 /* Controls responsive ------------------------------------------------------------------- */

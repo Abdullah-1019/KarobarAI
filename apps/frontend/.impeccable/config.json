@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "design-system-color",
+        "value": "#000",
+        "files": [
+          "src/app/global.css"
+        ],
+        "createdAt": "2026-10-16T21:20:54.052Z",
+        "reason": "Claude: #000 appears only inside CSS mask-image gradients, where black means 'opaque' (mask luminance), not a rendered colour"
+      }
+    ]
+  }
+}

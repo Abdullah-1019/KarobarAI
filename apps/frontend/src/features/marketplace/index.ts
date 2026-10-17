@@ -5,3 +5,4 @@ export { SearchPage } from './SearchPage';
 export { CategoryPage } from './CategoryPage';
 export { ProductDetailPage } from './ProductDetailPage';
 export { StorePage } from './StorePage';
+export { SellPage } from './SellPage';

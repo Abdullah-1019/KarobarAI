@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { BadgeCheck } from 'lucide-react';
 
 type BadgeVariant = 'new' | 'sale' | 'cod' | 'verified' | 'low-stock' | 'out-of-stock';
 
@@ -14,5 +15,12 @@ interface BadgeProps {
 // reach the stylesheet.
 export function Badge({ variant, children, className }: BadgeProps) {
   const classes = ['badge', `badge--${variant}`, className].filter(Boolean).join(' ');
-  return <span className={classes}>{children}</span>;
+  return (
+    <span className={classes}>
+      {variant === 'verified' && (
+        <BadgeCheck size={14} className="badge__seal" aria-hidden="true" />
+      )}
+      {children}
+    </span>
+  );
 }

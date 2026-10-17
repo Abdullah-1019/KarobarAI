@@ -85,7 +85,7 @@ export function StoreChatWidget({ storeSlug, storeName, locale }: StoreChatWidge
               {messages.map((message, index) => (
                 <div key={`${message.createdAt}-${index}`} style={{ alignSelf: message.role === 'USER' ? 'flex-end' : 'flex-start', maxWidth: '90%' }}>
                   <Typography.Paragraph
-                    style={{ margin: 0, padding: 10, borderRadius: 10, background: message.role === 'USER' ? 'var(--primary-100, #e6f4ff)' : 'var(--bg-sunken, #f5f5f5)' }}
+                    style={{ margin: 0, padding: 10, borderRadius: 10, background: message.role === 'USER' ? 'var(--brand-primary-soft)' : 'var(--bg-sunken)' }}
                   >
                     {message.content}
                   </Typography.Paragraph>

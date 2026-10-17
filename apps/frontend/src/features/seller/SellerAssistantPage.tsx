@@ -68,7 +68,7 @@ export function SellerAssistantPage() {
         <div dir={isUrdu ? 'rtl' : 'ltr'} style={{ minHeight: 300, maxHeight: '55vh', overflowY: 'auto', padding: 12 }} aria-live="polite">
           <Space direction="vertical" style={{ width: '100%' }} size="middle">
             {messages.map((message, index) => (
-              <Typography.Paragraph key={`${message.createdAt}-${index}`} style={{ alignSelf: message.role === 'USER' ? 'flex-end' : 'flex-start', maxWidth: '90%', margin: 0, padding: 12, borderRadius: 10, background: message.role === 'USER' ? 'var(--primary-100, #e6f4ff)' : 'var(--bg-sunken, #f5f5f5)' }}>
+              <Typography.Paragraph key={`${message.createdAt}-${index}`} style={{ alignSelf: message.role === 'USER' ? 'flex-end' : 'flex-start', maxWidth: '90%', margin: 0, padding: 12, borderRadius: 10, background: message.role === 'USER' ? 'var(--brand-primary-soft)' : 'var(--bg-sunken)' }}>
                 {message.content}
               </Typography.Paragraph>
             ))}

@@ -1,24 +1,24 @@
-import { Col, Row, Typography } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 
 import type { ProductCondition } from '@karobarai/shared';
 import { CATEGORIES_QUERY_KEY, getCategories } from '../catalog/catalogApi';
-import { FilterPanel } from './FilterPanel';
+import { BrowseLayout } from './BrowseLayout';
+import type { BrowseFilters } from './FilterPanel';
 import { SearchResultsGrid } from './SearchResultsGrid';
-import type { SearchParams, SortOption } from './marketplaceApi';
+import type { SortOption } from './marketplaceApi';
 
-// SCR-B02 — text-search entry point (`/search?q=`). Filters live in the URL so results are
-// shareable/bookmarkable and survive a reload. No outer max-width wrapper — AppShell's shared
-// content area (Phase C) already provides one.
+// SCR-B02 — text-search entry point (`/search?q=`) and "all products". Filters live in the URL so
+// results are shareable/bookmarkable and survive a reload. Layout, chips, sort and the mobile
+// filter sheet come from BrowseLayout (shared with CategoryPage).
 export function SearchPage() {
   const { t } = useTranslation('marketplace');
   const [searchParams, setSearchParams] = useSearchParams();
   const { data: categories } = useQuery({ queryKey: CATEGORIES_QUERY_KEY, queryFn: getCategories });
 
   const q = searchParams.get('q') ?? undefined;
-  const filters: Omit<SearchParams, 'q'> = {
+  const filters: BrowseFilters = {
     categoryId: searchParams.get('categoryId') ?? undefined,
     minPrice: searchParams.get('minPrice') ? Number(searchParams.get('minPrice')) : undefined,
     maxPrice: searchParams.get('maxPrice') ? Number(searchParams.get('maxPrice')) : undefined,
@@ -26,7 +26,7 @@ export function SearchPage() {
     sort: (searchParams.get('sort') as SortOption | null) ?? undefined,
   };
 
-  function updateFilters(next: Omit<SearchParams, 'q'>) {
+  function updateFilters(next: BrowseFilters) {
     const params = new URLSearchParams();
     if (q) params.set('q', q);
     if (next.categoryId) params.set('categoryId', next.categoryId);
@@ -37,25 +37,26 @@ export function SearchPage() {
     setSearchParams(params);
   }
 
-  function resetFilters() {
+  function clearFilters() {
     const params = new URLSearchParams();
     if (q) params.set('q', q);
+    if (filters.sort) params.set('sort', filters.sort);
     setSearchParams(params);
   }
 
   return (
-    <div>
-      <Typography.Title level={3} style={{ marginBottom: 'var(--sp-5)' }}>
-        {q ? `${t('search.title')}: ${q}` : t('search.title')}
-      </Typography.Title>
-      <Row gutter={24}>
-        <Col xs={24} md={6}>
-          <FilterPanel categories={categories ?? []} value={filters} onChange={updateFilters} onReset={resetFilters} />
-        </Col>
-        <Col xs={24} md={18}>
-          <SearchResultsGrid params={{ q, ...filters }} />
-        </Col>
-      </Row>
-    </div>
+    <BrowseLayout
+      header={
+        <header className="browse-head">
+          <h1 className="browse-head__title">{q ? t('browse.resultsFor', { q }) : t('browse.allProducts')}</h1>
+        </header>
+      }
+      categories={categories ?? []}
+      filters={filters}
+      onChange={updateFilters}
+      onClear={clearFilters}
+    >
+      <SearchResultsGrid params={{ q, ...filters }} onClear={clearFilters} />
+    </BrowseLayout>
   );
 }

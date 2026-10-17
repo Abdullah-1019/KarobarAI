@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-type SectionTone = 'cream' | 'white' | 'mint';
+type SectionTone = 'cream' | 'white' | 'mint' | 'sand';
 
 interface SectionProps {
   /** Anchor target for in-page links / skip targets. */

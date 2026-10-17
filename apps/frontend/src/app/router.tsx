@@ -17,7 +17,7 @@ import { ForgotPasswordPage, LoginPage, OtpVerifyPage, RegisterPage, ResetPasswo
 import { AddProductPage, EditProductPage, SellerProductsPage } from '../features/catalog';
 import { CartPage, CheckoutConfirmationPage, CheckoutPage } from '../features/cart';
 import { UiGalleryPage } from '../features/dev/UiGalleryPage';
-import { CategoryPage, HomePage, ProductDetailPage, SearchPage, StorePage, StorefrontLayout } from '../features/marketplace';
+import { CategoryPage, HomePage, ProductDetailPage, SearchPage, SellPage, StorePage, StorefrontLayout } from '../features/marketplace';
 import { NotificationCenterPage } from '../features/notifications';
 import { BuyerOrderDetailPage, BuyerOrdersPage, SellerOrderDetailPage, SellerOrdersPage } from '../features/orders';
 import { ChangePasswordPage, ProfilePage, SettingsPage } from '../features/profile';
@@ -52,6 +52,7 @@ export const router = createBrowserRouter([
       { path: '/category/:slug', element: <CategoryPage /> },
       { path: '/product/:id', element: <ProductDetailPage /> },
       { path: '/store/:storeSlug', element: <StorePage /> },
+      { path: '/sell', element: <SellPage /> },
       { path: '/cart', element: <CartPage /> },
       {
         element: <ProtectedRoute allowedRoles={['BUYER']} />,

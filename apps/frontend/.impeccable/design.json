@@ -1,0 +1,892 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-17T07:23:58.000Z",
+  "title": "Design System: KarobarAI",
+  "extensions": {
+    "colorMeta": {
+      "parchment": {
+        "role": "neutral",
+        "displayName": "Parchment",
+        "canonical": "oklch(97.4% 0.010 81.8)",
+        "tonalRamp": [
+          "#0c0b08",
+          "#292621",
+          "#48453f",
+          "#696660",
+          "#8c8982",
+          "#b1ada8",
+          "#d3d1cd",
+          "#efeeec"
+        ]
+      },
+      "cream": {
+        "role": "neutral",
+        "displayName": "Cream",
+        "canonical": "oklch(99.4% 0.006 84.6)",
+        "tonalRamp": [
+          "#0c0b0a",
+          "#282624",
+          "#464542",
+          "#676662",
+          "#8b8985",
+          "#afaeaa",
+          "#d2d1cf",
+          "#efeeed"
+        ]
+      },
+      "sand": {
+        "role": "neutral",
+        "displayName": "Sand",
+        "canonical": "oklch(93.4% 0.021 79.1)",
+        "tonalRamp": [
+          "#0e0b06",
+          "#2c251c",
+          "#4b4438",
+          "#6d6559",
+          "#90887b",
+          "#b4ada1",
+          "#d5d0c8",
+          "#f0eeea"
+        ]
+      },
+      "linen": {
+        "role": "neutral",
+        "displayName": "Linen",
+        "canonical": "oklch(89.9% 0.026 78.9)",
+        "tonalRamp": [
+          "#0f0a05",
+          "#2d2519",
+          "#4d4436",
+          "#6e6556",
+          "#928878",
+          "#b6ad9e",
+          "#d6d0c7",
+          "#f1eee9"
+        ]
+      },
+      "clay": {
+        "role": "neutral",
+        "displayName": "Clay",
+        "canonical": "oklch(82.7% 0.038 79.1)",
+        "tonalRamp": [
+          "#100a02",
+          "#302411",
+          "#50432d",
+          "#72644d",
+          "#96876f",
+          "#baac97",
+          "#d9d0c1",
+          "#f2eee7"
+        ]
+      },
+      "espresso": {
+        "role": "secondary",
+        "displayName": "Espresso",
+        "canonical": "oklch(24.5% 0.027 53.8)",
+        "tonalRamp": [
+          "#110905",
+          "#30231b",
+          "#514137",
+          "#736258",
+          "#97857a",
+          "#bbaaa0",
+          "#dacec8",
+          "#f3edea"
+        ]
+      },
+      "walnut": {
+        "role": "secondary",
+        "displayName": "Walnut",
+        "canonical": "oklch(38.0% 0.058 56.8)",
+        "tonalRamp": [
+          "#160700",
+          "#3a1f08",
+          "#5d3d25",
+          "#805e45",
+          "#a58167",
+          "#c8a68f",
+          "#e3ccbc",
+          "#f7ece4"
+        ]
+      },
+      "umber": {
+        "role": "neutral",
+        "displayName": "Umber",
+        "canonical": "oklch(48.0% 0.032 63.4)",
+        "tonalRamp": [
+          "#110904",
+          "#312317",
+          "#524133",
+          "#746253",
+          "#988575",
+          "#bbab9c",
+          "#dacfc5",
+          "#f3ede9"
+        ]
+      },
+      "taupe": {
+        "role": "neutral",
+        "displayName": "Taupe",
+        "canonical": "oklch(53.7% 0.036 65.4)",
+        "tonalRamp": [
+          "#110903",
+          "#322314",
+          "#534130",
+          "#756250",
+          "#998572",
+          "#bdaa99",
+          "#dbcfc3",
+          "#f3ede8"
+        ],
+        "note": "Tuned from the brief #8a7764 to #7d6a58 for AA 4.5:1 on parchment."
+      },
+      "dust": {
+        "role": "neutral",
+        "displayName": "Dust",
+        "canonical": "oklch(68.3% 0.038 79.6)",
+        "tonalRamp": [
+          "#100a02",
+          "#302411",
+          "#50432d",
+          "#72644d",
+          "#96876f",
+          "#b9ac97",
+          "#d9d0c1",
+          "#f2eee7"
+        ]
+      },
+      "copper": {
+        "role": "primary",
+        "displayName": "Haveli Copper",
+        "canonical": "oklch(55.0% 0.130 44.1)",
+        "tonalRamp": [
+          "#220000",
+          "#510000",
+          "#7a2400",
+          "#a1481b",
+          "#c96c42",
+          "#ea9671",
+          "#fcc2aa",
+          "#ffe8dc"
+        ],
+        "note": "Tuned from the brief #b4572a to #ae5429 for AA 4.5:1 as link text on parchment."
+      },
+      "copper-deep": {
+        "role": "primary",
+        "displayName": "Deep Copper",
+        "canonical": "oklch(49.8% 0.122 42.8)",
+        "tonalRamp": [
+          "#210000",
+          "#4f0400",
+          "#772700",
+          "#9e4a26",
+          "#c66e4a",
+          "#e79777",
+          "#f9c3ad",
+          "#ffe8dd"
+        ]
+      },
+      "copper-deeper": {
+        "role": "primary",
+        "displayName": "Deeper Copper",
+        "canonical": "oklch(43.3% 0.104 42.8)",
+        "tonalRamp": [
+          "#1e0100",
+          "#4a0e00",
+          "#712e0e",
+          "#965032",
+          "#bd7355",
+          "#df9b80",
+          "#f4c5b3",
+          "#ffe9e0"
+        ]
+      },
+      "peach-clay": {
+        "role": "primary",
+        "displayName": "Peach Clay",
+        "canonical": "oklch(92.8% 0.027 56.8)",
+        "tonalRamp": [
+          "#100905",
+          "#30231a",
+          "#514237",
+          "#736257",
+          "#97857a",
+          "#baaaa0",
+          "#d9cfc7",
+          "#f3edea"
+        ]
+      },
+      "sindoor": {
+        "role": "tertiary",
+        "displayName": "Sindoor",
+        "canonical": "oklch(56.5% 0.175 30.7)",
+        "tonalRamp": [
+          "#2a0000",
+          "#5f0000",
+          "#8b0000",
+          "#b52d1c",
+          "#df5642",
+          "#ff8570",
+          "#ffb9aa",
+          "#ffe3db"
+        ]
+      },
+      "sindoor-soft": {
+        "role": "tertiary",
+        "displayName": "Sindoor Soft",
+        "canonical": "oklch(91.7% 0.030 35.5)",
+        "tonalRamp": [
+          "#120806",
+          "#33221d",
+          "#543f3a",
+          "#76605a",
+          "#9b837d",
+          "#bea8a3",
+          "#dccdc9",
+          "#f4edeb"
+        ]
+      },
+      "brass": {
+        "role": "tertiary",
+        "displayName": "Brass",
+        "canonical": "oklch(70.6% 0.120 77.8)",
+        "tonalRamp": [
+          "#1a0400",
+          "#421a00",
+          "#673900",
+          "#8b5b00",
+          "#b17f22",
+          "#d3a55d",
+          "#eacc9f",
+          "#fbecd7"
+        ]
+      },
+      "brass-deep": {
+        "role": "tertiary",
+        "displayName": "Deep Brass",
+        "canonical": "oklch(61.1% 0.109 76.9)",
+        "tonalRamp": [
+          "#190500",
+          "#401c00",
+          "#653a00",
+          "#885c00",
+          "#ae8033",
+          "#d0a666",
+          "#e8cca4",
+          "#faecd9"
+        ]
+      },
+      "brass-ink": {
+        "role": "tertiary",
+        "displayName": "Brass Ink",
+        "canonical": "oklch(47.8% 0.092 76.8)",
+        "tonalRamp": [
+          "#180600",
+          "#3d1e00",
+          "#603d00",
+          "#845e1e",
+          "#a98145",
+          "#cba873",
+          "#e5cdab",
+          "#f8eddc"
+        ]
+      },
+      "haldi": {
+        "role": "tertiary",
+        "displayName": "Haldi",
+        "canonical": "oklch(93.1% 0.049 87.6)",
+        "tonalRamp": [
+          "#100a00",
+          "#302509",
+          "#504425",
+          "#726546",
+          "#968868",
+          "#b9ad90",
+          "#d9d0bd",
+          "#f2eee5"
+        ]
+      },
+      "moss": {
+        "role": "tertiary",
+        "displayName": "Moss",
+        "canonical": "oklch(53.2% 0.105 136.3)",
+        "tonalRamp": [
+          "#001000",
+          "#0a3000",
+          "#28510f",
+          "#497334",
+          "#6b9856",
+          "#93bc81",
+          "#c0dbb4",
+          "#e6f3e1"
+        ]
+      },
+      "moss-soft": {
+        "role": "tertiary",
+        "displayName": "Moss Soft",
+        "canonical": "oklch(93.8% 0.027 125.6)",
+        "tonalRamp": [
+          "#090c06",
+          "#23291c",
+          "#414838",
+          "#626959",
+          "#858c7b",
+          "#aab1a1",
+          "#ced3c8",
+          "#edefea"
+        ]
+      },
+      "indigo": {
+        "role": "tertiary",
+        "displayName": "Indigo Ink",
+        "canonical": "oklch(42.6% 0.079 265.8)",
+        "tonalRamp": [
+          "#03091f",
+          "#15244a",
+          "#31436f",
+          "#516594",
+          "#7288ba",
+          "#99aedb",
+          "#c3d1ef",
+          "#e8effe"
+        ]
+      },
+      "indigo-soft": {
+        "role": "tertiary",
+        "displayName": "Indigo Soft",
+        "canonical": "oklch(92.7% 0.012 264.5)",
+        "tonalRamp": [
+          "#0a0b0e",
+          "#24262c",
+          "#42454b",
+          "#63666d",
+          "#868990",
+          "#abaeb5",
+          "#cfd1d5",
+          "#edeef1"
+        ]
+      },
+      "kiln": {
+        "role": "tertiary",
+        "displayName": "Kiln",
+        "canonical": "oklch(50.1% 0.178 28.7)",
+        "tonalRamp": [
+          "#2a0000",
+          "#600000",
+          "#8c0000",
+          "#b62921",
+          "#e05446",
+          "#ff8373",
+          "#ffb8ab",
+          "#ffe3dc"
+        ]
+      },
+      "kiln-soft": {
+        "role": "tertiary",
+        "displayName": "Kiln Soft",
+        "canonical": "oklch(91.9% 0.027 29.0)",
+        "tonalRamp": [
+          "#110907",
+          "#32221f",
+          "#53403d",
+          "#75615d",
+          "#998380",
+          "#bda9a5",
+          "#dbcdcb",
+          "#f3edec"
+        ]
+      },
+      "turmeric-ink": {
+        "role": "tertiary",
+        "displayName": "Turmeric Ink",
+        "canonical": "oklch(50.9% 0.103 70.8)",
+        "tonalRamp": [
+          "#1a0500",
+          "#421a00",
+          "#663900",
+          "#8a5a13",
+          "#b07e3d",
+          "#d2a46d",
+          "#eacba8",
+          "#fbecdb"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "The single page h1 in the hero, on espresso."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Section titles (with the brass underline mark) and the AI banner title."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Empty-state titles, payment strip, drawer and sheet titles."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Running text in Inter."
+      },
+      "body-ui-title": {
+        "displayName": "UI Title",
+        "purpose": "Product-card titles, category tile names, trust labels; Inter, never Fraunces."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Small buttons, sidebar links, quick add, chips."
+      },
+      "label-sm": {
+        "displayName": "Small Label",
+        "purpose": "Badges and status tags."
+      },
+      "urdu-display": {
+        "displayName": "Urdu Display (Nastaliq)",
+        "purpose": "Urdu h1-h3, hero and section titles; Latin falls through Fraunces first."
+      },
+      "urdu-ui": {
+        "displayName": "Urdu UI (Naskh)",
+        "purpose": "Urdu body, forms, tables, h4-h6 and product titles."
+      }
+    },
+    "shadows": [
+      {
+        "name": "shadow-xs",
+        "value": "0 1px 3px rgba(43, 29, 20, 0.07)",
+        "purpose": "Cards at rest."
+      },
+      {
+        "name": "shadow-sm",
+        "value": "0 2px 8px rgba(43, 29, 20, 0.07)",
+        "purpose": "Button hover, scrolled header."
+      },
+      {
+        "name": "shadow-md",
+        "value": "0 6px 18px rgba(43, 29, 20, 0.09)",
+        "purpose": "Hovered product cards, quick-add slip, rail arrows."
+      },
+      {
+        "name": "shadow-lg",
+        "value": "0 14px 36px rgba(43, 29, 20, 0.14)",
+        "purpose": "Modals, toasts, trust strip, hovered category tiles, sticky action bar."
+      },
+      {
+        "name": "focus-ring",
+        "value": "0 0 0 3px rgba(174, 84, 41, 0.28)",
+        "purpose": "Copper halo paired with a 2px copper outline at 2px offset."
+      },
+      {
+        "name": "hairline-brass",
+        "value": "inset 0 0 0 1px rgba(201, 150, 63, 0.5)",
+        "purpose": "Edge of every espresso band."
+      },
+      {
+        "name": "scrim",
+        "value": "rgba(43, 29, 20, 0.5)",
+        "purpose": "Modal mask: warm, never black."
+      },
+      {
+        "name": "shadow-ink-card",
+        "value": "inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 26px 54px rgb(8 4 2 / 0.46), 0 3px 8px rgb(8 4 2 / 0.24)",
+        "purpose": "Cards resting on espresso bands: hero stall cards, AI banner card."
+      },
+      {
+        "name": "shadow-ink-demo",
+        "value": "inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 34px 70px rgb(8 4 2 / 0.5), 0 4px 10px rgb(8 4 2 / 0.25)",
+        "purpose": "The /sell AI listing demo card."
+      },
+      {
+        "name": "shadow-ink-search",
+        "value": "0 18px 44px rgb(8 4 2 / 0.42), 0 2px 6px rgb(8 4 2 / 0.25), inset 0 0 0 1px rgba(201, 150, 63, 0.35)",
+        "purpose": "Hero search field on espresso; focus swaps the inset for 0 0 0 4px rgba(174, 84, 41, 0.45)."
+      },
+      {
+        "name": "shadow-ink-tag",
+        "value": "0 14px 30px rgb(8 4 2 / 0.38)",
+        "purpose": "Floating brass AI and COD tags on the stall and AI banner card."
+      },
+      {
+        "name": "pinned-art",
+        "value": "0 18px 36px rgba(43, 29, 20, 0.16), 0 2px 6px rgba(43, 29, 20, 0.08)",
+        "purpose": "Tilted illustration card on the light category banner."
+      },
+      {
+        "name": "inset-hairline",
+        "value": "inset 0 0 0 1px #e7dccb",
+        "purpose": "Edge of category banner, AI demo fields, browse sidebar, empty results, /sell feature panel."
+      }
+    ],
+    "motion": [
+      {
+        "name": "dur-fast",
+        "value": "150ms",
+        "purpose": "State changes: buttons, links, icon buttons."
+      },
+      {
+        "name": "dur-base",
+        "value": "220ms",
+        "purpose": "Hover lift on cards and tiles, header compress."
+      },
+      {
+        "name": "dur-slow",
+        "value": "320ms",
+        "purpose": "AI reveal and opt-in scroll reveal."
+      },
+      {
+        "name": "ease",
+        "value": "cubic-bezier(0.2, 0.7, 0.2, 1)",
+        "purpose": "Default easing."
+      },
+      {
+        "name": "ease-soft",
+        "value": "cubic-bezier(0.22, 1, 0.36, 1)",
+        "purpose": "Soft ease-out for lifts, slides and the cart pop."
+      },
+      {
+        "name": "photo-zoom",
+        "value": "transform 600ms cubic-bezier(0.22, 1, 0.36, 1)",
+        "purpose": "Product photo scale(1.04) on card hover."
+      },
+      {
+        "name": "skeleton-sweep",
+        "value": "1.8s linear-gradient sweep, infinite",
+        "purpose": "Slow cream sweep across sand on shape-matched placeholders."
+      },
+      {
+        "name": "cart-pop",
+        "value": "scale 1 > 1.35 > 1 over 500ms",
+        "purpose": "Cart badge when an item is added."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "animation/transition-duration 0.01ms",
+        "purpose": "Global prefers-reduced-motion collapse; reveals render static and visible."
+      },
+      {
+        "name": "stall-settle",
+        "value": "1100ms cubic-bezier(0.22, 1, 0.36, 1) from translateY(46px) rotate(0) scale(0.94), staggered 0/110/220ms, animation-fill backwards",
+        "purpose": "Home's single authored moment; settles from an already-visible state."
+      },
+      {
+        "name": "stall-fan-hover",
+        "value": "transform 420ms cubic-bezier(0.22, 1, 0.36, 1)",
+        "purpose": "Fine pointers only: outer stall cards slide 14px and rotate 3deg further, centre rises 10px."
+      },
+      {
+        "name": "ai-scan",
+        "value": "1.3s cubic-bezier(0.2, 0.7, 0.2, 1) infinite",
+        "purpose": "Brass scan band over the demo photo during the reading phase."
+      },
+      {
+        "name": "ai-typing",
+        "value": "1300ms read, 34ms per character, 280ms between EN and UR, 380ms to ready",
+        "purpose": "AI listing demo sequence; starts at IntersectionObserver threshold 0.5."
+      },
+      {
+        "name": "ai-caret",
+        "value": "0.9s steps(1) infinite",
+        "purpose": "2px copper caret in the field being written."
+      },
+      {
+        "name": "ai-tags-settle",
+        "value": "opacity 0.35>1 and translateY(4px)>0 over 320ms, 70ms stagger",
+        "purpose": "Demo tags settling on ready."
+      },
+      {
+        "name": "art-zoom",
+        "value": "transform 600ms cubic-bezier(0.22, 1, 0.36, 1), scale 1.12>1.18",
+        "purpose": "Category tile illustration on hover."
+      },
+      {
+        "name": "header-search-defer",
+        "value": "opacity/visibility 220ms",
+        "purpose": "Header search hidden on Home until the hero search scrolls away."
+      },
+      {
+        "name": "ai-demo-reduced-motion",
+        "value": "phase=ready on mount",
+        "purpose": "Reduced motion shows the finished listing immediately."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "mobile-sm",
+        "value": "480px"
+      },
+      {
+        "name": "mobile",
+        "value": "767px"
+      },
+      {
+        "name": "tablet",
+        "value": "768px"
+      },
+      {
+        "name": "desktop",
+        "value": "992px"
+      },
+      {
+        "name": "wide",
+        "value": "1200px"
+      },
+      {
+        "name": "container-max",
+        "value": "1280px"
+      }
+    ],
+    "pattern": {
+      "name": "pattern-blockprint",
+      "size": "72px",
+      "stroke": "#c9963f",
+      "usage": "Opacity 0.10-0.13 over espresso bands, masked toward the artwork side (top edge on mobile), mirrored under RTL."
+    },
+    "density": {
+      "buyer": "48px controls, 16px base",
+      "sellerAdmin": "40px controls, 15px base, at 768px and wider only (AntD compactDensity)"
+    },
+    "darkMode": {
+      "status": "provisional",
+      "note": "Haveli at night values exist under [data-theme=\"dark\"] but are unpolished."
+    },
+    "batch1Layout": {
+      "homeOrder": [
+        "Hero (search-led + stall)",
+        "TrustStrip",
+        "Categories",
+        "Featured (Section tone=sand)",
+        "New arrivals",
+        "AiBanner"
+      ],
+      "hero": "1.08fr/0.92fr, min-height 560px; one column at <=991px (stall 360px); stall 300px, search 56px, chips swipe row at <=480px",
+      "trustStrip": "4-up row; swipeable scroll-snap row (min(260px, 74%)) at <=991px",
+      "categoryGrid": "4 / 3 / 2-column compact tiles (<=767px)",
+      "sandShelf": "radius 24px, inline padding clamp(20px, 3vw, 40px), overflow hidden, featured track bleeds to edge",
+      "browse": "264px sticky sidebar (top 116px) + results; grid 3 (>=1200) / 2 (992-1199) / 3 (768-991, no sidebar) / 2 (<768); Filters bottom sheet at <=991px",
+      "sell": "hero 0.92fr/1.08fr min-height 600px; steps 3-col -> vertical at <=991px; features 1.05fr/1fr -> stacked; FAQ max 820px"
+    }
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one copper \"do this\" action per screen.",
+      "html": "<button class=\"ds-btn-primary\">Add to cart</button>",
+      "css": ".ds-btn-primary{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:48px;padding:0 24px;border:1.5px solid transparent;border-radius:12px;background:#ae5429;color:#fff;font-family:Inter,system-ui,sans-serif;font-size:16px;font-weight:600;line-height:1;cursor:pointer;transition:transform 150ms cubic-bezier(0.22,1,0.36,1),box-shadow 150ms cubic-bezier(0.22,1,0.36,1),background-color 150ms cubic-bezier(0.22,1,0.36,1)}.ds-btn-primary:hover{background:#9a4722;transform:translateY(-1px);box-shadow:0 2px 8px rgba(43,29,20,0.07)}.ds-btn-primary:active{background:#7e3a1c;transform:scale(0.98);box-shadow:none}.ds-btn-primary:focus-visible{outline:2px solid #ae5429;outline-offset:2px;box-shadow:0 0 0 3px rgba(174,84,41,0.28)}"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Secondary action: espresso outline that warms to copper on hover.",
+      "html": "<button class=\"ds-btn-outline\">Start selling</button>",
+      "css": ".ds-btn-outline{display:inline-flex;align-items:center;justify-content:center;height:48px;padding:0 24px;border:1.5px solid #2b1d14;border-radius:12px;background:transparent;color:#2b1d14;font-family:Inter,system-ui,sans-serif;font-size:16px;font-weight:600;cursor:pointer;transition:background-color 150ms cubic-bezier(0.22,1,0.36,1),border-color 150ms,color 150ms,transform 150ms,box-shadow 150ms}.ds-btn-outline:hover{background:#f6e3d6;border-color:#ae5429;color:#7e3a1c;transform:translateY(-1px);box-shadow:0 2px 8px rgba(43,29,20,0.07)}.ds-btn-outline:active{transform:scale(0.98);box-shadow:none}.ds-btn-outline:focus-visible{outline:2px solid #ae5429;outline-offset:2px;box-shadow:0 0 0 3px rgba(174,84,41,0.28)}"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Tertiary copper text action.",
+      "html": "<button class=\"ds-btn-ghost\">View all</button>",
+      "css": ".ds-btn-ghost{height:48px;padding:0 24px;border:0;border-radius:12px;background:transparent;color:#ae5429;font-family:Inter,system-ui,sans-serif;font-size:16px;font-weight:600;cursor:pointer;transition:background 150ms,color 150ms}.ds-btn-ghost:hover{background:#f6e3d6;color:#7e3a1c}.ds-btn-ghost:focus-visible{outline:2px solid #ae5429;outline-offset:2px}"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "Sand field at rest; cream with a copper border and halo on focus.",
+      "html": "<input class=\"ds-field\" placeholder=\"Phone number\" />",
+      "css": ".ds-field{height:48px;width:280px;padding:0 14px;border:1px solid rgba(43,29,20,0.2);border-radius:12px;background:#f1e8da;color:#2b1d14;font-family:Inter,system-ui,sans-serif;font-size:15px;transition:border-color 150ms,box-shadow 150ms,background 150ms}.ds-field::placeholder{color:#6b5a4b}.ds-field:hover{border-color:rgba(43,29,20,0.38)}.ds-field:focus{outline:none;background:#fffdf9;border-color:#ae5429;box-shadow:0 0 0 3px rgba(174,84,41,0.28)}"
+    },
+    {
+      "name": "Product Card",
+      "kind": "card",
+      "refersTo": "card-product",
+      "description": "Cream card with an inset photo; lifts and slowly zooms on hover; espresso quick-add slip.",
+      "html": "<article class=\"ds-pcard\"><div class=\"ds-pcard-media\"><span class=\"ds-pcard-new\">New</span><div class=\"ds-pcard-img\"></div><button class=\"ds-pcard-add\">Add to cart</button></div><div class=\"ds-pcard-body\"><h3 class=\"ds-pcard-title\">Block-print cotton kurta</h3><span class=\"ds-pcard-price\">Rs. 2,499</span></div></article>",
+      "css": ".ds-pcard{position:relative;width:220px;padding:8px 8px 16px;border:1px solid #e7dccb;border-radius:16px;background:#fffdf9;box-shadow:0 1px 3px rgba(43,29,20,0.07);transition:transform 220ms cubic-bezier(0.22,1,0.36,1),box-shadow 220ms,border-color 220ms}.ds-pcard:hover{transform:translateY(-3px);border-color:#d4c4ab;box-shadow:0 6px 18px rgba(43,29,20,0.09)}.ds-pcard-media{position:relative;overflow:hidden;border-radius:12px}.ds-pcard-img{height:200px;background:#f6e7c4;transition:transform 600ms cubic-bezier(0.22,1,0.36,1)}.ds-pcard:hover .ds-pcard-img{transform:scale(1.04)}.ds-pcard-new{position:absolute;top:8px;inset-inline-start:8px;z-index:2;display:inline-flex;align-items:center;height:24px;padding:0 12px;border-radius:999px;background:#c9963f;color:#2b1d14;font:600 12px/1 Inter,system-ui,sans-serif}.ds-pcard-add{position:absolute;inset-inline:8px;bottom:8px;height:40px;border:0;border-radius:12px;background:#2b1d14;color:#faf6ef;font:600 14px Inter,system-ui,sans-serif;box-shadow:0 6px 18px rgba(43,29,20,0.09);opacity:0;transform:translateY(48px);cursor:pointer;transition:opacity 220ms,transform 220ms cubic-bezier(0.22,1,0.36,1)}.ds-pcard:hover .ds-pcard-add,.ds-pcard:focus-within .ds-pcard-add{opacity:1;transform:none}.ds-pcard-add:focus-visible{outline:2px solid #ae5429;outline-offset:2px}.ds-pcard-body{display:flex;flex-direction:column;gap:8px;padding:12px 8px 0}.ds-pcard-title{margin:0;font:600 16px/1.4 Inter,system-ui,sans-serif;color:#2b1d14}.ds-pcard-price{font:700 16px Inter,system-ui,sans-serif;color:#2b1d14}"
+    },
+    {
+      "name": "Badges and Status Tags",
+      "kind": "chip",
+      "refersTo": "status-tag-success",
+      "description": "Tonal pills with icon and label; colour is never the only signal. Sindoor only for urgency.",
+      "html": "<span class=\"ds-tag ds-tag-ok\">Delivered</span> <span class=\"ds-tag ds-tag-info\">In transit</span> <span class=\"ds-tag ds-tag-warn\">Pending pickup</span> <span class=\"ds-tag ds-tag-err\">Cancelled</span> <span class=\"ds-badge ds-badge-low\">Only 3 left</span> <span class=\"ds-badge ds-badge-sale\">-20%</span> <span class=\"ds-badge ds-badge-cod\">COD</span>",
+      "css": ".ds-tag{display:inline-flex;align-items:center;gap:4px;padding:2px 12px 2px 8px;border-radius:999px;font:600 12px/1.5 Inter,system-ui,sans-serif;background:var(--bg);color:var(--fg);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--fg) 16%,transparent)}.ds-tag-ok{--fg:#4f7a3a;--bg:#e6eedb}.ds-tag-info{--fg:#3a4d7a;--bg:#e3e7ef}.ds-tag-warn{--fg:#8a5a12;--bg:#f6e7c4}.ds-tag-err{--fg:#b3261e;--bg:#f6deda}.ds-badge{display:inline-flex;align-items:center;height:24px;padding:0 12px;border-radius:999px;font:600 12px/1 Inter,system-ui,sans-serif}.ds-badge-low{background:#f7ddd6;color:#c8402e}.ds-badge-sale{background:#c8402e;color:#fff}.ds-badge-cod{background:#f1e8da;color:#5a3a22}"
+    },
+    {
+      "name": "Sidebar Navigation",
+      "kind": "nav",
+      "refersTo": "sidebar-link-active",
+      "description": "Seller/admin sidebar; the active link is an espresso pill with a brass icon.",
+      "html": "<nav class=\"ds-side\"><a class=\"ds-side-link\" data-active href=\"#\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><rect x=\"3\" y=\"3\" width=\"7\" height=\"7\"/><rect x=\"14\" y=\"3\" width=\"7\" height=\"7\"/><rect x=\"3\" y=\"14\" width=\"7\" height=\"7\"/><rect x=\"14\" y=\"14\" width=\"7\" height=\"7\"/></svg>Dashboard</a><a class=\"ds-side-link\" href=\"#\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M3 7h18l-2 12H5z\"/></svg>Orders</a></nav>",
+      "css": ".ds-side{width:240px;padding:12px;background:#fffdf9;border-inline-end:1px solid #e7dccb}.ds-side-link{display:flex;align-items:center;gap:12px;min-height:44px;margin-bottom:2px;padding:8px 12px;border-radius:12px;color:#6b5a4b;font:500 14px Inter,system-ui,sans-serif;text-decoration:none;transition:background 150ms,color 150ms}.ds-side-link:hover{background:#f1e8da;color:#2b1d14}.ds-side-link[data-active]{background:#2b1d14;color:#faf6ef;font-weight:600}.ds-side-link[data-active] svg{color:#c9963f}.ds-side-link:focus-visible{outline:2px solid #ae5429;outline-offset:2px}"
+    },
+    {
+      "name": "Espresso Band",
+      "kind": "custom",
+      "refersTo": "announce-band",
+      "description": "Signature dark band: espresso to walnut, brass hairline edge, masked brass block-print, one copper CTA.",
+      "html": "<section class=\"ds-band\"><span class=\"ds-band-print\"></span><h2 class=\"ds-band-title\">Sell online with AI</h2><p class=\"ds-band-sub\">Upload a photo and AI writes your listing in Urdu and English.</p><button class=\"ds-band-cta\">Start selling</button></section>",
+      "css": ".ds-band{position:relative;overflow:hidden;padding:48px;border-radius:28px;background:linear-gradient(135deg,#2b1d14 0%,#5a3a22 100%);color:#faf6ef;box-shadow:inset 0 0 0 1px rgba(201,150,63,0.5)}.ds-band-print{position:absolute;inset:0;pointer-events:none;opacity:0.13;background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72' viewBox='0 0 72 72'%3E%3Cg fill='none' stroke='%23c9963f' stroke-width='1.2'%3E%3Crect x='12' y='12' width='48' height='48'/%3E%3Crect x='12' y='12' width='48' height='48' transform='rotate(45 36 36)'/%3E%3Ccircle cx='36' cy='36' r='6.5'/%3E%3Cpath d='M0 36h12M60 36h12M36 0v12M36 60v12'/%3E%3C/g%3E%3C/svg%3E\");background-size:72px 72px;-webkit-mask-image:linear-gradient(90deg,transparent 20%,#000 80%);mask-image:linear-gradient(90deg,transparent 20%,#000 80%)}.ds-band>*:not(.ds-band-print){position:relative}.ds-band-title{margin:0;font:700 32px/1.15 Fraunces,Georgia,serif;letter-spacing:-0.01em}.ds-band-sub{max-width:46ch;margin:16px 0 0;font:400 18px/1.6 Inter,system-ui,sans-serif;color:rgba(250,246,239,0.88)}.ds-band-cta{margin-top:32px;height:56px;padding:0 32px;border:0;border-radius:12px;background:#ae5429;color:#fff;font:600 18px Inter,system-ui,sans-serif;cursor:pointer;transition:background 150ms,transform 150ms}.ds-band-cta:hover{background:#9a4722;transform:translateY(-1px)}.ds-band-cta:focus-visible{outline:2px solid #faf6ef;outline-offset:2px}"
+    },
+    {
+      "name": "AI Mark",
+      "kind": "custom",
+      "refersTo": "badge-new",
+      "description": "Eight-point brass compass star from the block-print tile; always paired with a text label.",
+      "html": "<span class=\"ds-ai\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><g fill=\"#c9963f\"><path d=\"M12 1l2.6 8.4L23 12l-8.4 2.6L12 23l-2.6-8.4L1 12l8.4-2.6z\"/><path d=\"M12 6.2l1.7 4.1 4.1 1.7-4.1 1.7-1.7 4.1-1.7-4.1-4.1-1.7 4.1-1.7z\" transform=\"rotate(45 12 12)\"/></g></svg>Generated by AI, edit anything</span>",
+      "css": ".ds-ai{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:#f6e7c4;color:#7a5512;font:600 12px Inter,system-ui,sans-serif}"
+    },
+    {
+      "name": "Hero Search",
+      "kind": "input",
+      "refersTo": "search-hero",
+      "description": "The storefront hero's primary action: a tall cream pill on espresso with a copper submit.",
+      "html": "<div class=\"ds-hs-wrap\"><label class=\"ds-hs\"><input placeholder=\"Search lawn suits, phone covers...\" aria-label=\"Search\"><button type=\"submit\" aria-label=\"Search\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><circle cx=\"11\" cy=\"11\" r=\"7\"/><path d=\"M20 20l-4-4\"/></svg></button></label></div>",
+      "css": ".ds-hs-wrap{padding:32px;background:linear-gradient(135deg,#2b1d14,#5a3a22)}.ds-hs{display:flex;align-items:center;height:62px;max-width:560px;padding:0 8px 0 24px;border-radius:999px;background:#fffdf9;box-shadow:0 18px 44px rgb(8 4 2/.42),0 2px 6px rgb(8 4 2/.25),inset 0 0 0 1px rgba(201,150,63,.35)}.ds-hs:focus-within{box-shadow:0 18px 44px rgb(8 4 2/.42),0 0 0 4px rgba(174,84,41,.45)}.ds-hs input{flex:1;min-width:0;border:0;background:transparent;font:400 18px Inter,system-ui,sans-serif;color:#2b1d14;outline:none}.ds-hs button{display:grid;place-items:center;width:46px;height:46px;border:0;border-radius:999px;background:#ae5429;color:#fff;cursor:pointer;transition:background 150ms}.ds-hs button:hover{background:#9a4722}.ds-hs button:focus-visible{outline:2px solid #faf6ef;outline-offset:2px}"
+    },
+    {
+      "name": "Stall Card with AI Tag",
+      "kind": "card",
+      "refersTo": "stall-card",
+      "description": "Decorative tilted product card on the hero stall, with the floating brass AI tag.",
+      "html": "<div class=\"ds-stall\"><figure class=\"ds-stall-card\"><span class=\"ds-stall-img\"></span><figcaption>Fashion</figcaption></figure><span class=\"ds-stall-tag\">AI wrote this listing</span></div>",
+      "css": ".ds-stall{position:relative;padding:40px 60px;background:linear-gradient(135deg,#2b1d14,#5a3a22)}.ds-stall-card{width:210px;margin:0;padding:10px 10px 14px;border-radius:20px;background:#fffdf9;box-shadow:inset 0 1px 0 rgba(255,255,255,.7),0 26px 54px rgb(8 4 2/.46),0 3px 8px rgb(8 4 2/.24);transform:rotate(-8deg);transform-origin:50% 90%;transition:transform 420ms cubic-bezier(.22,1,.36,1)}.ds-stall:hover .ds-stall-card{transform:translateX(-14px) rotate(-11deg)}.ds-stall-img{display:block;aspect-ratio:4/5;border-radius:12px;background:#f1e8da}.ds-stall-card figcaption{margin-top:10px;padding-inline:4px;font:600 14px Inter,system-ui,sans-serif;color:#2b1d14}.ds-stall-tag{position:absolute;inset-inline-end:16px;bottom:24px;display:inline-flex;padding:8px 16px;border-radius:999px;background:#c9963f;color:#2b1d14;font:600 14px/1.3 Inter,system-ui,sans-serif;box-shadow:0 14px 30px rgb(8 4 2/.38)}"
+    },
+    {
+      "name": "Compact Category Art Tile",
+      "kind": "card",
+      "refersTo": "cat-tile-art",
+      "description": "Category tile led by its illustration, with both names; Urdu in Nastaliq at display size.",
+      "html": "<a class=\"ds-cat\" href=\"#\"><span class=\"ds-cat-art\"></span><span class=\"ds-cat-body\"><span class=\"ds-cat-name\">Fashion</span><span class=\"ds-cat-ur\" lang=\"ur\">فیشن</span></span></a>",
+      "css": ".ds-cat{display:flex;align-items:center;gap:12px;padding:8px 16px 8px 8px;border:1px solid #e7dccb;border-radius:16px;background:#fffdf9;color:#2b1d14;text-decoration:none;box-shadow:0 1px 3px rgba(43,29,20,.07);transition:transform 220ms cubic-bezier(.22,1,.36,1),box-shadow 220ms,border-color 220ms}.ds-cat:hover,.ds-cat:focus-visible{transform:translateY(-4px);border-color:#d4c4ab;box-shadow:0 6px 18px rgba(43,29,20,.09)}.ds-cat:focus-visible{outline:2px solid #ae5429;outline-offset:2px}.ds-cat-art{flex-shrink:0;width:76px;aspect-ratio:4/5;border-radius:12px;background:#f6e3d6}.ds-cat-body{display:flex;flex-direction:column}.ds-cat-name{font:600 16px/1.4 Inter,system-ui,sans-serif}.ds-cat-ur{font:400 18px/1.9 Fraunces,'Noto Nastaliq Urdu','Noto Naskh Arabic',serif;color:#5a3a22}"
+    },
+    {
+      "name": "Filter and Active-Filter Chips",
+      "kind": "chip",
+      "refersTo": "filter-chip",
+      "description": "Choice chips (espresso when pressed) and removable applied-filter chips (peach-clay).",
+      "html": "<div class=\"ds-chips\"><button class=\"ds-fchip\" aria-pressed=\"false\">Used</button><button class=\"ds-fchip\" aria-pressed=\"true\">New</button><button class=\"ds-achip\">Rs 500-2,000<svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><path d=\"M18 6L6 18M6 6l12 12\"/></svg></button></div>",
+      "css": ".ds-chips{display:flex;flex-wrap:wrap;gap:8px}.ds-fchip{min-height:36px;padding:0 12px;border:1px solid #d4c4ab;border-radius:999px;background:#fffdf9;color:#2b1d14;font:500 14px Inter,system-ui,sans-serif;cursor:pointer;transition:background 150ms,border-color 150ms,color 150ms}.ds-fchip:hover{border-color:#ae5429}.ds-fchip[aria-pressed=true]{border-color:#2b1d14;background:#2b1d14;color:#faf6ef}.ds-achip{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 8px 0 12px;border:0;border-radius:999px;background:#f6e3d6;color:#7e3a1c;font:600 14px Inter,system-ui,sans-serif;cursor:pointer;transition:background 150ms}.ds-achip:hover{background:color-mix(in srgb,#ae5429 18%,#f6e3d6)}.ds-fchip:focus-visible,.ds-achip:focus-visible{outline:2px solid #ae5429;outline-offset:2px}"
+    },
+    {
+      "name": "AI Listing Demo Field",
+      "kind": "custom",
+      "refersTo": "ai-demo-field",
+      "description": "Sand field in the /sell demo; the field being written lifts to cream with a copper inset, halo and caret; ready fields carry the brass dot.",
+      "html": "<div class=\"ds-demo\"><div class=\"ds-df is-writing\">Hand-embroidered lawn suit<span class=\"ds-caret\"></span></div><div class=\"ds-df is-ready\" lang=\"ur\" dir=\"rtl\">ہاتھ کی کڑھائی والا لان سوٹ</div></div>",
+      "css": ".ds-demo{display:grid;gap:12px;max-width:340px;padding:16px;border-radius:24px;background:#fffdf9}.ds-df{position:relative;min-height:52px;padding:12px 14px;border-radius:12px;background:#f1e8da;box-shadow:inset 0 0 0 1px #e7dccb;color:#2b1d14;font:600 16px/1.4 Inter,system-ui,sans-serif;transition:box-shadow 220ms,background 220ms}.ds-df.is-writing{background:#fffdf9;box-shadow:inset 0 0 0 1.5px #ae5429,0 0 0 4px rgba(174,84,41,.28)}.ds-df[lang=ur]{font:400 18px/1.9 Fraunces,'Noto Nastaliq Urdu','Noto Naskh Arabic',serif}.ds-df.is-ready::after{content:'';position:absolute;top:10px;inset-inline-end:10px;width:8px;height:8px;border-radius:50%;background:#c9963f}.ds-caret{display:inline-block;width:2px;height:1.1em;margin-inline-start:2px;vertical-align:-.15em;background:#ae5429;animation:ds-caret .9s steps(1) infinite}@keyframes ds-caret{50%{opacity:0}}@media (prefers-reduced-motion:reduce){.ds-caret{animation:none}}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Haveli at Golden Hour",
+    "overview": "A Lahore haveli in late light: sandstone grounds, espresso woodwork, copper hardware, brass inlay. The system exists so a small, unknown seller looks established and trustworthy. The page is mostly warm parchment and cream; espresso carries the ink and every dark band; a single copper fill tells the visitor what to do next; brass appears only as small pieces of jewellery. The recurring material is an ajrak/ralli eight-point block-print tile, drawn in brass and laid faintly over espresso bands.\n\nTwo densities share one world. Buyer surfaces (storefront, cart, checkout) are calm and touch-first, with 48px controls and generous section rhythm. Seller and admin workspaces are quieter and denser (40px controls on tablet and desktop), and the brand lives in precise details: the espresso active pill in the sidebar, sand table headers, copper focus halos. Everything is bilingual: English in Fraunces and Inter, Urdu in Naskh for running UI and Nastaliq for display, with layouts written in logical properties so they mirror under RTL without separate code.\n\nThe world deliberately refuses the category default: green-on-white marketplace chrome and flash-sale orange. Light mode is the finished world. A dark \"Haveli at night\" value set exists but is unpolished; treat it as provisional.",
+    "keyCharacteristics": [
+      "Parchment, cream and sand grounds with linen hairlines; espresso ink; copper as the only action colour.",
+      "Espresso bands (announcement, hero, AI banner, footer, auth panel) edged with a brass hairline and, on the larger ones, the block-print tile.",
+      "Fraunces display over Inter UI; Urdu stacks lead with the Latin face so mixed strings keep their brand letterforms.",
+      "Warm, espresso-tinted shadows; soft lift on hover; restrained, purposeful motion that respects reduced motion.",
+      "Bilingual RTL by construction (logical properties, mirrored arrows and masks).",
+      "Storefront entry is search-led: the search field sits where a CTA would, beside a hand-placed \"stall\" of tilted illustrated cards.",
+      "Bilingual identity is shown, not tucked away: category and sample-listing names carry their Urdu in Nastaliq at display size next to the English."
+    ],
+    "rules": [
+      {
+        "name": "The One Copper Rule",
+        "body": "Copper fill marks the one primary action per screen. Secondary actions are espresso outlines that only warm to copper on hover; repeated per-item actions (quick add on a card grid) are espresso slips, never copper.",
+        "section": "colors"
+      },
+      {
+        "name": "The Jewellery Rule",
+        "body": "Brass stays under about 3% of any screen and is never a CTA. It marks AI, verification, newness and section headings; nothing else.",
+        "section": "colors"
+      },
+      {
+        "name": "The Single-Meaning Rule",
+        "body": "Sindoor means urgency, moss means success, indigo means info. None of them is a decorative accent or an action colour.",
+        "section": "colors"
+      },
+      {
+        "name": "The Selected-Is-Espresso Rule",
+        "body": "A chosen option (filter chip, segmented control) fills espresso with parchment text. An applied filter shown back to the visitor as a removable chip is peach-clay with deeper-copper text and a trailing close icon. Copper fill stays reserved for the action; the only copper pill in browse is the small filter-count badge.",
+        "section": "colors"
+      },
+      {
+        "name": "The Roles-Not-Primitives Rule",
+        "body": "Components consume semantic roles (`--brand-primary`, `--bg-sunken`, `--text-tertiary`) or component tokens (`--btn-*`, `--field-*`, `--card-*`), never `--haveli-*` primitives or hex. JS consumers read the mirrored `palette.ts`; change a colour in both places.",
+        "section": "colors"
+      },
+      {
+        "name": "The Latin-First Urdu Rule",
+        "body": "Urdu stacks lead with the Latin brand face (Fraunces or Inter, which have no Arabic glyphs), so product names, \"KarobarAI\" and prices keep brand letterforms while Urdu script falls through to Nastaliq or Naskh.",
+        "section": "typography"
+      },
+      {
+        "name": "The Naskh-for-Work Rule",
+        "body": "In Urdu, running UI text, h4–h6, product titles and form chrome use Naskh at a 1.75 line height. Nastaliq is reserved for h1–h3, the hero and section titles, with a 1.7–1.95 line box so its descending tails never clip. Never set tables or forms in Nastaliq.",
+        "section": "typography"
+      },
+      {
+        "name": "The Shown-Not-Tucked Urdu Rule",
+        "body": "Where a surface presents bilingual identity (category tile names, the sample listing in the AI demo and the AI banner card, the EN/UR feature pairs on /sell), the Urdu is set in the Nastaliq display stack at 18px with a 1.9 line box in walnut or primary ink, not as a grey Naskh sub-label. On phones the tile names step down to 16px Urdu / 14px English. This is for showcase labels only; product grids, forms and tables keep the Naskh-for-Work Rule.",
+        "section": "typography"
+      },
+      {
+        "name": "The Clear-Air Rule",
+        "body": "Urdu page titles (category banner, browse head) are Nastaliq with a line-height of 2 and an extra 24px above, so ascenders clear the breadcrumb and toolbar. /sell display titles in Urdu run at 1.85 with letter-spacing 0.",
+        "section": "typography"
+      },
+      {
+        "name": "The Display Is a Face, Not a Weight Rule",
+        "body": "Headings get their character from Fraunces itself; the loaded range tops out at 700, so do not specify heavier weights.",
+        "section": "typography"
+      },
+      {
+        "name": "The Deeper-Ink-on-Dark Rule",
+        "body": "On an espresso band an espresso-tinted shadow disappears, so cards, tags and the hero search resting on it cast `--shadow-ink` (near-black espresso) at 0.24-0.5 alpha with a white inner top highlight. This ink is never used on light grounds.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Warm Shadow Rule",
+        "body": "Every shadow and scrim is mixed from espresso (rgba(43, 29, 20, …)). A grey or black shadow on a light surface is out of world.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Earned Lift Rule",
+        "body": "Surfaces are low at rest; lift and the bigger shadow arrive with hover, scroll or overlay state.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do give each screen exactly one copper fill; make the other actions espresso outlines, ghosts or espresso slips.",
+      "Do consume semantic roles and component tokens (`--brand-primary`, `--bg-sunken`, `--btn-*`, `--field-*`, `--card-*`); keep `palette.ts` and the `--haveli-*` primitives in step.",
+      "Do edge every espresso band with the brass hairline (rgba(201, 150, 63, 0.5)) and use the shared block-print layer, masked away from the copy, for patterned bands.",
+      "Do tint every shadow and scrim from espresso.",
+      "Do set Urdu UI text in Naskh at 1.75 and reserve Nastaliq for h1–h3 and display titles with a 1.7–1.95 line box.",
+      "Do write layout in logical properties and flip directional icons under RTL.",
+      "Do keep touch targets at 44px or more; compact 40px density applies only to seller/admin at 768px and wider.",
+      "Do keep text at or above 4.5:1 on its actual ground (taupe on parchment, umber on sand, brass-ink on haldi).",
+      "Do use the AI mark, with a text label, wherever the interface signals AI work.",
+      "Do let search be the storefront hero's primary action; keep selling as a secondary path to /sell.",
+      "Do cast `--shadow-ink` under objects resting on espresso bands, and espresso-tinted shadows everywhere else.",
+      "Do show bilingual identity by setting the Urdu name in Nastaliq at 18px / 1.9 beside the English on showcase labels; give Urdu page titles a 2 line height and 24px of clear air above.",
+      "Do start orchestrated motion only when it is on screen, and give reduced motion the finished state rather than a frozen first frame.",
+      "Do mark a chosen filter option with an espresso fill and an applied filter with a removable peach-clay chip."
+    ],
+    "donts": [
+      "Don't use brass as a CTA or a large fill; it is jewellery under about 3% of the screen.",
+      "Don't use sindoor for anything but urgency, or moss for anything but success.",
+      "Don't fall back to green-on-white marketplace chrome or flash-sale orange; those are the category defaults this world refuses.",
+      "Don't set product-card titles or dense table text in Fraunces or Nastaliq.",
+      "Don't use neutral grey or black shadows on light surfaces.",
+      "Don't fade disabled buttons as translucent copper; disabled is sand with dust text.",
+      "Don't request Fraunces weights above 700; they are not loaded.",
+      "Don't treat the dark \"Haveli at night\" values as finished; they are provisional until polished.",
+      "Don't hide categories in a sideways scroller on phones; show them as a two-column grid of compact tiles.",
+      "Don't slice a peeking rail card inside a rounded panel's padding; bleed the track to the panel edge.",
+      "Don't play a signature animation from a hidden state; settle from an already-visible position."
+    ]
+  }
+}

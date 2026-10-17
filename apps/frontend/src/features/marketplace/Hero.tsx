@@ -1,76 +1,85 @@
-import { Cpu, Shirt, Smartphone, Sparkles } from 'lucide-react';
+import { Store } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 
-import { Button } from '../../components';
+import type { CategoryDTO } from '@karobarai/shared';
+import { AiMark } from '../../components';
+import { useLanguage } from '../../hooks';
+import { SearchBar } from './SearchBar';
 
-// The Home hero (SCR-B01) — a rounded emerald banner with an ajrak-inspired pattern, the single
-// page `<h1>` (the LCP element), the two primary calls to action, and a decorative product
-// collage. Rendered inside the shared content column as a large rounded card rather than a
-// viewport full-bleed band: the storefront content area (.karobarai-content-area) owns the page
-// padding, and escaping it for a true bleed would risk a horizontal scrollbar across the ~15 other
-// storefront pages that share the shell (rule M — safest choice). The collage is purely decorative
-// (aria-hidden) and uses category tints + icons only, never fabricated prices/ratings (rule K).
-export function Hero() {
+interface HeroProps {
+  /** Real categories from the home feed — rendered as quick-browse chips once loaded. */
+  categories?: CategoryDTO[];
+}
+
+// The three illustrated products fanned out on the "market stall" side of the hero. Purely
+// decorative: the same hand-authored placeholder art the dev seed uses, with no prices, ratings
+// or seller names (nothing a visitor could mistake for a real offer).
+const SHOWCASE = [
+  { key: 'fashion', src: '/demo/products/fashion-clothing.svg' },
+  { key: 'home', src: '/demo/products/home-kitchen.svg' },
+  { key: 'sports', src: '/demo/products/sports-outdoors.svg' },
+] as const;
+
+// Home hero (SCR-B01), search-led: on a marketplace the search box *is* the primary action, so it
+// sits where a CTA button would, at full width under the headline (the header's own search hides
+// on Home until the visitor scrolls past this). Real categories follow as quick chips; selling is a
+// quiet secondary link to /sell. The right side is a fanned stall of three illustrated products,
+// with the brass AI mark on the one whose "listing" the AI wrote — the product's mechanism, shown
+// rather than claimed. The fan settles once on load (the page's single authored motion moment).
+export function Hero({ categories = [] }: HeroProps) {
   const { t } = useTranslation('marketplace');
+  const { language } = useLanguage();
+  const chips = categories.slice(0, 5);
 
   return (
     <section className="hero">
-      {/* Ajrak-inspired geometric tile, faintly overlaid. */}
-      <svg className="hero__ajrak" aria-hidden="true" focusable="false">
-        <defs>
-          <pattern id="hero-ajrak" width="72" height="72" patternUnits="userSpaceOnUse">
-            <g fill="none" stroke="#ffffff" strokeWidth="1.1">
-              <path d="M36 14l5.4 11.2L53 30l-6.5 10.8L48 52l-12-5.4L24 52l1.5-11.2L19 30l11.6-4.8L36 14Z" />
-              <circle cx="36" cy="33" r="3.4" />
-              <path d="M0 0h9M0 0v9M72 72h-9M72 72v-9M72 0h-9M72 0v9M0 72h9M0 72v-9" />
-            </g>
-          </pattern>
-        </defs>
-        <rect width="100%" height="100%" fill="url(#hero-ajrak)" />
-      </svg>
+      <span className="hero__pattern blockprint-layer" aria-hidden="true" />
 
       <div className="hero__inner">
         <div className="hero__copy">
-          <span className="hero__badge">
-            <Sparkles size={15} aria-hidden="true" />
-            {t('hero.badge')}
-          </span>
           <h1 className="hero__title">{t('hero.title')}</h1>
           <p className="hero__sub">{t('hero.subtitle')}</p>
-          <div className="hero__ctas">
-            <Button variant="cta" size="lg" to="/search">
-              {t('hero.shopNow')}
-            </Button>
-            <Button variant="outline-light" size="lg" to="/register?role=seller">
-              {t('hero.startSelling')}
-            </Button>
+
+          <div className="hero__search" role="search" aria-label={t('hero.searchLabel')}>
+            <SearchBar className="storefront-search--hero" />
           </div>
-          <p className="hero__meta">{t('hero.meta')}</p>
+
+          {chips.length > 0 && (
+            <div className="hero__try">
+              <span className="hero__try-label" id="hero-try-label">
+                {t('hero.tryLabel')}
+              </span>
+              <ul className="hero__chips" aria-labelledby="hero-try-label">
+                {chips.map((category) => (
+                  <li key={category.id}>
+                    <Link to={`/category/${category.slug}`} className="hero__chip">
+                      {(language === 'UR' ? category.nameUr : category.nameEn) || category.slug}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <Link to="/sell" className="hero__sell-link">
+            <Store size={18} aria-hidden="true" />
+            {t('hero.sellLink')}
+          </Link>
         </div>
 
-        <div className="hero__collage" aria-hidden="true">
-          <div className="hero-card hero-card--fashion">
-            <span className="hero-card__img">
-              <Shirt size={40} />
-            </span>
-            <span className="hero-card__label">{t('hero.collage.fashion')}</span>
-          </div>
-          <div className="hero-card hero-card--mobile">
-            <span className="hero-card__img">
-              <Smartphone size={40} />
-            </span>
-            <span className="hero-card__label">{t('hero.collage.mobile')}</span>
-          </div>
-          <div className="hero-card hero-card--electronics">
-            <span className="hero-card__img">
-              <Cpu size={40} />
-            </span>
-            <span className="hero-card__label">{t('hero.collage.electronics')}</span>
-          </div>
-          <span className="hero-float">
-            <Sparkles size={16} aria-hidden="true" />
-            {t('hero.aiFloat')}
+        <div className="hero__showcase" role="img" aria-label={t('hero.showcaseLabel')}>
+          {SHOWCASE.map(({ key, src }, index) => (
+            <figure key={key} className={`stall-card stall-card--${index + 1}`}>
+              <img src={src} alt="" className="stall-card__img" width={400} height={500} />
+              <figcaption className="stall-card__caption">{t(`categoryNames.${key}`)}</figcaption>
+            </figure>
+          ))}
+          <span className="stall-tag stall-tag--ai">
+            <AiMark size={15} color="var(--brand-ink)" />
+            {t('hero.aiTag')}
           </span>
+          <span className="stall-tag stall-tag--cod">{t('hero.codTag')}</span>
         </div>
       </div>
     </section>

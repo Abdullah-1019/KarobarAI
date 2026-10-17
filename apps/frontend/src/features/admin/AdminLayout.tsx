@@ -1,4 +1,3 @@
-import { Button, Dropdown } from 'antd';
 import type { MenuProps } from 'antd';
 import { LayoutDashboard, Scale, Settings, ShieldCheck, TrendingUp, Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -7,6 +6,8 @@ import { Outlet, useNavigate } from 'react-router-dom';
 import { AppHeader, AppShell, BottomTabBar, Sidebar, type NavItem } from '../../components';
 import { useAuthStore } from '../../lib/authStore';
 import { NotificationBell } from '../notifications';
+import { StorefrontLogo } from '../marketplace/StorefrontLogo';
+import { AccountMenu } from '../profile';
 import { logout as logoutApi } from '../auth/authApi';
 
 // Every /admin/* page renders through this layout. Phase C: rebuilt on the shared AppShell/
@@ -66,16 +67,19 @@ export function AdminLayout() {
 
   return (
     <AppShell
+      density="compact"
       header={
         <AppHeader
+          brand={
+            <span className="app-brand">
+              <StorefrontLogo to="/admin" />
+              <span className="app-brand__role">{t('nav.admin')}</span>
+            </span>
+          }
           homeHref="/admin"
           brandLabel="KarobarAI Admin"
           notificationSlot={<NotificationBell />}
-          accountSlot={
-            <Dropdown menu={{ items: menuItems }}>
-              <Button>{t('nav.admin')}</Button>
-            </Dropdown>
-          }
+          accountSlot={<AccountMenu items={menuItems} />}
         />
       }
       sidebar={<Sidebar items={sidebarItems} ariaLabel={t('landmarks.adminNav')} />}

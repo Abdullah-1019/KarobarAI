@@ -10,7 +10,7 @@ import { getWhatsAppUrl } from './whatsapp';
 // destinations are linked — the app has no Terms/Privacy routes, so none are faked here. The Help
 // column and the floating WhatsApp button appear only when a support number is configured.
 export function StorefrontFooter() {
-  const { t } = useTranslation('marketplace');
+  const { t } = useTranslation(['marketplace', 'common']);
   const year = new Date().getFullYear();
   const whatsappUrl = getWhatsAppUrl();
 
@@ -42,10 +42,25 @@ export function StorefrontFooter() {
             <h3 className="site-footer__col-title">{t('footer.sellTitle')}</h3>
             <ul className="site-footer__list">
               <li>
-                <Link to="/register?role=seller">{t('footer.sellBecomeSeller')}</Link>
+                <Link to="/sell">{t('footer.sellBecomeSeller')}</Link>
               </li>
               <li>
                 <Link to="/login">{t('footer.sellLogin')}</Link>
+              </li>
+            </ul>
+          </div>
+
+          <div className="site-footer__col">
+            <h3 className="site-footer__col-title">{t('footer.accountTitle')}</h3>
+            <ul className="site-footer__list">
+              <li>
+                <Link to="/orders">{t('common:nav.orders')}</Link>
+              </li>
+              <li>
+                <Link to="/returns">{t('common:nav.myReturns')}</Link>
+              </li>
+              <li>
+                <Link to="/buyer/profile">{t('common:nav.profile')}</Link>
               </li>
             </ul>
           </div>

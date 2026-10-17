@@ -1,4 +1,3 @@
-import { Button, Dropdown } from 'antd';
 import type { MenuProps } from 'antd';
 import { BarChart3, Bot, ClipboardList, Package, Settings, Undo2, Wallet } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -7,6 +6,8 @@ import { Link, Outlet, useNavigate } from 'react-router-dom';
 import { AppHeader, AppShell, BottomTabBar, Sidebar, type NavItem } from '../../components';
 import { useAuthStore } from '../../lib/authStore';
 import { NotificationBell } from '../notifications';
+import { StorefrontLogo } from '../marketplace/StorefrontLogo';
+import { AccountMenu } from '../profile';
 import { logout as logoutApi } from '../auth/authApi';
 
 // Every /seller/* page renders through this layout (including /seller/setup, so a brand-new
@@ -62,16 +63,18 @@ export function SellerLayout() {
 
   return (
     <AppShell
+      density="compact"
       header={
         <AppHeader
+          brand={
+            <span className="app-brand">
+              <StorefrontLogo to="/seller" />
+            </span>
+          }
           homeHref="/seller"
           brandLabel="KarobarAI"
           notificationSlot={<NotificationBell />}
-          accountSlot={
-            <Dropdown menu={{ items: menuItems }}>
-              <Button>{t('nav.profile')}</Button>
-            </Dropdown>
-          }
+          accountSlot={<AccountMenu items={menuItems} />}
         />
       }
       sidebar={<Sidebar items={sidebarItems} ariaLabel={t('landmarks.sellerNav')} />}

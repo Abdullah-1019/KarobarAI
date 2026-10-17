@@ -1,25 +1,28 @@
 import { useState } from 'react';
-import { Alert, Col, Row, Typography } from 'antd';
+import { Alert } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 
-import { SkeletonLoader } from '../../components';
+import { Breadcrumb, Skeleton } from '../../components';
 import { useLanguage } from '../../hooks';
 import { CATEGORIES_QUERY_KEY, getCategories } from '../catalog/catalogApi';
-import { FilterPanel } from './FilterPanel';
+import { BrowseLayout } from './BrowseLayout';
+import { CATEGORY_ART, ruleFor } from './categoryVisuals';
+import type { BrowseFilters } from './FilterPanel';
 import { SearchResultsGrid } from './SearchResultsGrid';
-import { categoryBySlugQueryKey, getCategoryBySlug, type SearchParams } from './marketplaceApi';
+import { categoryBySlugQueryKey, getCategoryBySlug } from './marketplaceApi';
 import { formatMarketplaceError } from './marketplaceErrors';
 
 // SCR-B02's category-browse mode (`/category/:slug`) — resolves the slug to a categoryId, then
-// hands off to the same search grid text-search uses (categoryId-only call, no q). No outer
-// max-width wrapper — AppShell's shared content area (Phase C) already provides one.
+// hands off to the same results grid text-search uses. Opens with a tonal banner carrying the
+// category's illustration (or icon), both language names and a breadcrumb, then the shared
+// BrowseLayout (the category filter is hidden — the page already is one).
 export function CategoryPage() {
-  const { t } = useTranslation(['marketplace']);
+  const { t } = useTranslation(['marketplace', 'common']);
   const { language } = useLanguage();
   const { slug = '' } = useParams<{ slug: string }>();
-  const [filters, setFilters] = useState<Omit<SearchParams, 'q' | 'categoryId'>>({});
+  const [filters, setFilters] = useState<BrowseFilters>({});
 
   const { data: category, isPending, isError, error } = useQuery({
     queryKey: categoryBySlugQueryKey(slug),
@@ -29,32 +32,40 @@ export function CategoryPage() {
   const { data: categories } = useQuery({ queryKey: CATEGORIES_QUERY_KEY, queryFn: getCategories });
 
   if (isPending) {
-    return <SkeletonLoader rows={6} />;
+    return <Skeleton height={180} radius="var(--radius-xl)" />;
   }
 
   if (isError || !category) {
     return <Alert type="error" showIcon message={formatMarketplaceError(t, error)} />;
   }
 
+  const name = (language === 'UR' ? category.nameUr : category.nameEn) || category.slug;
+  const otherName = language === 'UR' ? category.nameEn : category.nameUr;
+  const { key, icon: Icon } = ruleFor(category.slug);
+  const art = CATEGORY_ART[key];
+
   return (
-    <div>
-      <Typography.Title level={3} style={{ marginBottom: 'var(--sp-5)' }}>
-        {language === 'UR' ? category.nameUr : category.nameEn}
-      </Typography.Title>
-      <Row gutter={24}>
-        <Col xs={24} md={6}>
-          <FilterPanel
-            categories={categories ?? []}
-            value={filters}
-            onChange={setFilters}
-            onReset={() => setFilters({})}
-            showCategory={false}
-          />
-        </Col>
-        <Col xs={24} md={18}>
-          <SearchResultsGrid params={{ categoryId: category.id, ...filters }} />
-        </Col>
-      </Row>
-    </div>
+    <BrowseLayout
+      header={
+        <header className={`cat-banner cat-tile--${key}`}>
+          <div className="cat-banner__copy">
+            <Breadcrumb items={[{ label: t('common:nav.home'), to: '/' }, { label: name }]} />
+            <h1 className="cat-banner__title">{name}</h1>
+            {otherName && otherName !== name && <p className="cat-banner__other">{otherName}</p>}
+            <p className="cat-banner__blurb">{t('browse.categoryBlurb')}</p>
+          </div>
+          <div className="cat-banner__art" aria-hidden="true">
+            {art ? <img src={art} alt="" width={400} height={500} /> : <Icon size={56} strokeWidth={1.5} />}
+          </div>
+        </header>
+      }
+      categories={categories ?? []}
+      filters={filters}
+      onChange={setFilters}
+      onClear={() => setFilters((current) => ({ sort: current.sort }))}
+      showCategory={false}
+    >
+      <SearchResultsGrid params={{ categoryId: category.id, ...filters }} onClear={() => setFilters((current) => ({ sort: current.sort }))} />
+    </BrowseLayout>
   );
 }

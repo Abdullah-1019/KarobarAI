@@ -1,13 +1,20 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500" role="img" aria-label="Home and kitchen demo photo">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500" role="img" aria-label="Home &amp; kitchen — placeholder illustration">
+  <!-- KarobarAI placeholder product illustration (home-kitchen). Hand-authored SVG, Haveli palette (Batch 0.8). Not a product photo. -->
   <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#FDEBE4"/>
-      <stop offset="1" stop-color="#FFFFFF"/>
-    </linearGradient>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F6E3D6"/><stop offset="1" stop-color="#FFFDF9"/></linearGradient>
+    <pattern id='bp' width='48' height='48' patternUnits='userSpaceOnUse'><g fill='none' stroke='#AE5429' stroke-width='1' opacity='0.35'><rect x='8' y='8' width='32' height='32'/><rect x='8' y='8' width='32' height='32' transform='rotate(45 24 24)'/><circle cx='24' cy='24' r='4'/></g></pattern>
+    <radialGradient id="fade" cx="0.85" cy="0.1" r="0.6"><stop offset="0" stop-color="#fff" stop-opacity="1"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+    <mask id="m"><rect width="400" height="500" fill="url(#fade)"/></mask>
   </defs>
-  <rect width="400" height="500" fill="url(#g)"/>
-  <circle cx="200" cy="215" r="96" fill="#E4572E" opacity="0.14"/>
-  <rect x="150" y="165" width="100" height="100" rx="18" fill="#E4572E" opacity="0.22"/>
-  <text x="200" y="392" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="600" fill="#E4572E">Home</text>
-  <text x="200" y="424" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="16" fill="#E4572E" opacity="0.7">Demo photo</text>
+  <rect width="400" height="500" fill="url(#bg)"/>
+  <rect width="400" height="500" fill="url(#bp)" mask="url(#m)"/>
+  <ellipse cx="200" cy="412" rx="118" ry="16" fill="#2B1D14" opacity="0.10"/>
+  <!-- ceramic mug + saucer -->
+  <ellipse cx="200" cy="384" rx="104" ry="20" fill="#FFFDF9" stroke="#D4C4AB" stroke-width="3"/>
+  <path d="M132 190h136v148c0 26-20 44-46 44h-44c-26 0-46-18-46-44z" fill="#FFFDF9" stroke="#D4C4AB" stroke-width="3"/>
+  <path d="M268 222c40 0 50 64 0 70" fill="none" stroke="#D4C4AB" stroke-width="14" stroke-linecap="round"/>
+  <path d="M132 236h136v44H132z" fill="#3A4D7A"/>
+  <g fill="#FFFDF9"><path d="M146 258l7-9 7 9-7 9z"/><path d="M172 258l7-9 7 9-7 9z"/><path d="M198 258l7-9 7 9-7 9z"/><path d="M224 258l7-9 7 9-7 9z"/><path d="M250 258l7-9 7 9-7 9z"/></g>
+  <ellipse cx="200" cy="190" rx="68" ry="12" fill="#5A3A22"/>
+  <path d="M182 166c-8-14 8-22 0-36M208 166c-8-14 8-22 0-36" fill="none" stroke="#D4C4AB" stroke-width="4" stroke-linecap="round"/>
 </svg>

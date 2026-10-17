@@ -6,9 +6,10 @@ type ButtonSize = 'sm' | 'md' | 'lg';
 
 interface ButtonProps {
   children: ReactNode;
-  /** primary = emerald fill; cta = saffron fill; outline/ghost = emerald on transparent;
-   * danger-ghost = error text on transparent (destructive secondary); outline-saffron = saffron
-   * border/text (Become a Seller); outline-light = white outline, for use on the emerald hero. */
+  /** primary / cta = copper fill (the one "do this" per screen; cta is the marketing-size use);
+   * outline = espresso outline that warms to copper on hover; ghost = copper text on transparent;
+   * danger-ghost = error text on transparent (destructive secondary); outline-saffron = brass
+   * border (Become a Seller); outline-light = parchment outline, for use on espresso bands. */
   variant?: ButtonVariant;
   size?: ButtonSize;
   /** Renders a client-side `<Link>` instead of a `<button>`. */

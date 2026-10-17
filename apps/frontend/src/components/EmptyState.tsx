@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
-import { Button, Typography } from 'antd';
 import { PackageSearch } from 'lucide-react';
+
+import { Button } from './Button';
 
 interface EmptyStateProps {
   title: string;
@@ -14,28 +15,19 @@ interface EmptyStateProps {
 // illustration (single-color, light), one short line, one CTA. Bilingual.") — callers pass
 // already-translated strings. A default icon renders when the caller doesn't pass one, so every
 // call site gets the "illustration" the spec calls for without having to remember to supply one.
+// The icon sits in a sand medallion; styling lives in global.css (.empty-state).
 export function EmptyState({ title, description, actionLabel, onAction, icon }: EmptyStateProps) {
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        textAlign: 'center',
-        padding: 'var(--sp-10) var(--sp-6)',
-        color: 'var(--text-secondary)',
-      }}
-    >
-      {icon ?? <PackageSearch size={40} strokeWidth={1.5} color="var(--text-disabled)" aria-hidden="true" />}
-      <Typography.Title level={4} style={{ marginTop: 'var(--sp-3)', marginBottom: 'var(--sp-1)', fontFamily: 'var(--font-heading)', letterSpacing: '-0.01em' }}>
-        {title}
-      </Typography.Title>
-      {description && <Typography.Text type="secondary">{description}</Typography.Text>}
+    <div className="empty-state">
+      <span className="empty-state__icon" aria-hidden="true">
+        {icon ?? <PackageSearch size={32} strokeWidth={1.5} />}
+      </span>
+      <h4 className="empty-state__title">{title}</h4>
+      {description && <p className="empty-state__desc">{description}</p>}
       {actionLabel && onAction && (
-        <Button type="primary" onClick={onAction} style={{ marginTop: 'var(--sp-4)' }}>
-          {actionLabel}
-        </Button>
+        <span className="empty-state__action">
+          <Button onClick={onAction}>{actionLabel}</Button>
+        </span>
       )}
     </div>
   );

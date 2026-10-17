@@ -1,68 +1,219 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Select } from 'antd';
 import { useQuery } from '@tanstack/react-query';
-import { Alert, Card, Col, Empty, Image, Row, Skeleton, Space, Typography } from 'antd';
-import { Link, useParams } from 'react-router-dom';
+import { Banknote, MessageCircle, Package } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { useNavigate, useParams } from 'react-router-dom';
 
-import { PriceDisplay, ProductThumbnail } from '../../components';
+import { Breadcrumb, Button, EmptyState, Skeleton } from '../../components';
 import { useLanguage } from '../../hooks';
-import { getPublicStorefront } from './storeApi';
+import { tintFor } from './categoryVisuals';
+import { ProductCard } from './ProductCard';
+import { ProductGridSkeleton } from './ProductGridSkeleton';
 import { StoreChatWidget } from './StoreChatWidget';
+import { StoreMonogram } from './StoreMonogram';
+import { getPublicStorefront, toCardProduct } from './storeApi';
 
+type StoreSort = 'store' | 'price_asc' | 'price_desc';
+
+// The public storefront (/store/:storeSlug), Studio Light (Day 2). A peach wash band carries the
+// store's mark, name, description and facts that are true for every store (its live product count
+// and cash on delivery), with the store's own goods standing in a small tilted "shop window" on the
+// band's far side. Below it the store's whole shelf, filterable by the categories the store really
+// stocks. The chat lives in the band as an ink button; once the band scrolls away a floating
+// "Ask the store" pill takes over, stacked above the WhatsApp button rather than on top of it.
 export function StorePage() {
+  const { t } = useTranslation(['marketplace', 'common']);
+  const navigate = useNavigate();
   const { storeSlug = '' } = useParams<{ storeSlug: string }>();
   const { language } = useLanguage();
-  const languageCode = language.toLowerCase();
+  const isUr = language === 'UR';
+  const [chatOpen, setChatOpen] = useState(false);
+  const [bandVisible, setBandVisible] = useState(true);
+  const [category, setCategory] = useState<string | null>(null);
+  const [sort, setSort] = useState<StoreSort>('store');
+  const bandRef = useRef<HTMLElement>(null);
+
   const storeQuery = useQuery({
     queryKey: ['storefront', storeSlug],
     queryFn: () => getPublicStorefront(storeSlug),
     enabled: !!storeSlug,
   });
 
-  if (storeQuery.isPending) return <Skeleton active paragraph={{ rows: 8 }} />;
-  if (storeQuery.isError || !storeQuery.data) {
-    return <Alert type="error" showIcon message={language === 'UR' ? 'اسٹور دستیاب نہیں' : 'Store unavailable'} />;
+  useEffect(() => {
+    setCategory(null);
+    setSort('store');
+  }, [storeSlug]);
+
+  useEffect(() => {
+    const el = bandRef.current;
+    if (!el) return undefined;
+    const observer = new IntersectionObserver(([entry]) => setBandVisible(entry?.isIntersecting ?? true), { threshold: 0 });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [storeQuery.data]);
+
+  const products = useMemo(() => storeQuery.data?.products ?? [], [storeQuery.data]);
+
+  // Only the categories this store actually stocks, in shelf order, with how many of each.
+  const categories = useMemo(() => {
+    const seen = new Map<string, { slug: string; name: string; count: number }>();
+    for (const p of products) {
+      if (!p.category) continue;
+      const entry = seen.get(p.category.slug);
+      if (entry) entry.count += 1;
+      else seen.set(p.category.slug, { slug: p.category.slug, name: isUr ? p.category.nameUr : p.category.nameEn, count: 1 });
+    }
+    return [...seen.values()];
+  }, [products, isUr]);
+
+  const shelf = useMemo(() => {
+    const list = category ? products.filter((p) => p.category?.slug === category) : [...products];
+    if (sort === 'price_asc') list.sort((a, b) => Number(a.price) - Number(b.price));
+    if (sort === 'price_desc') list.sort((a, b) => Number(b.price) - Number(a.price));
+    return list;
+  }, [products, category, sort]);
+
+  if (storeQuery.isPending) {
+    return (
+      <div className="store" aria-busy="true">
+        <Skeleton height={340} radius="36px" style={{ display: 'block', marginBlockStart: 16 }} />
+        <div className="store__shelf">
+          <ProductGridSkeleton count={8} />
+        </div>
+      </div>
+    );
   }
 
-  const { store, products } = storeQuery.data;
-  return (
-    <main style={{ maxWidth: 1100, margin: '0 auto', padding: 'var(--sp-4)' }}>
-      {store.bannerUrl && (
-        <Image
-          src={store.bannerUrl}
-          alt=""
-          preview={false}
-          style={{ width: '100%', maxHeight: 280, objectFit: 'cover', borderRadius: 'var(--radius-md)' }}
+  if (storeQuery.isError || !storeQuery.data) {
+    return (
+      <div className="pdp-missing">
+        <EmptyState
+          headingLevel={1}
+          title={t('store.unavailableTitle')}
+          description={t('store.unavailableBody')}
+          actionLabel={t('pdp.browse')}
+          onAction={() => navigate('/search')}
         />
-      )}
-      <Space align="center" size="middle" style={{ margin: 'var(--sp-5) 0', flexWrap: 'wrap' }}>
-        {store.logoUrl && <Image src={store.logoUrl} alt="" width={72} height={72} preview={false} style={{ objectFit: 'cover', borderRadius: '50%' }} />}
-        <div>
-          <Typography.Title level={2} style={{ margin: 0 }}>{store.name}</Typography.Title>
-          {store.description && <Typography.Paragraph style={{ margin: 'var(--sp-2) 0 0' }}>{store.description}</Typography.Paragraph>}
+      </div>
+    );
+  }
+
+  const { store } = storeQuery.data;
+  // The window shows the store's own goods: three real products with art, never stock imagery.
+  const windowItems = products.filter((p) => p.imageUrl).slice(0, 3);
+
+  return (
+    <div className="store">
+      <header className="store-band" ref={bandRef}>
+        <div className="store-band__copy">
+          <Breadcrumb items={[{ label: t('common:nav.home'), to: '/' }, { label: store.name }]} />
+          <StoreMonogram name={store.name} logoUrl={store.logoUrl} size={72} className="store-band__mark" />
+          <h1 className="store-band__title" dir="auto">{store.name}</h1>
+          {store.description && <p className="store-band__desc" dir="auto">{store.description}</p>}
+          <ul className="store-band__facts">
+            <li>
+              <Package size={16} strokeWidth={1.9} aria-hidden="true" />
+              {t('store.products', { count: products.length })}
+            </li>
+            <li>
+              <Banknote size={16} strokeWidth={1.9} aria-hidden="true" />
+              {t('store.cod')}
+            </li>
+          </ul>
+          <Button variant="secondary" icon={<MessageCircle size={18} aria-hidden="true" />} onClick={() => setChatOpen(true)}>
+            {t('pdp.askStore')}
+          </Button>
         </div>
-      </Space>
-      <Typography.Title level={3}>{language === 'UR' ? 'مصنوعات' : 'Products'}</Typography.Title>
-      {products.length === 0 ? (
-        <Empty description={language === 'UR' ? 'اس اسٹور میں ابھی کوئی دستیاب پروڈکٹ نہیں' : 'No live products in this store yet'} />
-      ) : (
-        <Row gutter={[16, 16]}>
-          {products.map((product) => (
-            <Col key={product.id} xs={12} sm={8} md={6}>
-              <Link to={`/product/${product.id}`} style={{ color: 'inherit' }}>
-                <Card hoverable cover={<ProductThumbnail src={product.imageUrl} />}>
-                  <Typography.Text strong ellipsis>{language === 'UR' && product.titleUr ? product.titleUr : product.titleEn}</Typography.Text>
-                  <div style={{ marginTop: 'var(--sp-2)' }}><PriceDisplay amount={product.price} /></div>
-                  <Typography.Text type="secondary">
-                    {product.stock > 0
-                      ? (language === 'UR' ? `دستیاب: ${product.stock}` : `In stock: ${product.stock}`)
-                      : (language === 'UR' ? 'اسٹاک ختم' : 'Out of stock')}
-                  </Typography.Text>
-                </Card>
-              </Link>
-            </Col>
-          ))}
-        </Row>
-      )}
-      <StoreChatWidget storeSlug={storeSlug} storeName={store.name} locale={languageCode === 'ur' ? 'ur' : 'en'} />
-    </main>
+
+        {store.bannerUrl ? (
+          <div className="store-band__banner">
+            <img src={store.bannerUrl} alt="" />
+          </div>
+        ) : (
+          windowItems.length > 0 && (
+            <div className="store-window" aria-hidden="true" data-count={windowItems.length}>
+              {windowItems.map((p, index) => (
+                <span key={p.id} className={`store-window__card store-window__card--${index}`}>
+                  <span className="store-window__art" style={{ background: tintFor(p.category?.slug ?? '') }}>
+                    <img src={p.imageUrl ?? ''} alt="" />
+                  </span>
+                </span>
+              ))}
+            </div>
+          )
+        )}
+      </header>
+
+      <section className="store__shelf" aria-labelledby="store-shelf-title">
+        <header className="section-head store__head">
+          <div className="section-head-text">
+            <h2 id="store-shelf-title" className="section-title">
+              {t('store.allProducts')}
+            </h2>
+          </div>
+          {products.length > 1 && (
+            <label className="browse__sort">
+              <span className="browse__sort-label">{t('store.sortLabel')}</span>
+              <Select
+                popupMatchSelectWidth={false}
+                value={sort}
+                onChange={(value: StoreSort) => setSort(value)}
+                options={[
+                  { value: 'store', label: t('store.sortStore') },
+                  { value: 'price_asc', label: t('filters.sortPriceAsc') },
+                  { value: 'price_desc', label: t('filters.sortPriceDesc') },
+                ]}
+              />
+            </label>
+          )}
+        </header>
+
+        {categories.length > 1 && (
+          <div className="filter-chips store__chips" role="group" aria-label={t('store.categoryFilter')}>
+            <button type="button" className="filter-chip" aria-pressed={category === null} onClick={() => setCategory(null)}>
+              {t('store.all')}
+              <span className="store__chip-count">{products.length}</span>
+            </button>
+            {categories.map((c) => (
+              <button
+                key={c.slug}
+                type="button"
+                className="filter-chip"
+                aria-pressed={category === c.slug}
+                onClick={() => setCategory(c.slug)}
+              >
+                {c.name}
+                <span className="store__chip-count">{c.count}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {products.length === 0 ? (
+          <EmptyState
+            title={t('store.emptyTitle')}
+            description={t('store.emptyBody')}
+            actionLabel={t('pdp.browse')}
+            onAction={() => navigate('/search')}
+          />
+        ) : (
+          <div className="product-grid">
+            {shelf.map((p) => (
+              <ProductCard key={p.id} product={toCardProduct(p)} />
+            ))}
+          </div>
+        )}
+      </section>
+
+      <StoreChatWidget
+        storeSlug={storeSlug}
+        storeName={store.name}
+        locale={isUr ? 'ur' : 'en'}
+        open={chatOpen}
+        onOpenChange={setChatOpen}
+        showLauncher={!bandVisible}
+      />
+    </div>
   );
 }

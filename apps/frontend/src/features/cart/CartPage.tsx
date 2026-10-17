@@ -1,26 +1,37 @@
-import { Alert, Button, Card, Divider, Typography } from 'antd';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Banknote, ShoppingBag, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 
 import type { CartItemDTO, SellerCartGroupDTO } from '@karobarai/shared';
-import { EmptyState, PriceDisplay, ProductThumbnail, QuantityStepper, SkeletonLoader, StatusTag, toast } from '../../components';
+import { Button, EmptyState, PriceDisplay, ProductThumbnail, QuantityStepper, Skeleton, StatusTag, toast } from '../../components';
 import { useAuthStore } from '../../lib/authStore';
+import { HOME_FEED_QUERY_KEY, getHomeFeed } from '../marketplace/marketplaceApi';
+import { ProductCard } from '../marketplace/ProductCard';
+import { StoreMonogram } from '../marketplace/StoreMonogram';
 import { CART_QUERY_KEY, getCart, removeCartItem, updateCartItem } from './cartApi';
 import { formatCartError } from './cartErrors';
 import { useGuestCartStore, type GuestCartItem } from './guestCartStore';
 
-// SCR-B04 — review items before checkout, grouped by seller (preview of order splitting).
-// Guests get a client-only view of the localStorage cart; a signed-in Buyer gets the persisted
-// one — same page, branched by auth state, rather than two parallel screens.
+const PKR = new Intl.NumberFormat('en-PK');
+const rs = (n: number | string) => `Rs. ${PKR.format(Number(n))}`;
+
+// SCR-B04, Studio Light (Day 2). Items sit in one white card per store, because each store becomes
+// its own order at checkout. A white summary card carries the one persimmon action; on phones a
+// slim bar with the total and Checkout takes over while that card is off screen. Guests see the
+// same page off the device-only cart, and Checkout sends them to log in first.
 export function CartPage() {
-  const { t } = useTranslation(['cart']);
+  const { t } = useTranslation(['cart', 'marketplace']);
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const isBuyer = user?.role === 'BUYER';
   const queryClient = useQueryClient();
+  const ctaRef = useRef<HTMLDivElement>(null);
+  const barRef = useRef<HTMLDivElement>(null);
+  const [barVisible, setBarVisible] = useState(false);
 
-  const { data: cart, isPending, isError, error } = useQuery({
+  const { data: cart, isPending, isError, error, refetch } = useQuery({
     queryKey: CART_QUERY_KEY,
     queryFn: getCart,
     enabled: isBuyer,
@@ -42,165 +53,280 @@ export function CartPage() {
     onError: (err) => toast.error(formatCartError(t, err)),
   });
 
+  const isEmpty = isBuyer ? (cart?.sellerGroups.length ?? 0) === 0 : guestItems.length === 0;
+  const showEmpty = (!isBuyer || !isPending) && !isError && isEmpty;
+
+  const feed = useQuery({ queryKey: HOME_FEED_QUERY_KEY, queryFn: getHomeFeed, enabled: showEmpty });
+
+  // Phone bar: shown while the summary card's Checkout button is off screen (above or below).
+  useEffect(() => {
+    let frame = 0;
+    const check = () => {
+      frame = 0;
+      const el = ctaRef.current;
+      if (!el) return setBarVisible(false);
+      const r = el.getBoundingClientRect();
+      setBarVisible(r.bottom < 0 || r.top > window.innerHeight);
+    };
+    const onScroll = () => {
+      if (!frame) frame = window.requestAnimationFrame(check);
+    };
+    check();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+    };
+  }, [isEmpty, cart]);
+
+  useEffect(() => {
+    if (barRef.current) barRef.current.inert = !barVisible;
+  }, [barVisible]);
+
   if (isBuyer && isPending) {
     return (
-      <div style={{ maxWidth: 720, margin: '0 auto' }}>
-        <SkeletonLoader rows={4} />
+      <div className="cart" aria-busy="true">
+        <Skeleton height={44} width={260} style={{ display: 'block' }} />
+        <div className="cart__layout">
+          <div>
+            <Skeleton height={260} radius="24px" style={{ display: 'block' }} />
+          </div>
+          <Skeleton height={300} radius="24px" style={{ display: 'block' }} />
+        </div>
       </div>
     );
   }
 
   if (isBuyer && isError) {
     return (
-      <div style={{ maxWidth: 720, margin: '0 auto' }}>
-        <Alert type="error" showIcon message={formatCartError(t, error)} />
+      <div className="pdp-missing">
+        <EmptyState headingLevel={1} title={t('page.title')} description={formatCartError(t, error)} actionLabel={t('common:actions.retry')} onAction={() => void refetch()} />
       </div>
     );
   }
 
-  const isEmpty = isBuyer ? (cart?.sellerGroups.length ?? 0) === 0 : guestItems.length === 0;
-
   if (isEmpty) {
+    const popular = (feed.data?.featured ?? []).slice(0, 4);
     return (
-      <EmptyState title={t('page.title')} description={t('page.empty')} actionLabel={t('page.browseCta')} onAction={() => navigate('/')} />
+      <div className="cart cart--empty">
+        <EmptyState
+          headingLevel={1}
+          icon={<ShoppingBag size={36} strokeWidth={1.6} aria-hidden="true" />}
+          title={t('flow.emptyTitle')}
+          description={t('flow.emptyBody')}
+          actionLabel={t('page.browseCta')}
+          onAction={() => navigate('/search')}
+        />
+        {popular.length > 0 && (
+          <section className="section" aria-labelledby="cart-popular">
+            <header className="section-head">
+              <h2 id="cart-popular" className="section-title">
+                {t('flow.popular')}
+              </h2>
+            </header>
+            <div className="product-grid">
+              {popular.map((p) => (
+                <ProductCard key={p.id} product={p} />
+              ))}
+            </div>
+          </section>
+        )}
+      </div>
+    );
+  }
+
+  const groups = cart?.sellerGroups ?? [];
+  const itemCount = isBuyer
+    ? groups.reduce((n, g) => n + g.items.reduce((m, i) => m + i.quantity, 0), 0)
+    : guestItems.reduce((n, i) => n + i.quantity, 0);
+  const total = isBuyer ? Number(cart?.grandSubtotal ?? 0) : guestItems.reduce((sum, i) => sum + Number(i.price) * i.quantity, 0);
+  const anyReady = !isBuyer || groups.some((g) => g.eligibleForCheckout);
+  const someNotReady = isBuyer && groups.some((g) => !g.eligibleForCheckout);
+
+  const goCheckout = () => (isBuyer ? navigate('/checkout') : navigate('/login', { state: { redirect: '/checkout' } }));
+
+  function renderRow(key: string, opts: {
+    productId: string;
+    title: string;
+    image: string | null;
+    price: string;
+    quantity: number;
+    max?: number;
+    busy?: boolean;
+    warning?: ReactNode;
+    onQty: (q: number) => void;
+    onRemove: () => void;
+  }) {
+    return (
+      <li key={key} className="cart-row">
+        <Link to={`/product/${opts.productId}`} className="cart-row__thumb" tabIndex={-1} aria-hidden="true">
+          <ProductThumbnail src={opts.image} fill radius="md" style={{ background: 'transparent' }} />
+        </Link>
+        <div className="cart-row__info">
+          <Link to={`/product/${opts.productId}`} className="cart-row__title" dir="auto">
+            {opts.title}
+          </Link>
+          <span className="cart-row__each">{t('flow.each', { price: rs(opts.price) })}</span>
+          {opts.warning}
+        </div>
+        <div className="cart-row__qty">
+          <QuantityStepper
+            size="sm"
+            value={opts.quantity}
+            min={1}
+            max={opts.max}
+            disabled={opts.busy}
+            onChange={opts.onQty}
+            label={t('marketplace:product.quantity')}
+            decreaseLabel={t('marketplace:pdp.decrease')}
+            increaseLabel={t('marketplace:pdp.increase')}
+          />
+        </div>
+        <span className="cart-row__total">
+          <PriceDisplay amount={Number(opts.price) * opts.quantity} strong />
+        </span>
+        <button type="button" className="cart-row__remove" aria-label={t('flow.removeNamed', { title: opts.title })} onClick={opts.onRemove}>
+          <Trash2 size={18} strokeWidth={1.8} aria-hidden="true" />
+        </button>
+      </li>
     );
   }
 
   function renderBuyerGroup(group: SellerCartGroupDTO) {
+    const conflict = group.items.some((i) => i.stockConflict);
+    const shortBy = Math.max(0, Number(group.minOrderValuePkr) - Number(group.subtotal));
     return (
-      <Card key={group.sellerId} title={group.storeName} style={{ marginBottom: 'var(--sp-4)' }}>
-        {group.items.map((item: CartItemDTO, index) => (
-          <div
-            key={item.id}
-            className="karobarai-cart-item"
-            style={{
-              padding: 'var(--sp-3) 0',
-              borderBottom: index === group.items.length - 1 ? 'none' : '1px solid var(--border)',
-            }}
-          >
-            <ProductThumbnail src={item.primaryImageUrl} size={64} />
-            <div className="karobarai-cart-item-info">
-              <Typography.Text ellipsis style={{ display: 'block' }}>
-                {item.titleEn}
-              </Typography.Text>
-              <PriceDisplay amount={item.price} size="sm" muted />
-              {item.stockConflict && (
-                <div style={{ marginTop: 'var(--sp-1)' }}>
-                  <StatusTag variant="warning" label={t('item.stockConflict', { count: item.stockConflict.available })} />
-                </div>
-              )}
-            </div>
-            <div className="karobarai-cart-item-controls">
-              <QuantityStepper
-                value={item.quantity}
-                min={1}
-                max={item.stockConflict?.available}
-                disabled={updateMutation.isPending}
-                onChange={(quantity) => updateMutation.mutate({ itemId: item.id, quantity })}
-              />
-              <Button type="link" danger loading={removeMutation.isPending} onClick={() => removeMutation.mutate(item.id)}>
-                {t('item.remove')}
-              </Button>
-            </div>
+      <section key={group.sellerId} className="cart-group" data-ready={group.eligibleForCheckout || undefined} aria-label={group.storeName}>
+        <header className="cart-group__head">
+          <StoreMonogram name={group.storeName} size={40} />
+          <div className="cart-group__who">
+            <h2 className="cart-group__name" dir="auto">
+              {group.storeName}
+            </h2>
+            <span className="cart-group__sub">{t('flow.shipsSeparately')}</span>
           </div>
-        ))}
-        <Divider style={{ margin: 'var(--sp-2) 0' }} />
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-          <Typography.Text strong>{t('sellerGroup.subtotal')}</Typography.Text>
-          <PriceDisplay amount={group.subtotal} />
-        </div>
-        {!group.eligibleForCheckout && (
-          <Alert
-            type="warning"
-            showIcon
-            style={{ marginTop: 'var(--sp-3)' }}
-            message={t('sellerGroup.belowMinimum', { amount: `Rs. ${Number(group.minOrderValuePkr).toLocaleString()}` })}
-          />
-        )}
-      </Card>
+          {!group.eligibleForCheckout && <StatusTag variant="warning" label={t('flow.notReady')} />}
+        </header>
+        <ul className="cart-group__items">
+          {group.items.map((item: CartItemDTO) =>
+            renderRow(item.id, {
+              productId: item.productId,
+              title: item.titleEn,
+              image: item.primaryImageUrl,
+              price: item.price,
+              quantity: item.quantity,
+              max: item.stockConflict?.available,
+              busy: updateMutation.isPending || removeMutation.isPending,
+              warning: item.stockConflict ? (
+                <StatusTag variant="warning" label={t('item.stockConflict', { count: item.stockConflict.available })} />
+              ) : undefined,
+              onQty: (quantity) => updateMutation.mutate({ itemId: item.id, quantity }),
+              onRemove: () => removeMutation.mutate(item.id),
+            }),
+          )}
+        </ul>
+        <footer className="cart-group__foot">
+          {!group.eligibleForCheckout && (
+            <p className="cart-group__note">
+              {conflict ? t('flow.stockIssue') : t('flow.addMore', { amount: rs(shortBy), min: rs(group.minOrderValuePkr) })}
+            </p>
+          )}
+          <div className="cart-group__subtotal">
+            <span>{t('sellerGroup.subtotal')}</span>
+            <PriceDisplay amount={group.subtotal} strong />
+          </div>
+        </footer>
+      </section>
     );
   }
 
-  function renderGuestItem(item: GuestCartItem, isLast: boolean) {
+  function renderGuestGroup() {
     return (
-      <div
-        key={item.productId}
-        className="karobarai-cart-item"
-        style={{
-          padding: 'var(--sp-3) 0',
-          borderBottom: isLast ? 'none' : '1px solid var(--border)',
-        }}
-      >
-        <ProductThumbnail src={item.primaryImageUrl} size={64} />
-        <div className="karobarai-cart-item-info">
-          <Typography.Text ellipsis style={{ display: 'block' }}>
-            {item.titleEn}
-          </Typography.Text>
-          <PriceDisplay amount={item.price} size="sm" muted />
-        </div>
-        <div className="karobarai-cart-item-controls">
-          <QuantityStepper value={item.quantity} min={1} onChange={(quantity) => updateGuestQuantity(item.productId, quantity)} />
-          <Button type="link" danger onClick={() => removeGuestItem(item.productId)}>
-            {t('item.remove')}
-          </Button>
-        </div>
-      </div>
+      <section className="cart-group" aria-label={t('flow.yourItems')}>
+        <header className="cart-group__head">
+          <div className="cart-group__who">
+            <h2 className="cart-group__name">{t('flow.yourItems')}</h2>
+            <span className="cart-group__sub">{t('flow.guestNote')}</span>
+          </div>
+        </header>
+        <ul className="cart-group__items">
+          {guestItems.map((item: GuestCartItem) =>
+            renderRow(item.productId, {
+              productId: item.productId,
+              title: item.titleEn,
+              image: item.primaryImageUrl,
+              price: item.price,
+              quantity: item.quantity,
+              onQty: (quantity) => updateGuestQuantity(item.productId, quantity),
+              onRemove: () => removeGuestItem(item.productId),
+            }),
+          )}
+        </ul>
+      </section>
     );
   }
-
-  const guestTotal = guestItems.reduce((sum, item) => sum + Number(item.price) * item.quantity, 0);
 
   return (
-    <div style={{ maxWidth: 720, margin: '0 auto' }}>
-      <Typography.Title level={3} style={{ marginBottom: 'var(--sp-1)' }}>
-        {t('page.title')}
-      </Typography.Title>
-      <Typography.Text type="secondary">{t('page.shippingNote')}</Typography.Text>
+    <div className="cart">
+      <header className="cart__head">
+        <h1 className="cart__title">{t('page.title')}</h1>
+        <p className="cart__count">
+          {t('flow.items', { count: itemCount })}
+          {isBuyer && groups.length > 0 && <> {t('flow.stores', { count: groups.length })}</>}
+        </p>
+      </header>
 
-      <div style={{ marginTop: 'var(--sp-4)' }}>
-        {isBuyer
-          ? cart?.sellerGroups.map(renderBuyerGroup)
-          : (
-              <Card>
-                {guestItems.map((item, index) => renderGuestItem(item, index === guestItems.length - 1))}
-              </Card>
-            )}
-      </div>
+      <div className="cart__layout">
+        <div className="cart__groups">{isBuyer ? groups.map(renderBuyerGroup) : renderGuestGroup()}</div>
 
-      <Card
-        className="karobarai-cart-summary"
-        style={{
-          marginTop: 'var(--sp-6)',
-          position: 'sticky',
-          bottom: 'var(--sp-4)',
-          boxShadow: 'var(--shadow-md)',
-        }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <Typography.Text type="secondary" style={{ display: 'block' }}>
-              {t('page.grandTotal')}
-            </Typography.Text>
-            <PriceDisplay amount={isBuyer ? cart?.grandSubtotal ?? 0 : guestTotal} size="lg" />
+        <aside className="cart-summary" aria-labelledby="cart-summary-title">
+          <h2 id="cart-summary-title" className="cart-summary__title">
+            {t('flow.summaryTitle')}
+          </h2>
+          <dl className="cart-summary__lines">
+            <div>
+              <dt>
+                {t('flow.itemsLine')} <span className="cart-summary__muted">({itemCount})</span>
+              </dt>
+              <dd>
+                <PriceDisplay amount={total} />
+              </dd>
+            </div>
+            <div>
+              <dt>{t('flow.shippingLine')}</dt>
+              <dd className="cart-summary__muted">{t('flow.shippingValue')}</dd>
+            </div>
+          </dl>
+          <div className="cart-summary__total">
+            <span>{t('flow.totalBeforeShipping')}</span>
+            <PriceDisplay amount={total} size="lg" strong />
           </div>
-          {isBuyer ? (
-            <Button
-              type="primary"
-              size="large"
-              disabled={!cart?.sellerGroups.some((g) => g.eligibleForCheckout)}
-              onClick={() => navigate('/checkout')}
-            >
+          <div ref={ctaRef}>
+            <Button size="lg" fullWidth arrow disabled={!anyReady} onClick={goCheckout}>
               {t('page.checkout')}
             </Button>
-          ) : (
-            <Link to="/login" state={{ redirect: '/checkout' }}>
-              <Button type="primary" size="large">
-                {t('page.checkout')}
-              </Button>
-            </Link>
+          </div>
+          {someNotReady && <p className="cart-summary__warn">{t('flow.someNotReady')}</p>}
+          {isBuyer && (
+            <p className="cart-summary__cod">
+              <Banknote size={18} strokeWidth={1.8} aria-hidden="true" />
+              {t('flow.codNote')}
+            </p>
           )}
-        </div>
-      </Card>
+        </aside>
+      </div>
+
+      <div className="cart-bar" ref={barRef} data-visible={barVisible || undefined}>
+        <span className="cart-bar__total">
+          <small>{t('flow.totalBeforeShipping')}</small>
+          <PriceDisplay amount={total} strong />
+        </span>
+        <Button disabled={!anyReady} onClick={goCheckout}>
+          {t('page.checkout')}
+        </Button>
+      </div>
     </div>
   );
 }

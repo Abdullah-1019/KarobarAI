@@ -25,7 +25,9 @@ The day-by-day record of the 4-day frontend redesign. Each day lists what was pl
 | Studio Light migration | 2026-10-17 | Step 3 (shared components) → Stop 2 | ✅ Reviewed by Rafia ("next start") |
 | Studio Light migration | 2026-10-17 | Steps 4–5 (pages + checks + DESIGN.md) → Stop 3 | ✅ Part 1 done, waiting for Rafia's review |
 | Backend connectivity | 2026-10-17 | Migrations + seed applied, live stack tested (see BACKEND-NOTES.md) | ✅ Done |
-| Day 2 | — | Batch 2 (Product, Store, Cart, Checkout, Confirmation) + Batch 3 (auth polish), built in Studio Light | ⏭ Next session |
+| Day 2 | 2026-10-18 | Phase 1: Product detail + Store page (+ chat restyle) | ✅ Done, waiting for Rafia's review |
+| Day 2 | 2026-10-18 | Phase 2: Cart, Checkout, Confirmation | ✅ Done, waiting for Rafia's review |
+| Day 2 | — | Phase 3 (auth polish; OTP → /login stays as is), Phase 4 (checks) | ⏭ Next |
 | Day 3 | — | Batch 4 (seller workspace + AI Store Builder) | Not started |
 | Day 4 | — | Batch 5 (buyer after purchase) + Batch 6 (admin) + QA | Not started |
 
@@ -361,6 +363,134 @@ Rafia said the screenshots matched neither her reference images nor the sample d
   - The seller/admin screens get their full redesign on Day 3 and Day 4.
 
 ---
+
+## Day 2: Phase 0 + Phase 1 (2026-10-17 → 18)
+
+**Rafia's instruction at the start:** don't change the post-OTP flow (it sends the user to /login), that's fine. So the "auto-login after OTP" item is dropped from Phase 3.
+
+### Phase 0: setup
+- Docker Desktop was paused, then stopped overnight. Claude restarted it both times (`docker desktop restart` / `start`, then `compose up -d`). It was never `down -v`.
+- `impeccable context` loaded. The baseline detector (newer CLI) found 61 advisories (off-ramp font sizes, radii, spring easing) and 0 blocking findings.
+
+### Phase 1 (Stop): Product detail + Store page
+
+**Product detail (`/product/:id`)**
+- **Gallery** (new `ProductGallery.tsx`), the page's one signature motion:
+  - The product stands on its category tint in a 28px stage (6:5 on desktop, 1:1 on phones).
+  - On load it settles onto the "counter".
+  - With a mouse, hovering zooms 1.8× around the pointer (loupe).
+  - Several photos sit on a swipeable snap track, with ink-ringed thumbnails and an "n / N" counter.
+  - Reduced motion: nothing moves.
+- **Tags on the stage:**
+  - An ink "Listing written by AI" tag, tilted -2° (shown only when `aiGenerated` is true; mirrored in Urdu).
+  - A heart that saves on this device.
+- **Buy column** (sticky on desktop):
+  - The title in Inter, with the Urdu title in Nastaliq under it.
+  - The price in Outfit, with a condition pill.
+  - Stock: a green "In stock · N available" dot, or a red "Only X left" pill when real stock is 5 or fewer.
+  - A new stone pill quantity stepper.
+  - Persimmon **Add to cart** (turns ✓ "Added" for 1.5s) beside an ink **Buy now**.
+- **Reassurance and store:**
+  - A flat panel: Cash on Delivery, photo-backed returns (24 hours), courier tracking.
+  - A store card with the store's initial or logo, "Sold by", the store name (a link), and an outline "Ask the store" button.
+- **Below the fold:** "About this product", with a "Read in Urdu/English" toggle for the other-language description, and "More from {store}" with plain product cards.
+- **Phone bar:**
+  - It slides up above the tab bar only after the in-page buttons scroll away, so there is one persimmon on screen at a time.
+  - It holds the price, Buy now and Add to cart. Under 400px, Add to cart becomes an icon.
+  - Keyboard focus is never hidden behind it.
+- **States:**
+  - A loading skeleton in the page's own shape.
+  - Not found: "We couldn't find this product" + Browse.
+  - Load error: "This product didn't load" + Retry.
+
+**Store page (`/store/:storeSlug`)**
+- **Peach band:**
+  - Breadcrumb, then the store's logo or its Outfit initial on a white disc, the store name large, and the description.
+  - Two fact pills: the real live product count and Cash on Delivery.
+  - An ink "Ask the store" button.
+  - A tilted "shop window" of three of the store's own products, mirrored in Urdu and hidden on phones. An uploaded banner replaces it.
+- **Shelf:**
+  - "All products" with a pill Sort (store order, price low→high, price high→low).
+  - Filter chips for only the categories this store stocks, with counts. They are ink when selected and one swipeable row on phones.
+  - Product cards.
+- **Chat launcher:** once the band scrolls away, a white "Ask the store" pill appears **above** the WhatsApp button. The old chat button sat on top of it.
+
+**Chatbot widget (restyled, `StoreChatWidget.tsx`)**
+- **Sheet:** a white 28px side sheet with the store's mark, "Ask {store}", an ink "AI assistant" chip and "Answers come from this store's live listings".
+- **Messages and composer:**
+  - Three suggested first questions, including one about the product you're viewing.
+  - Your messages are ink bubbles; the store's are white bubbles on stone.
+  - A stone pill input with a round ink send button.
+- **Waiting and errors:**
+  - Typing dots while waiting. After 8s it says replies can take a minute or two (the local model is slow).
+  - On error, your text comes back into the input.
+
+**Also**
+- The Breadcrumb Home icon got an accessible name.
+- `EmptyState` accepts `headingLevel={1}`.
+- `toCardProduct()` maps store rows onto ProductCard without inventing data.
+
+**Checks**
+- `tsc` clean. `eslint` has 0 errors (the same 5 old warnings). `vitest` passes 23/23.
+- **Detector:**
+  - Source: only advisories (off-ramp px sizes in line with DESIGN.md's prose, and the sanctioned spring pop).
+  - Live: "Inter overused" (accepted), the spring pop, and one low-contrast hit on the store page. That hit was verified as a false positive: the chip and button compute to ink with warm-white text, about 17:1.
+- **Screenshots and probes:** EN/UR at 1440 and 390, no sideways scroll. The interaction probe confirmed:
+  - The phone bar shows and hides, and is inert when hidden.
+  - The chat opens with focus in the input.
+  - The multi-image gallery works (images injected with request interception; the DB was not touched), including "2 / 4" in Urdu.
+  - "Only 3 left" works (stock intercepted).
+  - The category filter works.
+  - The launcher sits above the WhatsApp button.
+- `/taste`: 1 must-fix, a primitive token, now fixed. ui-ux-pro-max: focus-not-obscured fixed with scroll padding while the bar is up.
+- Impeccable finish review: round 1 = fix (7 items: RTL counter, doubled ground shadow, not-found vs error, price lost in the phone bar, "More from" heading on phones, phone chips, recaptures + low stock). Round 2 = ship (all 7 resolved, no regressions). Follow-up from the reviewer applied: the settle now scales from the item's base so the drawn ground doesn't slide.
+
+**Open after Phase 1**
+- Seed products have one image each, so the multi-photo gallery only shows on real seller uploads (or ask Abdullah for seed images, see BACKEND-NOTES 0b).
+- The product description is the seed's "demo listing seeded for local development" text.
+- Backend: a malformed product id returns 500 (BACKEND-NOTES 0b).
+
+### Phase 2 (Stop): Cart, Checkout, Confirmation (2026-10-18)
+
+**Cart (`/cart`)**
+- **Store cards:** one white card per store, because each store becomes its own order. Each card shows the store's initial, "Ships as its own order", and an amber "Not ready" tag with the exact reason.
+  - Before, the "add more" amount was wrong: it showed the full minimum instead of the difference. It now says, for example, "Add Rs. 500 more… minimum Rs. 7,900", or asks you to lower a quantity that's over stock.
+- **Item rows:** image, linked title, "Rs. X each", the stone stepper (36px drawn, 44px tap), the line total in a hairline price pill (as in the sample), and a trash button that turns red on hover.
+- **Summary:** a sticky white card with items, shipping ("Calculated per store"), "Total before shipping", the one persimmon **Checkout** and a COD line.
+- **Phones:** a pill bar with the total and Checkout appears while the card's button is off screen.
+- **Empty and guest:** the empty cart shows the empty state plus four real "Popular right now" products. The guest cart gets one "Your items" card, and Checkout sends guests to login with the redirect kept.
+
+**Checkout (`/checkout`)**
+- **Steps:** a step indicator (Address → Payment → Review). Each step folds into a one-line summary with "Change", and a returning buyer lands straight on Review.
+- **Address:** address cards with real radios (ink when chosen) and a dashed "Add new address" card that opens a two-column form (autocomplete, phone keypad, required marks).
+- **Payment:** cards built from `/payments/config`. COD is on. Card (Stripe), JazzCash and Easypaisa are dimmed with "Not available yet".
+- **Review and placing:** Review lists each store's items. The white summary card holds the one persimmon **Place order**, enabled on Review.
+- **Kept as is:** the Idempotency-Key and Stripe logic.
+
+**Confirmation (`/checkout/confirmation`)**
+- **Celebration:** a peach band. An ink check stamps in, a ring ripples and twelve small pieces are thrown once. With reduced motion, the check just shows.
+- **Text:** "Shukriya!" with شکریہ in Nastaliq (in Urdu: شکریہ! with "Thank you"), and "Pay Rs. X in cash when it arrives".
+- **Buttons:** persimmon **Track order** (several orders go to My orders) and an outline **Keep shopping**.
+- **Below:** order cards with the **real order number** (fetched from `/orders/:id`), Delivering to, and "What happens next" (3 steps).
+
+**Also**
+- **Header:** the notification bell is now a round 44px button like cart/account (it was an AntD rectangle). On phones under 430px the header's search button hides, because the tab bar has Search and the account icon was being pushed off the pill.
+- **Clean-up:** removed the unused `SelectableOptionCard.tsx` and the old `.karobarai-cart-item` CSS.
+
+**Checks**
+- `tsc` clean. `eslint` has 0 errors (the same 5 old warnings). `vitest` passes 23/23.
+- Detector: source has 0 blocking findings; live has only Inter (accepted) and the spring pop.
+- **End-to-end on the real API:**
+  - Logged in as the test buyer, added items, changed quantity, went through checkout, and **placed real COD orders #2, #3 and #4** (EN and UR). The confirmation shows the real order number.
+  - Guest cart and empty cart tested.
+  - The "Not ready" state was tested by intercepting `/cart` (nothing written to the DB).
+- No sideways scroll at 390/1440 in EN and UR, after fixing an Urdu checkout overflow: the long one-line address summary stretched the steps grid.
+- Impeccable finish review: round 1 = fix (8 items: guest RTL row, bell, price pill, Urdu summary truncation, Urdu stamp spacing, duplicate guest note, glow position, not-ready evidence). All fixed and recaptured. Round 2 = 5/8 confirmed, 2 open + 2 regressions (Urdu folded-address shot stale; Urdu headline ~9px under the stamp at 1440; Latin titles clipped mid-name in Urdu rows; store name wrapping beside Not ready). Follow-ups: Nastaliq title padded for its ascender (now ~22px clear), title `unicode-bidi: plaintext` + 3-line clamp on phones (full "Hand-Embroidered Cotton Kurta" shows), store head wraps the tag first, folded address recaptured ("Test Buyer, House 1, Street…"). Confirmation recaptured via injected router state, so no new order was placed. Stopping here (2-round cap).
+
+**Open after Phase 2**
+- The Urdu twin of the confirmation needs a motion-on check by eye: the captures were with reduced motion.
+- Backend asks: `orderNumber` in the checkout response and a shipping estimate (BACKEND-NOTES 0b, items 5–6).
+- The test buyer's cart still has 2 items, and orders #2–#4 exist (test data).
 
 ## Day 2: Batch 2 (purchase) + Batch 3 (auth) (planned)
 

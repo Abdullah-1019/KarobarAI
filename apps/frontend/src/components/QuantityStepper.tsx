@@ -1,4 +1,4 @@
-import { Button, InputNumber } from 'antd';
+import { useEffect, useState } from 'react';
 import { Minus, Plus } from 'lucide-react';
 
 interface QuantityStepperProps {
@@ -9,12 +9,16 @@ interface QuantityStepperProps {
   disabled?: boolean;
   decreaseLabel?: string;
   increaseLabel?: string;
+  /** Accessible name of the group (e.g. "Quantity"). */
+  label?: string;
+  /** `sm` = 36px drawn buttons with a 44px tap halo (dense cart rows). */
+  size?: 'sm' | 'md';
 }
 
-// Shared qty stepper — used by Product Detail (Feature 5) and Cart (Feature 6). Lucide icons
-// (UIUX §7) replaced the plain −/+ text glyphs now that lucide-react is installed; label props
-// are optional with English defaults so existing call sites keep working unchanged while callers
-// can pass translated strings later.
+// Shared qty stepper, used by Product Detail (Feature 5) and Cart (Feature 6). Studio Light: a
+// stone pill track holding two round white buttons and a tabular figure between them, so it reads
+// as one control instead of three boxes. The number stays typeable (numeric keyboard on phones)
+// and clamps to [min, max] on blur, so a half-typed value never reaches the cart.
 export function QuantityStepper({
   value,
   min = 1,
@@ -23,37 +27,54 @@ export function QuantityStepper({
   disabled,
   decreaseLabel = 'Decrease quantity',
   increaseLabel = 'Increase quantity',
+  label = 'Quantity',
+  size = 'md',
 }: QuantityStepperProps) {
+  const [draft, setDraft] = useState(String(value));
+  useEffect(() => setDraft(String(value)), [value]);
+
+  const clamp = (next: number) => Math.min(max ?? Infinity, Math.max(min, next));
+  const commit = () => {
+    const parsed = Number.parseInt(draft, 10);
+    const next = Number.isNaN(parsed) ? value : clamp(parsed);
+    setDraft(String(next));
+    if (next !== value) onChange(next);
+  };
+
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', padding: '2px' }} role="group" aria-label="Quantity">
-      <Button
+    <div className={`qty${size === 'sm' ? ' qty--sm' : ''}`} role="group" aria-label={label}>
+      <button
+        type="button"
+        className="qty__btn"
         aria-label={decreaseLabel}
         disabled={disabled || value <= min}
-        onClick={() => onChange(Math.max(min, value - 1))}
-        size="small"
-        style={{ border: 'none', boxShadow: 'none' }}
+        onClick={() => onChange(clamp(value - 1))}
       >
-        <Minus size={16} aria-hidden="true" />
-      </Button>
-      <InputNumber
-        value={value}
-        min={min}
-        max={max}
+        <Minus size={16} strokeWidth={2.2} aria-hidden="true" />
+      </button>
+      <input
+        className="qty__value"
+        type="text"
+        inputMode="numeric"
+        pattern="[0-9]*"
+        aria-label={label}
+        value={draft}
         disabled={disabled}
-        onChange={(next) => {
-          if (typeof next === 'number') onChange(Math.min(max ?? Infinity, Math.max(min, next)));
+        onChange={(event) => setDraft(event.target.value.replace(/[^0-9]/g, ''))}
+        onBlur={commit}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') commit();
         }}
-        style={{ width: 64, textAlign: 'center', border: 'none', boxShadow: 'none' }}
       />
-      <Button
+      <button
+        type="button"
+        className="qty__btn"
         aria-label={increaseLabel}
         disabled={disabled || (max !== undefined && value >= max)}
-        onClick={() => onChange(max !== undefined ? Math.min(max, value + 1) : value + 1)}
-        size="small"
-        style={{ border: 'none', boxShadow: 'none' }}
+        onClick={() => onChange(clamp(value + 1))}
       >
-        <Plus size={16} aria-hidden="true" />
-      </Button>
+        <Plus size={16} strokeWidth={2.2} aria-hidden="true" />
+      </button>
     </div>
   );
 }

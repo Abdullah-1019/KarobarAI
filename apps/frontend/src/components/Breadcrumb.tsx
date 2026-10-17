@@ -24,7 +24,7 @@ export function Breadcrumb({ items, className }: BreadcrumbProps) {
               {isLast ? (
                 <span aria-current="page" style={{ color: 'var(--text-primary)' }}>{item.label}</span>
               ) : item.to ? (
-                <Link to={item.to} style={{ color: 'inherit', textDecoration: 'none' }}>{isHome ? <Home size={14} strokeWidth={1.75} aria-hidden="true" /> : item.label}</Link>
+                <Link to={item.to} aria-label={isHome ? item.label : undefined} style={{ color: 'inherit', textDecoration: 'none' }}>{isHome ? <Home size={14} strokeWidth={1.75} aria-hidden="true" /> : item.label}</Link>
               ) : (
                 <span>{item.label}</span>
               )}

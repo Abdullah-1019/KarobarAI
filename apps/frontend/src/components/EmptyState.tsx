@@ -10,7 +10,7 @@ interface EmptyStateProps {
   onAction?: () => void;
   icon?: ReactNode;
   /** Heading level for the title — h3 by default (an empty state sits inside a page section). */
-  headingLevel?: 2 | 3 | 4;
+  headingLevel?: 1 | 2 | 3 | 4;
 }
 
 // Calm line-icon + short text + one CTA, per UIUX empty-state pattern (§19: "a calm line

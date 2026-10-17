@@ -1,3 +1,5 @@
+import type { ProductDetailDTO } from '@karobarai/shared';
+
 import type { ApiEnvelope } from '../../api';
 import { apiClient, unwrap } from '../../api';
 
@@ -24,6 +26,28 @@ export interface PublicStorefront {
     policies: { returns: null; shipping: null; payment: null };
   };
   products: PublicStorefrontProduct[];
+}
+
+// The storefront endpoint returns a lighter product row than ProductDetailDTO. ProductCard only
+// reads a handful of fields, so this maps the row onto the card's shape without inventing data:
+// no createdAt is sent, so the "New" badge (recency-derived) simply never shows here, and every
+// row the endpoint returns is a live listing.
+export function toCardProduct(product: PublicStorefrontProduct): ProductDetailDTO {
+  return {
+    id: product.id,
+    titleEn: product.titleEn,
+    titleUr: product.titleUr,
+    descriptionEn: product.descriptionEn,
+    descriptionUr: product.descriptionUr,
+    price: product.price,
+    stock: product.stock,
+    condition: 'NEW',
+    status: 'LIVE',
+    aiGenerated: false,
+    category: product.category ? { id: product.category.slug, ...product.category } : null,
+    images: product.imageUrl ? [{ id: `${product.id}-0`, url: product.imageUrl, position: 0 }] : [],
+    createdAt: '',
+  };
 }
 
 export interface BuyerChatMessage {

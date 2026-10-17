@@ -1,32 +1,67 @@
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Button, Drawer, Input, Space, Spin, Typography } from 'antd';
-import { MessageCircle, Send } from 'lucide-react';
+import { Drawer } from 'antd';
+import { ArrowUp, MessageCircle, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
+import { AiMark } from '../../components';
 import { useAuthStore } from '../../lib/authStore';
 import { sendBuyerMessage, type BuyerChatMessage } from './storeApi';
+import { StoreMonogram } from './StoreMonogram';
 
 interface StoreChatWidgetProps {
   storeSlug: string;
   storeName: string;
   locale: 'en' | 'ur';
+  /** Controlled open state (the product page opens it from the store card). */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  /** Shows the floating "Ask the store" pill (stacked above the WhatsApp button). */
+  showLauncher?: boolean;
+  /** A product the buyer is looking at, offered as a first question. */
+  productTitle?: string;
 }
 
-export function StoreChatWidget({ storeSlug, storeName, locale }: StoreChatWidgetProps) {
+// After this long without a reply, say so: the store assistant runs on a local model and a reply
+// can take a minute or more (docs/frontend/BACKEND-NOTES.md 1b). Silence that long reads as broken.
+const SLOW_REPLY_MS = 8000;
+
+// The buyer chatbot (F-store chat) in Studio Light: a white side sheet whose header names the store
+// and labels the helper as AI (PRODUCT.md "AI honesty"), buyer messages as ink bubbles at the
+// inline-end, assistant replies as white bubbles on the stone ground, suggested first questions as
+// stone chips, and a stone pill composer with a round ink send button. Persimmon is left to the
+// page's own action; nothing in here competes with it.
+export function StoreChatWidget({
+  storeSlug,
+  storeName,
+  locale,
+  open: openProp,
+  onOpenChange,
+  showLauncher = true,
+  productTitle,
+}: StoreChatWidgetProps) {
+  const { t } = useTranslation('marketplace');
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
-  const [open, setOpen] = useState(false);
+  const [openState, setOpenState] = useState(false);
+  const open = openProp ?? openState;
+  const setOpen = (next: boolean) => {
+    setOpenState(next);
+    onOpenChange?.(next);
+  };
   const [sessionId, setSessionId] = useState<string>();
   const [messages, setMessages] = useState<BuyerChatMessage[]>([]);
   const [draft, setDraft] = useState('');
   const [loading, setLoading] = useState(false);
+  const [slow, setSlow] = useState(false);
   const [error, setError] = useState('');
   const tailRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const isUrdu = locale === 'ur';
 
   useEffect(() => {
-    tailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-  }, [messages, loading]);
+    tailRef.current?.scrollIntoView({ block: 'end' });
+  }, [messages, loading, slow]);
 
   useEffect(() => {
     setSessionId(undefined);
@@ -34,8 +69,17 @@ export function StoreChatWidget({ storeSlug, storeName, locale }: StoreChatWidge
     setError('');
   }, [storeSlug]);
 
-  async function send() {
-    const message = draft.trim();
+  useEffect(() => {
+    if (!loading) {
+      setSlow(false);
+      return undefined;
+    }
+    const timer = window.setTimeout(() => setSlow(true), SLOW_REPLY_MS);
+    return () => window.clearTimeout(timer);
+  }, [loading]);
+
+  async function send(text = draft) {
+    const message = text.trim();
     if (!message || loading) return;
     setDraft('');
     setError('');
@@ -49,70 +93,137 @@ export function StoreChatWidget({ storeSlug, storeName, locale }: StoreChatWidge
         navigate(user?.role === 'BUYER' ? '/checkout' : '/login', user?.role === 'BUYER' ? undefined : { state: { redirect: '/checkout' } });
       }
     } catch {
-      setError(isUrdu ? 'پیغام بھیجا نہیں جا سکا۔ دوبارہ کوشش کریں۔' : 'Message could not be sent. Please try again.');
+      setError(t('chat.error'));
+      // Give the unsent text back so the buyer doesn't have to retype it.
+      setDraft(message);
     } finally {
       setLoading(false);
     }
   }
 
+  const suggestions = [
+    productTitle ? t('chat.suggestProduct', { title: productTitle }) : null,
+    t('chat.suggestStock'),
+    t('chat.suggestCod'),
+  ].filter((s): s is string => !!s);
+
   return (
     <>
-      <Button
-        type="primary"
-        shape="circle"
-        size="large"
-        icon={<MessageCircle size={20} />}
-        aria-label={isUrdu ? 'اسٹور سے سوال کریں' : `Chat with ${storeName}`}
-        onClick={() => setOpen(true)}
-        style={{ position: 'fixed', right: 24, bottom: 28, zIndex: 1000, width: 56, height: 56 }}
-      />
+      {showLauncher && (
+        <button
+          type="button"
+          className="chat-launcher"
+          aria-label={t('chat.openNamed', { store: storeName })}
+          aria-haspopup="dialog"
+          aria-expanded={open}
+          onClick={() => setOpen(true)}
+        >
+          <MessageCircle size={20} strokeWidth={2} aria-hidden="true" />
+          <span className="chat-launcher__label">{t('chat.open')}</span>
+        </button>
+      )}
       <Drawer
-        title={isUrdu ? `${storeName} سے پوچھیں` : `Ask ${storeName}`}
+        rootClassName="store-chat"
         placement={isUrdu ? 'left' : 'right'}
-        width={Math.min(420, window.innerWidth)}
+        width={420}
         open={open}
         onClose={() => setOpen(false)}
+        afterOpenChange={(visible) => {
+          if (visible) inputRef.current?.focus();
+        }}
+        closable={false}
+        title={null}
         destroyOnClose={false}
+        aria-label={t('chat.title', { store: storeName })}
       >
-        <div dir={isUrdu ? 'rtl' : 'ltr'} style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-          <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 12 }} aria-live="polite">
+        <div className="store-chat__frame" dir={isUrdu ? 'rtl' : 'ltr'}>
+          <header className="store-chat__head">
+            <StoreMonogram name={storeName} size={44} />
+            <div className="store-chat__who">
+              <h2 className="store-chat__title">{t('chat.title', { store: storeName })}</h2>
+              <p className="store-chat__sub">
+                <span className="store-chat__ai">
+                  <AiMark size={12} color="var(--ai-accent)" />
+                  {t('chat.aiLabel')}
+                </span>
+                {t('chat.sub')}
+              </p>
+            </div>
+            <button type="button" className="store-chat__close" aria-label={t('common:actions.close', 'Close')} onClick={() => setOpen(false)}>
+              <X size={20} aria-hidden="true" />
+            </button>
+          </header>
+
+          <div className="store-chat__log" aria-live="polite">
             {messages.length === 0 && (
-              <Typography.Paragraph type="secondary">
-                {isUrdu ? 'مصنوعات، قیمت یا دستیابی کے بارے میں پوچھیں۔' : 'Ask about products, prices, or availability.'}
-              </Typography.Paragraph>
+              <div className="store-chat__intro">
+                <p>{t('chat.intro')}</p>
+                <ul className="store-chat__chips" aria-label={t('chat.suggestions')}>
+                  {suggestions.map((s) => (
+                    <li key={s}>
+                      <button type="button" className="store-chat__chip" onClick={() => void send(s)}>
+                        {s}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
-            <Space direction="vertical" style={{ width: '100%' }} size="middle">
-              {messages.map((message, index) => (
-                <div key={`${message.createdAt}-${index}`} style={{ alignSelf: message.role === 'USER' ? 'flex-end' : 'flex-start', maxWidth: '90%' }}>
-                  <Typography.Paragraph
-                    style={{ margin: 0, padding: 10, borderRadius: 10, background: message.role === 'USER' ? 'var(--brand-primary-soft)' : 'var(--bg-sunken)' }}
-                  >
-                    {message.content}
-                  </Typography.Paragraph>
-                </div>
-              ))}
-              {loading && <Spin size="small" />}
-              <div ref={tailRef} />
-            </Space>
+            {messages.map((message, index) => (
+              <p
+                key={`${message.createdAt}-${index}`}
+                dir="auto"
+                className={`store-chat__msg store-chat__msg--${message.role === 'USER' ? 'me' : 'store'}`}
+              >
+                {message.content}
+              </p>
+            ))}
+            {loading && (
+              <div className="store-chat__thinking">
+                <span className="store-chat__dots" aria-hidden="true">
+                  <i />
+                  <i />
+                  <i />
+                </span>
+                <span className="sr-only">{t('chat.thinking')}</span>
+                {slow && <span className="store-chat__slow">{t('chat.slow')}</span>}
+              </div>
+            )}
+            <div ref={tailRef} />
           </div>
-          {error && <Alert type="error" showIcon message={error} style={{ marginBottom: 8 }} />}
-          <Space.Compact style={{ width: '100%' }}>
-            <Input.TextArea
+
+          {error && (
+            <p className="store-chat__error" role="alert">
+              {error}
+            </p>
+          )}
+          <form
+            className="store-chat__composer"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void send();
+            }}
+          >
+            <textarea
+              ref={inputRef}
+              className="store-chat__input"
+              rows={1}
               value={draft}
-              autoSize={{ minRows: 1, maxRows: 4 }}
               maxLength={1000}
-              aria-label={isUrdu ? 'آپ کا پیغام' : 'Your message'}
-              placeholder={isUrdu ? 'اپنا سوال لکھیں' : 'Type your question'}
+              aria-label={t('chat.inputLabel')}
+              placeholder={t('chat.placeholder')}
               onChange={(event) => setDraft(event.target.value)}
-              onPressEnter={(event) => {
-                if (!event.shiftKey) {
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && !event.shiftKey) {
                   event.preventDefault();
                   void send();
                 }
               }}
             />
-            <Button type="primary" aria-label={isUrdu ? 'بھیجیں' : 'Send'} icon={<Send size={16} />} loading={loading} disabled={!draft.trim()} onClick={() => void send()} />
-          </Space.Compact>
+            <button type="submit" className="store-chat__send" aria-label={t('chat.send')} disabled={!draft.trim() || loading}>
+              <ArrowUp size={20} strokeWidth={2.2} aria-hidden="true" />
+            </button>
+          </form>
         </div>
       </Drawer>
     </>

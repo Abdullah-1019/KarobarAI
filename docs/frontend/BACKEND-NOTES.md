@@ -6,6 +6,16 @@ Last checked: 2026-10-17 (static analysis of `apps/frontend/src`, `apps/backend/
 
 ---
 
+## 0b. Day 2 findings (product, store, cart, checkout; 2026-10-18)
+
+1. **Malformed product id returns 500.** `GET /api/v1/products/nope` answers `500 INTERNAL_ERROR` ("Something went wrong"). A well-formed but unknown UUID correctly answers `PRODUCT_NOT_FOUND`. Ask: validate the id and return 404 `PRODUCT_NOT_FOUND` (or 400 `VALIDATION_ERROR`). The frontend now treats a non-UUID id as not found, so buyers already see the right page.
+2. **Store page data (nice to have).** `/stores/:slug` products carry no `createdAt` or `condition`, so cards on the store page can't show the "New" badge. The store has no city, "member since" or verified flag, and `policies` is always null. The UI shows none of these until they exist.
+3. **Product detail store lookup** needs two calls (`/products/:id`, then `/stores/by-product/:id`). Embedding `{ store: { slug, name, logoUrl } }` in the product DTO would save a round trip on 3G.
+4. **Seed images:** every demo product has exactly one image, so the multi-photo gallery was tested with intercepted data only. A second image on one or two seed products would let the demo show it.
+5. **Order number in the checkout response.** `POST /checkout` returns `CreatedOrderDTO` with only the UUID, while the order list shows "Order #2". The confirmation page now fetches `/orders/:id` per order just to get `orderNumber`. Ask: add `orderNumber` to `CreatedOrderDTO`.
+6. **Shipping before placing.** Neither the cart nor checkout knows the shipping fee until the order exists, so the UI says "Calculated per store" and "Total before shipping". `ShippingEstimateDTO` exists in `packages/shared`, but no endpoint serves it. A per-group estimate would let checkout show the real total before "Place order".
+7. **Test orders created on 2026-10-18:** buyer `03003540298` now has COD orders #2, #3 and #4 (from the Day 2 checkout tests), and that buyer's cart holds 2 × Hand-Embroidered Cotton Kurta (re-added for screenshots after order #4 emptied it).
+
 ## 0a. Live test results, 2026-10-17 (after `migrate deploy` and `db seed`, with Rafia's go-ahead)
 
 Claude applied the 11 pending migrations and ran the seed. The DB now has 8 categories, 16 live demo products and the demo seller. Then the full stack was tested live, through the API and in a real browser.

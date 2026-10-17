@@ -1,15 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Button, Card, Divider, Radio, Typography } from 'antd';
+import { Alert } from 'antd';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Banknote, CreditCard, ShieldCheck, Smartphone } from 'lucide-react';
+import { Banknote, Check, CreditCard, ShieldCheck, Smartphone } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 
 import type { AddressDTO, CreatedOrderDTO, PaymentMethod } from '@karobarai/shared';
 import { ApiError } from '../../api';
-import { PriceDisplay, ProductThumbnail, SkeletonLoader } from '../../components';
+import { Button, EmptyState, PriceDisplay, ProductThumbnail, Skeleton } from '../../components';
+import { StoreMonogram } from '../marketplace/StoreMonogram';
 import { AddressPicker } from './AddressPicker';
-import { SelectableOptionCard } from './SelectableOptionCard';
+import { formatAddress } from './addressFormat';
 import { ADDRESSES_QUERY_KEY, CART_QUERY_KEY, checkout, getCart, getOrderPaymentStatus, getPaymentConfig, listAddresses, reconcileOrderPayment } from './cartApi';
 import { formatCartError } from './cartErrors';
 import { StripePaymentForm } from './StripePaymentForm';
@@ -22,14 +23,17 @@ const PAYMENT_METHOD_ICON: Record<PaymentMethod, typeof Banknote> = {
   EASYPAISA: Smartphone,
 };
 
+type Step = 1 | 2 | 3;
+
 const PENDING_STRIPE_CHECKOUT_KEY = 'karobarai.pending-stripe-checkout';
 
 // SCR-B05 — commission is intentionally never rendered here; the backend already omits it from
 // every buyer-facing cart/order response, so there's nothing to filter client-side.
 //
-// This is one single-page checkout, not three separate step screens — the E3 brief's "Delivery
-// Information" / "Order Review" / "Payment" map onto three Card-separated sections on this same
-// page/route rather than a new multi-step wizard, preserving the existing architecture.
+// Studio Light (Day 2): still one route, now laid out as three folding steps (Address → Payment →
+// Review). A finished step folds into a one-line summary with "Change"; a returning buyer with a
+// saved address lands straight on Review. "Continue" is ink; "Place order" is the one persimmon.
+// The order, Stripe and Idempotency-Key logic below is unchanged from the earlier build.
 export function CheckoutPage() {
   const { t } = useTranslation(['cart']);
   const navigate = useNavigate();
@@ -44,6 +48,8 @@ export function CheckoutPage() {
 
   const [addressId, setAddressId] = useState<string | undefined>(undefined);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('COD');
+  // null until the buyer moves; then the step they chose. Returning buyers start on Review.
+  const [stepChoice, setStepChoice] = useState<Step | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [stripeOrders, setStripeOrders] = useState<CreatedOrderDTO[]>([]);
@@ -204,170 +210,312 @@ export function CheckoutPage() {
 
   if (cartPending || addressesPending) {
     return (
-      <div style={{ maxWidth: 640, margin: '0 auto' }}>
-        <SkeletonLoader rows={6} />
+      <div className="checkout" aria-busy="true">
+        <Skeleton height={44} width={220} style={{ display: 'block' }} />
+        <div className="checkout__layout">
+          <div>
+            <Skeleton height={120} radius="24px" style={{ display: 'block', marginBlockEnd: 12 }} />
+            <Skeleton height={80} radius="24px" style={{ display: 'block', marginBlockEnd: 12 }} />
+            <Skeleton height={80} radius="24px" style={{ display: 'block' }} />
+          </div>
+          <Skeleton height={260} radius="24px" style={{ display: 'block' }} />
+        </div>
       </div>
     );
   }
 
-  return (
-    <div style={{ maxWidth: 640, margin: '0 auto' }}>
-      <Typography.Title level={3} style={{ marginBottom: 'var(--sp-5)' }}>
-        {t('checkout.title')}
-      </Typography.Title>
-
-      {submitError && <Alert type="error" message={submitError} showIcon style={{ marginBottom: 'var(--sp-4)' }} />}
-
-      <Card title={t('address.title')}>
-        <AddressPicker
-          addresses={addresses ?? []}
-          value={effectiveAddressId}
-          onChange={setAddressId}
-          onAddressCreated={(address: AddressDTO) => {
-            queryClient.setQueryData(ADDRESSES_QUERY_KEY, [...(addresses ?? []), address]);
-            setAddressId(address.id);
-          }}
+  if (eligibleGroups.length === 0 && stripeOrders.length === 0) {
+    return (
+      <div className="pdp-missing">
+        <EmptyState
+          headingLevel={1}
+          title={t('flow.nothingReadyTitle')}
+          description={t('flow.nothingReadyBody')}
+          actionLabel={t('flow.backToCart')}
+          onAction={() => navigate('/cart')}
         />
-      </Card>
+      </div>
+    );
+  }
 
-      <Card title={t('checkout.paymentMethod')} style={{ marginTop: 'var(--sp-4)' }}>
-        <Radio.Group
-          value={paymentMethod}
-          onChange={(e) => setPaymentMethod(e.target.value)}
-          style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-3)', width: '100%' }}
-        >
-          {PAYMENT_METHODS.map((method) => {
-            const Icon = PAYMENT_METHOD_ICON[method];
-            const localUnavailable = method === 'JAZZCASH' || method === 'EASYPAISA';
-            const unavailable = localUnavailable || (method === 'STRIPE' && !paymentConfig?.stripeEnabled);
+  const hasAddress = !!effectiveAddressId;
+  // A buyer with no address must start at step 1; nobody can jump past it without one.
+  const step: Step = !hasAddress ? 1 : stepChoice ?? 3;
+  const itemCount = eligibleGroups.reduce((n, g) => n + g.items.reduce((m, i) => m + i.quantity, 0), 0);
+  const methodLabel = (method: PaymentMethod) =>
+    t(`checkout.${method === 'COD' ? 'cod' : method === 'STRIPE' ? 'stripe' : method.toLowerCase()}`);
+  const stepNames: Record<Step, string> = { 1: t('flow.stepAddress'), 2: t('flow.stepPayment'), 3: t('flow.stepReview') };
+
+  function stepHead(n: Step, done: boolean, summary?: string) {
+    const open = step === n;
+    return (
+      <header className="co-step__head">
+        <span className="co-step__num" data-state={open ? 'current' : done ? 'done' : 'todo'} aria-hidden="true">
+          {done && !open ? <Check size={16} strokeWidth={2.6} /> : n}
+        </span>
+        <div className="co-step__titles">
+          <h2 className="co-step__title" id={`co-step-${n}`}>
+            {stepNames[n]}
+          </h2>
+          {!open && summary && (
+            <p className="co-step__summary" dir="auto">
+              {summary}
+            </p>
+          )}
+        </div>
+        {!open && done && stripeOrders.length === 0 && (
+          <button type="button" className="co-step__change" onClick={() => setStepChoice(n)}>
+            {t('flow.change')}
+            <span className="sr-only"> {stepNames[n]}</span>
+          </button>
+        )}
+      </header>
+    );
+  }
+
+  return (
+    <div className="checkout">
+      <header className="checkout__head">
+        <h1 className="checkout__title">{t('checkout.title')}</h1>
+        <ol className="co-steps" aria-label={t('flow.stepsLabel')}>
+          {([1, 2, 3] as Step[]).map((n) => {
+            const done = n < step || (n === 1 && hasAddress && step !== 1);
             return (
-              <SelectableOptionCard key={method} selected={paymentMethod === method}>
-                <Radio value={method} disabled={unavailable} style={{ width: '100%' }}>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
-                    <Icon size={18} strokeWidth={1.75} aria-hidden="true" />
-                    {t(`checkout.${method === 'COD' ? 'cod' : method === 'STRIPE' ? 'stripe' : method.toLowerCase()}`)}
-                  </span>
-                </Radio>
-                {unavailable && (
-                  <Typography.Text type="secondary" style={{ display: 'block', marginLeft: 24, fontSize: 'var(--fs-xs)' }}>
-                    {t(localUnavailable ? 'checkout.localGatewayUnavailable' : 'checkout.stripeUnavailable')}
-                  </Typography.Text>
-                )}
-              </SelectableOptionCard>
+              <li key={n} className="co-steps__item" data-state={step === n ? 'current' : done ? 'done' : 'todo'} aria-current={step === n ? 'step' : undefined}>
+                <span className="co-steps__dot" aria-hidden="true">
+                  {done ? <Check size={14} strokeWidth={2.8} /> : n}
+                </span>
+                {stepNames[n]}
+              </li>
             );
           })}
-        </Radio.Group>
+        </ol>
+      </header>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)', marginTop: 'var(--sp-4)' }}>
-          <ShieldCheck size={16} strokeWidth={1.75} color="var(--text-secondary)" aria-hidden="true" />
-          <Typography.Text type="secondary" style={{ fontSize: 'var(--fs-xs)' }}>
-            {t('checkout.secureNote')}
-          </Typography.Text>
-        </div>
-      </Card>
-
-      {stripeOrders[stripeOrderIndex] && (
-        <Card title={t('checkout.stripePaymentTitle')} style={{ marginTop: 'var(--sp-4)' }}>
-          {stripeOrders[stripeOrderIndex]?.paymentAmountUsd && (
-            <Typography.Paragraph strong>
-              {t('checkout.stripeChargeAmount', { amount: stripeOrders[stripeOrderIndex]!.paymentAmountUsd })}
-            </Typography.Paragraph>
-          )}
-          <Typography.Paragraph>{t('checkout.stripeCurrencyNote')}</Typography.Paragraph>
-          {stripeStatusMessage && <Alert type="warning" showIcon message={stripeStatusMessage} style={{ marginBottom: 12 }} />}
-          {stripeOrders[stripeOrderIndex]?.paymentClientSecret && paymentConfig?.stripePublishableKey && (
-            <StripePaymentForm
-              key={stripeOrders[stripeOrderIndex]!.id}
-              publishableKey={paymentConfig.stripePublishableKey}
-              clientSecret={stripeOrders[stripeOrderIndex]!.paymentClientSecret!}
-              submitLabel={t('checkout.payNow')}
-              pendingLabel={t('checkout.paymentPending')}
-              initiallySubmitted={stripePaymentPending}
-              onAttemptStarted={() => {
-                setStripePaymentPending(true);
-                sessionStorage.setItem(PENDING_STRIPE_CHECKOUT_KEY, JSON.stringify({
-                  idempotencyKey: idempotencyKey.current, orders: stripeOrders, address: stripeAddress, paymentPending: true,
-                }));
-              }}
-              onAttemptFailed={() => {
-                setStripePaymentPending(false);
-                sessionStorage.setItem(PENDING_STRIPE_CHECKOUT_KEY, JSON.stringify({
-                  idempotencyKey: idempotencyKey.current, orders: stripeOrders, address: stripeAddress, paymentPending: false,
-                }));
-              }}
-              onSubmitted={() => void verifyStripeOrder(stripeOrderIndex)}
-            />
-          )}
-          {stripeStatusMessage && !checkingStripeStatus && (
-            <Button style={{ marginTop: 12 }} loading={checkingStripeStatus} onClick={() => void verifyStripeOrder(stripeOrderIndex)}>
-              {t('checkout.checkPaymentStatus')}
-            </Button>
-          )}
-        </Card>
-      )}
-
-      <Card
-        title={t('checkout.orderSummary')}
-        extra={
-          <Link to="/cart" style={{ fontSize: 'var(--fs-sm)' }}>
-            {t('checkout.editCart')}
-          </Link>
-        }
-        style={{ marginTop: 'var(--sp-4)' }}
-      >
-        {eligibleGroups.map((group, groupIndex) => (
-          <div key={group.sellerId} style={{ marginTop: groupIndex === 0 ? 0 : 'var(--sp-4)' }}>
-            <Typography.Text strong>{group.storeName}</Typography.Text>
-            {group.items.map((item) => (
-              <div
-                key={item.id}
-                style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)', marginTop: 'var(--sp-2)' }}
-              >
-                <ProductThumbnail src={item.primaryImageUrl} size={40} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <Typography.Text ellipsis style={{ display: 'block', fontSize: 'var(--fs-sm)' }}>
-                    {item.titleEn}
-                  </Typography.Text>
-                  <Typography.Text type="secondary" style={{ fontSize: 'var(--fs-xs)' }}>
-                    × {item.quantity}
-                  </Typography.Text>
+      <div className="checkout__layout">
+        <div className="checkout__steps">
+          {/* 1 · Address */}
+          <section className="co-step" data-open={step === 1 || undefined} aria-labelledby="co-step-1">
+            {stepHead(1, hasAddress, selectedAddress ? `${selectedAddress.recipientName}, ${formatAddress(selectedAddress)}` : undefined)}
+            {step === 1 && (
+              <div className="co-step__body">
+                {!hasAddress && <p className="co-step__hint">{t('flow.addAddressFirst')}</p>}
+                <AddressPicker
+                  addresses={addresses ?? []}
+                  value={effectiveAddressId}
+                  onChange={setAddressId}
+                  onAddressCreated={(address: AddressDTO) => {
+                    queryClient.setQueryData(ADDRESSES_QUERY_KEY, [...(addresses ?? []), address]);
+                    setAddressId(address.id);
+                  }}
+                />
+                <div className="co-step__actions">
+                  <Button variant="secondary" disabled={!hasAddress} onClick={() => setStepChoice(2)}>
+                    {t('flow.continue')}
+                  </Button>
                 </div>
-                <PriceDisplay amount={Number(item.price) * item.quantity} size="sm" />
               </div>
-            ))}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 'var(--sp-2)' }}>
-              <Typography.Text type="secondary" style={{ fontSize: 'var(--fs-sm)' }}>
-                {t('sellerGroup.subtotal')}
-              </Typography.Text>
-              <PriceDisplay amount={group.subtotal} size="sm" muted />
-            </div>
-            {groupIndex < eligibleGroups.length - 1 && <Divider style={{ margin: 'var(--sp-3) 0' }} />}
-          </div>
-        ))}
+            )}
+          </section>
 
-        <Typography.Text type="secondary" style={{ display: 'block', marginTop: 'var(--sp-4)', fontSize: 'var(--fs-xs)' }}>
-          {t('page.shippingNote')}
-        </Typography.Text>
+          {/* 2 · Payment */}
+          <section className="co-step" data-open={step === 2 || undefined} aria-labelledby="co-step-2">
+            {stepHead(2, hasAddress && step === 3, methodLabel(paymentMethod))}
+            {step === 2 && (
+              <div className="co-step__body">
+                <div className="pay-options" role="radiogroup" aria-labelledby="co-step-2">
+                  {PAYMENT_METHODS.map((method) => {
+                    const Icon = PAYMENT_METHOD_ICON[method];
+                    const localUnavailable = method === 'JAZZCASH' || method === 'EASYPAISA';
+                    const unavailable = localUnavailable || (method === 'STRIPE' && !paymentConfig?.stripeEnabled);
+                    const sub = method === 'COD' ? t('flow.codSub') : method === 'STRIPE' ? (unavailable ? t('checkout.stripeUnavailable') : t('flow.stripeSub')) : t('flow.walletSub');
+                    return (
+                      <label key={method} className="pay-option" data-selected={paymentMethod === method || undefined} data-disabled={unavailable || undefined}>
+                        <input
+                          type="radio"
+                          name="payment-method"
+                          value={method}
+                          checked={paymentMethod === method}
+                          disabled={unavailable}
+                          onChange={() => setPaymentMethod(method)}
+                        />
+                        <span className={`pay-option__icon pay-option__icon--${method.toLowerCase()}`}>
+                          <Icon size={20} strokeWidth={1.8} aria-hidden="true" />
+                        </span>
+                        <span className="pay-option__text">
+                          <strong>{methodLabel(method)}</strong>
+                          <small>{sub}</small>
+                        </span>
+                        {unavailable ? (
+                          <span className="pay-option__tag">{t('flow.notAvailable')}</span>
+                        ) : (
+                          <span className="pay-option__check" aria-hidden="true">
+                            <Check size={14} strokeWidth={3} />
+                          </span>
+                        )}
+                      </label>
+                    );
+                  })}
+                </div>
+                <p className="co-step__secure">
+                  <ShieldCheck size={16} strokeWidth={1.8} aria-hidden="true" />
+                  {t('checkout.secureNote')}
+                </p>
+                <div className="co-step__actions">
+                  <Button variant="secondary" onClick={() => setStepChoice(3)}>
+                    {t('flow.continue')}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </section>
 
-        <Divider style={{ margin: 'var(--sp-3) 0' }} />
+          {/* 3 · Review */}
+          <section className="co-step" data-open={step === 3 || undefined} aria-labelledby="co-step-3">
+            {stepHead(3, false)}
+            {step === 3 && (
+              <div className="co-step__body">
+                <p className="co-step__hint">{t('flow.reviewNote')}</p>
+                {eligibleGroups.map((group) => (
+                  <div key={group.sellerId} className="co-store">
+                    <div className="co-store__head">
+                      <StoreMonogram name={group.storeName} size={32} />
+                      <strong dir="auto">{group.storeName}</strong>
+                    </div>
+                    <ul className="co-store__items">
+                      {group.items.map((item) => (
+                        <li key={item.id}>
+                          <span className="co-store__thumb">
+                            <ProductThumbnail src={item.primaryImageUrl} fill radius="sm" style={{ background: 'transparent' }} />
+                          </span>
+                          <span className="co-store__name">
+                            {item.titleEn}
+                            <small>{t('flow.qty', { count: item.quantity })}</small>
+                          </span>
+                          <PriceDisplay amount={Number(item.price) * item.quantity} strong />
+                        </li>
+                      ))}
+                    </ul>
+                    <div className="co-store__foot">
+                      <span>{t('flow.storeShipping')}</span>
+                      <span>
+                        {t('sellerGroup.subtotal')} <PriceDisplay amount={group.subtotal} strong />
+                      </span>
+                    </div>
+                  </div>
+                ))}
+                <div className="co-store__edit">
+                  <Link to="/cart">{t('checkout.editCart')}</Link>
+                </div>
+              </div>
+            )}
+          </section>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-          <Typography.Text strong>{t('page.grandTotal')}</Typography.Text>
-          <PriceDisplay amount={grandSubtotal} size="lg" />
+          {stripeOrders[stripeOrderIndex] && (
+            <section className="co-step co-step--pay" data-open>
+              <header className="co-step__head">
+                <span className="co-step__num" data-state="current" aria-hidden="true">
+                  <CreditCard size={16} />
+                </span>
+                <div className="co-step__titles">
+                  <h2 className="co-step__title">{t('checkout.stripePaymentTitle')}</h2>
+                </div>
+              </header>
+              <div className="co-step__body">
+                {stripeOrders[stripeOrderIndex]?.paymentAmountUsd && (
+                  <p className="co-step__strong">{t('checkout.stripeChargeAmount', { amount: stripeOrders[stripeOrderIndex]!.paymentAmountUsd })}</p>
+                )}
+                <p className="co-step__hint">{t('checkout.stripeCurrencyNote')}</p>
+                {stripeStatusMessage && <Alert type="warning" showIcon message={stripeStatusMessage} style={{ marginBottom: 12 }} />}
+                {stripeOrders[stripeOrderIndex]?.paymentClientSecret && paymentConfig?.stripePublishableKey && (
+                  <StripePaymentForm
+                    key={stripeOrders[stripeOrderIndex]!.id}
+                    publishableKey={paymentConfig.stripePublishableKey}
+                    clientSecret={stripeOrders[stripeOrderIndex]!.paymentClientSecret!}
+                    submitLabel={t('checkout.payNow')}
+                    pendingLabel={t('checkout.paymentPending')}
+                    initiallySubmitted={stripePaymentPending}
+                    onAttemptStarted={() => {
+                      setStripePaymentPending(true);
+                      sessionStorage.setItem(PENDING_STRIPE_CHECKOUT_KEY, JSON.stringify({
+                        idempotencyKey: idempotencyKey.current, orders: stripeOrders, address: stripeAddress, paymentPending: true,
+                      }));
+                    }}
+                    onAttemptFailed={() => {
+                      setStripePaymentPending(false);
+                      sessionStorage.setItem(PENDING_STRIPE_CHECKOUT_KEY, JSON.stringify({
+                        idempotencyKey: idempotencyKey.current, orders: stripeOrders, address: stripeAddress, paymentPending: false,
+                      }));
+                    }}
+                    onSubmitted={() => void verifyStripeOrder(stripeOrderIndex)}
+                  />
+                )}
+                {stripeStatusMessage && !checkingStripeStatus && (
+                  <div className="co-step__actions">
+                    <Button variant="outline" loading={checkingStripeStatus} onClick={() => void verifyStripeOrder(stripeOrderIndex)}>
+                      {t('checkout.checkPaymentStatus')}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
         </div>
-      </Card>
 
-      <Button
-        type="primary"
-        size="large"
-        block
-        style={{ marginTop: 'var(--sp-6)' }}
-        disabled={!effectiveAddressId || eligibleGroups.length === 0 || stripeOrders.length > 0}
-        loading={submitting}
-        onClick={handlePlaceOrder}
-      >
-        {submitting ? t(paymentMethod === 'COD' ? 'checkout.processing' : 'checkout.confirmingPayment') : t('checkout.placeOrder')}
-      </Button>
+        <aside className="cart-summary checkout-summary" aria-labelledby="co-summary-title">
+          <h2 id="co-summary-title" className="cart-summary__title">
+            {t('flow.summaryTitle')}
+          </h2>
+          <dl className="cart-summary__lines">
+            <div>
+              <dt>
+                {t('flow.itemsLine')} <span className="cart-summary__muted">({itemCount})</span>
+              </dt>
+              <dd>
+                <PriceDisplay amount={grandSubtotal} />
+              </dd>
+            </div>
+            <div>
+              <dt>{t('flow.shippingLine')}</dt>
+              <dd className="cart-summary__muted">{t('flow.shippingValue')}</dd>
+            </div>
+            {selectedAddress && (
+              <div className="cart-summary__stack">
+                <dt>{t('flow.deliverTo')}</dt>
+                <dd>{`${selectedAddress.recipientName}, ${selectedAddress.city}`}</dd>
+              </div>
+            )}
+            <div>
+              <dt>{t('flow.payWith')}</dt>
+              <dd>{methodLabel(paymentMethod)}</dd>
+            </div>
+          </dl>
+          <div className="cart-summary__total">
+            <span>{t('flow.totalBeforeShipping')}</span>
+            <PriceDisplay amount={grandSubtotal} size="lg" strong />
+          </div>
+          {submitError && (
+            <div role="alert" className="checkout-summary__error">
+              {submitError}
+            </div>
+          )}
+          <Button
+            size="lg"
+            fullWidth
+            disabled={!effectiveAddressId || eligibleGroups.length === 0 || stripeOrders.length > 0 || step !== 3}
+            loading={submitting}
+            onClick={handlePlaceOrder}
+          >
+            {submitting ? t(paymentMethod === 'COD' ? 'checkout.processing' : 'checkout.confirmingPayment') : t('checkout.placeOrder')}
+          </Button>
+          {paymentMethod === 'COD' && (
+            <p className="cart-summary__cod">
+              <Banknote size={18} strokeWidth={1.8} aria-hidden="true" />
+              {t('flow.codNote')}
+            </p>
+          )}
+        </aside>
+      </div>
     </div>
   );
 }

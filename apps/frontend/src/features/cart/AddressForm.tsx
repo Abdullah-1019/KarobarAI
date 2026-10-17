@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Alert, Button, Input, Typography } from 'antd';
+import { Alert, Input } from 'antd';
 import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 
 import { createAddressSchema, type AddressDTO } from '@karobarai/shared';
+import { Button } from '../../components';
 import { createAddress } from './cartApi';
 import { formatCartError } from './cartErrors';
 
@@ -81,24 +82,27 @@ export function AddressForm({ onCreated }: AddressFormProps) {
     }
   });
 
-  const fields: { name: keyof FormValues; label: string; required?: boolean }[] = [
-    { name: 'recipientName', label: t('address.recipientName'), required: true },
-    { name: 'label', label: t('address.label') },
-    { name: 'line1', label: t('address.line1'), required: true },
-    { name: 'line2', label: t('address.line2') },
-    { name: 'city', label: t('address.city'), required: true },
-    { name: 'province', label: t('address.province'), required: true },
-    { name: 'postalCode', label: t('address.postalCode') },
-    { name: 'contactPhone', label: t('address.contactPhone'), required: true },
+  const fields: { name: keyof FormValues; label: string; required?: boolean; half?: boolean; inputMode?: 'tel'; autoComplete?: string }[] = [
+    { name: 'recipientName', label: t('address.recipientName'), required: true, half: true, autoComplete: 'name' },
+    { name: 'contactPhone', label: t('address.contactPhone'), required: true, half: true, inputMode: 'tel', autoComplete: 'tel' },
+    { name: 'line1', label: t('address.line1'), required: true, autoComplete: 'address-line1' },
+    { name: 'line2', label: t('address.line2'), autoComplete: 'address-line2' },
+    { name: 'city', label: t('address.city'), required: true, half: true, autoComplete: 'address-level2' },
+    { name: 'province', label: t('address.province'), required: true, half: true, autoComplete: 'address-level1' },
+    { name: 'postalCode', label: t('address.postalCode'), half: true, autoComplete: 'postal-code' },
+    { name: 'label', label: t('address.label'), half: true },
   ];
 
   return (
-    <form onSubmit={onSubmit}>
-      {submitError && <Alert type="error" message={submitError} showIcon style={{ marginBottom: 'var(--sp-4)' }} />}
+    <form onSubmit={onSubmit} className="addr-form" noValidate>
+      {submitError && <Alert type="error" message={submitError} showIcon style={{ marginBottom: 'var(--sp-4)', gridColumn: '1 / -1' }} />}
 
-      {fields.map(({ name, label }) => (
-        <div key={name} style={{ marginBottom: 'var(--sp-3)' }}>
-          <label htmlFor={`address-${name}`}>{label}</label>
+      {fields.map(({ name, label, required, half, inputMode, autoComplete }) => (
+        <div key={name} className={`addr-form__field${half ? ' addr-form__field--half' : ''}`}>
+          <label htmlFor={`address-${name}`} className="addr-form__label">
+            {label}
+            {required && <span aria-hidden="true"> *</span>}
+          </label>
           <Controller
             name={name}
             control={control}
@@ -106,22 +110,28 @@ export function AddressForm({ onCreated }: AddressFormProps) {
               <Input
                 {...field}
                 id={`address-${name}`}
+                inputMode={inputMode}
+                autoComplete={autoComplete}
+                aria-required={required || undefined}
+                status={errors[name] ? 'error' : undefined}
                 aria-invalid={!!errors[name]}
                 aria-describedby={errors[name] ? `address-${name}-error` : undefined}
               />
             )}
           />
           {errors[name] && (
-            <Typography.Text id={`address-${name}-error`} type="danger">
+            <span id={`address-${name}-error`} className="addr-form__error" role="alert">
               {errors[name]?.message}
-            </Typography.Text>
+            </span>
           )}
         </div>
       ))}
 
-      <Button type="primary" htmlType="submit" block loading={submitting}>
-        {t('address.save')}
-      </Button>
+      <div className="addr-form__submit">
+        <Button type="submit" size="lg" fullWidth loading={submitting}>
+          {t('address.save')}
+        </Button>
+      </div>
     </form>
   );
 }

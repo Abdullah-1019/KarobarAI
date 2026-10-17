@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Button, Radio, Typography } from 'antd';
+import { Check, MapPin, Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import type { AddressDTO } from '@karobarai/shared';
 import { Modal } from '../../components';
 import { AddressForm } from './AddressForm';
-import { SelectableOptionCard } from './SelectableOptionCard';
+import { formatAddress } from './addressFormat';
 
 interface AddressPickerProps {
   addresses: AddressDTO[];
@@ -14,35 +14,46 @@ interface AddressPickerProps {
   onAddressCreated: (address: AddressDTO) => void;
 }
 
+// Checkout step 1: saved addresses as selectable cards (a real radio inside each, so arrow keys and
+// screen readers work as a radio group) plus a dashed "Add new address" card that opens the form.
+// Selected is ink, never persimmon (DESIGN.md "Selected-Is-Ink").
 export function AddressPicker({ addresses, value, onChange, onAddressCreated }: AddressPickerProps) {
   const { t } = useTranslation(['cart']);
   const [modalOpen, setModalOpen] = useState(false);
 
   return (
     <div>
-      <Radio.Group
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-3)', width: '100%' }}
-      >
+      <div className="addr-grid" role="radiogroup" aria-label={t('address.title')}>
         {addresses.map((address) => (
-          <SelectableOptionCard key={address.id} selected={value === address.id}>
-            <Radio value={address.id} style={{ width: '100%' }}>
-              <Typography.Text strong>{address.recipientName}</Typography.Text>
-              {address.label ? ` (${address.label})` : ''}
-              <div>
-                {address.line1}
-                {address.line2 ? `, ${address.line2}` : ''}, {address.city}, {address.province}
-              </div>
-              <Typography.Text type="secondary">{address.contactPhone}</Typography.Text>
-            </Radio>
-          </SelectableOptionCard>
+          <label key={address.id} className="addr-card" data-selected={value === address.id || undefined}>
+            <input type="radio" name="delivery-address" value={address.id} checked={value === address.id} onChange={() => onChange(address.id)} />
+            <span className="addr-card__top">
+              <span className="addr-card__icon" aria-hidden="true">
+                <MapPin size={18} strokeWidth={1.8} />
+              </span>
+              <strong className="addr-card__name" dir="auto">
+                {address.recipientName}
+              </strong>
+              {address.label && <span className="addr-card__label">{address.label}</span>}
+              <span className="addr-card__check" aria-hidden="true">
+                <Check size={14} strokeWidth={3} />
+              </span>
+            </span>
+            <span className="addr-card__line" dir="auto">
+              {formatAddress(address)}
+            </span>
+            {address.contactPhone && (
+              <span className="addr-card__phone" dir="ltr">
+                {address.contactPhone}
+              </span>
+            )}
+          </label>
         ))}
-      </Radio.Group>
-
-      <Button style={{ marginTop: 'var(--sp-3)' }} onClick={() => setModalOpen(true)}>
-        {t('address.addNew')}
-      </Button>
+        <button type="button" className="addr-add" onClick={() => setModalOpen(true)}>
+          <Plus size={20} strokeWidth={2} aria-hidden="true" />
+          {t('address.addNew')}
+        </button>
+      </div>
 
       <Modal open={modalOpen} onCancel={() => setModalOpen(false)} footer={null} title={t('address.addNew')} destroyOnClose>
         <AddressForm

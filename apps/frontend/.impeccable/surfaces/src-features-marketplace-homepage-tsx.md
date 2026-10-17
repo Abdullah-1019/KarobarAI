@@ -21,6 +21,6 @@ STORY: Visitor sees what this is (Pakistani sellers, both languages, pay in cash
 
 FIRST VIEWPORT: Floating pill nav; centred headline at clamp(44–84px), Urdu twin under it, one-line promise, the 760px search panel (the page's only persimmon action), then the top of the card fan. Fan settles on load (520ms, 40ms stagger) and opens slightly on hover; RTL mirrors the angles.
 
-FORM: Pinned in the user's own words on 2026-10-17: "docs/frontend/DESIGN-CONSULT.md ← approved \"Studio Light\" direction + migration plan" and "Home (match the sample design https://claude.ai/artifact/NZ8BCheo5VxgqS3DgvS8WX)". The sample is the comp; deviations: real feed products instead of a priced placeholder card, no eyebrow pills, "Urdu or English" instead of an unverifiable "Verified sellers". seed: none (user-pinned direction, no roll)
+FORM: Pinned in the user's own words on 2026-10-17: "docs/frontend/DESIGN-CONSULT.md ← approved \"Studio Light\" direction + migration plan" and "Home (match the sample design https://claude.ai/artifact/NZ8BCheo5VxgqS3DgvS8WX)". The sample is the comp; deviations: real feed products instead of a priced placeholder card, no eyebrow pills, "Urdu or English" instead of an unverifiable "Verified sellers". seed: none (user-pinned direction, no roll; waiver confirmed by Rafia on 2026-10-17: "THEK HAI")
 
 FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance

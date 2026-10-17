@@ -19,6 +19,6 @@ STORY: Visitor lands with a query or a category → sees how many results → na
 
 FIRST VIEWPORT: Desktop: title (or category band), then filter card at the inline start beside the results grid. Phone: title, Filters pill (count badge in ink) + Sort, chips, two-column grid; filters open in a bottom sheet.
 
-FORM: Pinned in the user's own words on 2026-10-17: "docs/frontend/DESIGN-CONSULT.md ← approved \"Studio Light\" direction + migration plan" (§8: "Search / Category: White filter sidebar card (24px radius). Ink selected chips, pill Sort. Category banner in a peach wash with the cut-out art."). seed: none (user-pinned direction, no roll)
+FORM: Pinned in the user's own words on 2026-10-17: "docs/frontend/DESIGN-CONSULT.md ← approved \"Studio Light\" direction + migration plan" (§8: "Search / Category: White filter sidebar card (24px radius). Ink selected chips, pill Sort. Category banner in a peach wash with the cut-out art."). seed: none (user-pinned direction, no roll; waiver confirmed by Rafia on 2026-10-17: "THEK HAI")
 
 FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance

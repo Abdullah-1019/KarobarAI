@@ -153,8 +153,8 @@
   --fs-2xl: 24px;
   --fs-3xl: 30px;
   --fs-4xl: 36px;
-  /* Fluid display sizes. --fs-hero stays at the two-column size until Step 4 recomposes the Home
-     hero as a centred block on --fs-display (DESIGN-CONSULT §3: clamp(44px, 6.4vw, 84px)). */
+  /* Fluid display sizes: --fs-display for the centred Home hero (DESIGN-CONSULT §3), --fs-hero for
+     two-column heroes (/sell). */
   --fs-display: clamp(44px, 6.4vw, 84px);
   --fs-hero: clamp(36px, 4.6vw + 1rem, 60px);
   --fs-section: clamp(28px, 2vw + 1rem, 40px);
@@ -217,19 +217,16 @@
   /* Small ink pills on cards and icons (✓ add state, cart count): ink in light, inverted in dark. */
   --pill-ink-bg: var(--studio-ink);
   --pill-ink-fg: var(--studio-warm-white);
-  /* Announcement bar + footer are ink. The hero / AI banner / auth panel are interim ink bands
-     until Steps 3–4 recompose them as light washes. */
+  /* Announcement bar + footer are the only ink bands; everything above the footer is light. */
   --announce-bg: var(--studio-ink);
   --announce-fg: var(--studio-warm-white);
-  --hero-from: var(--studio-ink);
-  --hero-to: var(--studio-ink-2);
   --z-toast: 1000;
   --z-modal: 900;
   --z-sticky: 100;
 
-  /* Chart palette: persimmon main series, AI peach highlight, graphite baseline, indigo 4th. */
+  /* Chart palette: persimmon main series, ink second, graphite baseline, indigo 4th. */
   --chart-1: var(--brand-primary);
-  --chart-2: var(--accent-marigold);
+  --chart-2: var(--brand-ink); /* ink: the AI peach fails 3:1 on white */
   --chart-3: var(--text-secondary);
   --chart-4: var(--info);
   --chart-grid: var(--border);
@@ -238,8 +235,6 @@
      keeps it very faint and in two places only (auth panel, /sell closing band) — via .blockprint-layer. */
   --pattern-blockprint: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72' viewBox='0 0 72 72'%3E%3Cg fill='none' stroke='%2317171a' stroke-width='1.2'%3E%3Crect x='12' y='12' width='48' height='48'/%3E%3Crect x='12' y='12' width='48' height='48' transform='rotate(45 36 36)'/%3E%3Ccircle cx='36' cy='36' r='6.5'/%3E%3Cpath d='M0 36h12M60 36h12M36 0v12M36 60v12'/%3E%3C/g%3E%3C/svg%3E");
   --pattern-size: 72px;
-  /* Retired brass hairline — now a faint light edge on ink; Step 3 removes the remaining call sites. */
-  --hairline-brass: rgba(250, 249, 247, 0.1);
   /* Out-of-stock wash: a warm-white veil over the photo. */
   --wash-unavailable: rgba(250, 249, 247, 0.6);
 }
@@ -312,7 +307,7 @@
   --field-ring: 0 0 0 3px var(--brand-ring);
   --card-bg: var(--bg-surface);
   --card-border: var(--border);
-  --card-radius: var(--radius-lg);
+  --card-radius: var(--radius-xl); /* 24px — the product card and AntD Card */
   --card-shadow: var(--shadow-sm);
   --card-shadow-hover: var(--shadow-lg);
   --focus-ring: 0 0 0 3px var(--brand-ring);
@@ -449,13 +444,10 @@ html[lang='ur'] :is(h1, h2, h3) {
   background: var(--bg-canvas);
 }
 /* Inside the contained shell a full cream slab read as a rendering seam, and a bordered panel
-   nested the step cards inside a card — so the "white" tone sits directly on parchment and lets
+   nested the step cards inside a card — so the "white" tone sits directly on the page and lets
    its own cards carry the surface. */
 .section--white {
   background: transparent;
-}
-.section--mint {
-  background: var(--brand-primary-soft);
 }
 
 /* ── Phase 2 primitives ────────────────────────────────────────────────────────────────────── */
@@ -664,7 +656,7 @@ html[lang='ur'] :is(h1, h2, h3) {
   text-decoration-thickness: 1.5px;
 }
 
-/* Light outline — only for the interim ink bands (hero, AI banner, /sell) until Step 4. */
+/* Light outline — for any future ink surface (none in the storefront today). */
 .btn--outline-light {
   background: transparent;
   color: var(--text-on-dark);
@@ -800,7 +792,7 @@ html[lang='ur'] :is(h1, h2, h3) {
   background: var(--bg-sunken);
   color: var(--brand-ink-2);
 }
-/* Verified: espresso label after a brass seal (the seal is the jewellery, the text stays legible). */
+/* Verified: ink label after an ink seal. */
 .badge--verified {
   background: transparent;
   color: var(--text-primary);
@@ -1272,8 +1264,8 @@ html[lang='ur'] .empty-state__title {
   animation: karobarai-ai-reveal var(--dur-fast) var(--ease) both;
 }
 
-/* E5 — AIStatus's "working" indicator. Replaces a spinner with a slow marigold pulse (the AI is
-   "thinking," not spinning a wheel) plus a thin indeterminate bar filling in brand green (the
+/* E5 — AIStatus's "working" indicator. Replaces a spinner with a slow AI-accent pulse (the AI is
+   "thinking," not spinning a wheel) plus a thin indeterminate bar filling in brand colour (the
    work itself moving forward) — both purposeful, not decorative, both stripped to a static held
    frame under prefers-reduced-motion rather than removed outright (content still communicates
    "in progress" without motion). */

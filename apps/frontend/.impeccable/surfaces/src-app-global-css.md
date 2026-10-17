@@ -21,6 +21,6 @@ STORY: Buyer sees a calm, modern bazaar that is unmistakably local (Urdu, real p
 
 FIRST VIEWPORT: Each storefront first viewport reads warm white with a floating pill nav, an ink announcement bar, Outfit headlines, and exactly one persimmon action. Home: a centred headline + Urdu line, big white search pill with chips, fanned product cards over drifting peach/lilac blobs (Step 4).
 
-FORM: Pinned in the user's own words on 2026-10-17: "docs/frontend/DESIGN-CONSULT.md ← approved \"Studio Light\" direction + migration plan" and "Home (match the sample design https://claude.ai/artifact/NZ8BCheo5VxgqS3DgvS8WX)". A pinned direction beats the roll, so concept-seed was deliberately not run. seed: none (user-pinned direction, no roll)
+FORM: Pinned in the user's own words on 2026-10-17: "docs/frontend/DESIGN-CONSULT.md ← approved \"Studio Light\" direction + migration plan" and "Home (match the sample design https://claude.ai/artifact/NZ8BCheo5VxgqS3DgvS8WX)". A pinned direction beats the roll, so concept-seed was deliberately not run. seed: none (user-pinned direction, no roll; waiver confirmed by Rafia on 2026-10-17: "THEK HAI")
 
 FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance

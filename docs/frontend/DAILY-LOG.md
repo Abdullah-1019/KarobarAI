@@ -23,8 +23,9 @@ The day-by-day record of the 4-day frontend redesign. Each day lists what was pl
 | Day 1 (end) | 2026-10-17 | Palette rethink → **Studio Light** approved (see DESIGN-CONSULT.md) | ✅ Decided |
 | Studio Light migration | 2026-10-17 | DESIGN-CONSULT §8: Steps 1–2 (tokens + fonts) → Stop 1 | ✅ Reviewed by Rafia ("generic, dull" → move on, do it well) |
 | Studio Light migration | 2026-10-17 | Step 3 (shared components) → Stop 2 | ✅ Reviewed by Rafia ("next start") |
-| Studio Light migration | 2026-10-17 | Steps 4–5 (pages + checks) → Stop 3 | 🟡 Done, waiting for Rafia's review |
-| Day 2 | — | Batch 2 (purchase flow) + Batch 3 (auth) | ⏭ Next |
+| Studio Light migration | 2026-10-17 | Steps 4–5 (pages + checks + DESIGN.md) → Stop 3 | ✅ Part 1 done, waiting for Rafia's review |
+| Backend connectivity | 2026-10-17 | Migrations + seed applied, live stack tested (see BACKEND-NOTES.md) | ✅ Done |
+| Day 2 | — | Batch 2 (Product, Store, Cart, Checkout, Confirmation) + Batch 3 (auth polish), built in Studio Light | ⏭ Next session |
 | Day 3 | — | Batch 4 (seller workspace + AI Store Builder) | Not started |
 | Day 4 | — | Batch 5 (buyer after purchase) + Batch 6 (admin) + QA | Not started |
 
@@ -339,7 +340,16 @@ Rafia said the screenshots matched neither her reference images nor the sample d
   - The /sell demo photo now matches the fields' height.
   - The category art moved toward the title.
   - The AI tag stays on screen at 360px.
-- The documenter is rewriting `DESIGN.md` and `design.json` for Studio Light.
+- The documenter rewrote `apps/frontend/DESIGN.md` (Studio Light, North Star "The Light Studio Counter", with a "Provisional" list) and `.impeccable/design.json`. Its run was interrupted once by a session limit and then resumed.
+- Clean-up of what the documenter flagged:
+  - Removed the unused `--hero-from`, `--hero-to`, `--hairline-brass` and `.section--mint`.
+  - `--card-radius` is now 24px.
+  - `--chart-2` is ink.
+  - Old Haveli comments were removed.
+- Left for later batches:
+  - The AI components' side stripes (Day 3).
+  - Auth fields are 48px tall while the rest are 44px, and the auth checklist animates `max-height` (Batch 3).
+  - A few hard-coded persimmon values in shadow tokens.
 
 **Open after Stop 3**
 - **Seed line (Rafia's call):** the design reviewer wants a generated "seed" recorded for the design direction, or Rafia's confirmation that the direction is pinned and no seed is needed. Claude has written "pinned by Rafia, no roll" and quoted Rafia's approval in every brief.
@@ -359,6 +369,7 @@ Rafia said the screenshots matched neither her reference images nor the sample d
 **Batch 2: Purchase flow**
 - Product detail (`/product/:id`): gallery, both titles, price, stock urgency, quantity, Add to cart / Buy now, sticky mobile bar, store card, COD and returns reassurance, "More from this store".
 - Cart (`/cart`): items grouped by seller, order summary, checkout button, empty state.
+- Store page (`/store/:storeSlug`), added 2026-10-17 at Rafia's request: the seller's storefront (store header, the store's products, the buyer chatbot widget). It was missing from every batch.
 - Checkout (`/checkout`): step indicator, address cards, payment method cards, one "Place order" button.
 - Order confirmation (`/checkout/confirmation`): celebration, "Shukriya!", order numbers, "Track order" / "Keep shopping".
 
@@ -392,10 +403,86 @@ Rafia said the screenshots matched neither her reference images nor the sample d
 
 ---
 
-## How to resume in a new session
+## How to resume in a new session (Day 2)
 
 Paste this at the start of a new Claude Code session:
 
-> Continue the KarobarAI frontend redesign. Read `docs/frontend/DAILY-LOG.md`, `docs/frontend/WORKLOG.md` and `apps/frontend/DESIGN.md` first. Don't make git commits. Also read `docs/frontend/DESIGN-CONSULT.md`. Move the finished pages to Studio Light by following its section 8, then start Day 2 (Batch 2 + Batch 3) with the design plugins.
+```
+Continue the KarobarAI frontend redesign: start DAY 2.
 
-To start the dev server: run `npx vite --port 5173` from `apps/frontend`. The backend needs Docker, which is Abdullah's setup.
+READ FIRST (in this order):
+- docs/frontend/DAILY-LOG.md   (Day 1 + Studio Light migration, Stops 1–3, open items)
+- docs/frontend/DESIGN-CONSULT.md  (approved "Studio Light" direction)
+- apps/frontend/DESIGN.md      (shipped Studio Light design system, rewritten at the end of Day 1)
+- docs/frontend/WORKLOG.md
+- docs/frontend/BACKEND-NOTES.md   (backend status and asks for Abdullah)
+
+RULES:
+- No git commits. I commit myself.
+- Frontend only. Backend (incl. apps/backend/prisma/seed.ts) is Abdullah's. Anything the frontend
+  needs from the backend goes into docs/frontend/BACKEND-NOTES.md, not into backend code.
+- No invented ratings, reviews, seller counts, prices or courier brands. Show only what's real.
+- EN/UR + RTL everywhere, 44px touch targets, prefers-reduced-motion respected.
+- Build directly in Studio Light, reusing the Day 1 components (Button, ProductCard, pill nav,
+  tokens). One persimmon CTA per view (the per-card "+" is the sanctioned exception).
+- Compare every page side by side with the approved sample design
+  (https://claude.ai/artifact/NZ8BCheo5VxgqS3DgvS8WX) and my references
+  (docs/frontend/SampleImages/). It must look crafted, not generic.
+
+ENVIRONMENT:
+- Docker: `docker compose -f infra/docker-compose.yml up -d` (never `down -v`). Web runs at
+  http://localhost:5173, API at :4000. The DB is migrated and seeded (16 demo products).
+- Test against the REAL backend (no mock data). Test accounts, password Test@12345:
+  buyer 03003540298 (has one COD order), seller 03013662522 (store "Test Store 2522").
+  OTP codes for new accounts are in `docker logs karobarai-api-1` (mock SMS, "otp_code").
+- In Git Bash, prefix docker exec / node screenshot commands that take "/paths" with
+  MSYS_NO_PATHCONV=1.
+
+PLUGINS AND SKILLS (use all of them):
+- /taste to critique each finished page.
+- ui-ux-pro-max search for the ux/motion/forms/checkout checks and its pre-delivery checklist.
+- frontend-design for building.
+- impeccable: `impeccable context` + `detect` before and after each phase, a surface brief for every
+  page touched (.impeccable/surfaces), impeccable-finish-reviewer after each stop (max 2 rounds,
+  then show me the open items), impeccable-asset-producer if an asset needs redoing,
+  impeccable-documenter at the end to update DESIGN.md + design.json.
+
+PHASE 0: SETUP
+- Read the docs, run impeccable context, check Docker/API health, baseline detect.
+- If I give you a list of small fixes to Day 1 elements, do those first.
+
+PHASE 1 (STOP after): Product detail /product/:id + Store page /store/:storeSlug
+- Product detail: image gallery (the page's one signature motion), EN title + Nastaliq Urdu title,
+  Outfit price, real-stock "Only X left", quantity, persimmon "Add to cart" + ink "Buy now",
+  sticky mobile action bar, store card (store name only, no invented seller data), COD + returns
+  reassurance, "More from this store", the existing chatbot widget restyled.
+- Store page: store header band (wash), name + description, the store's products grid, chatbot.
+
+PHASE 2 (STOP after): Cart /cart + Checkout /checkout + Order confirmation /checkout/confirmation
+- Cart: items grouped by seller, quantity steppers, white summary card, one Checkout CTA,
+  crafted empty state, guest cart.
+- Checkout: step indicator (Address → Payment → Review), address cards (add/select),
+  payment method cards from /payments/config (COD; disabled or mock wallets clearly labelled),
+  one "Place order" (keeps the Idempotency-Key behaviour).
+- Confirmation: celebration moment (the page's signature, reduced-motion safe), "Shukriya!",
+  order number(s), "Track order" / "Keep shopping".
+
+PHASE 3 (STOP after): Auth polish — Login, Register, OTP, Forgot password, Reset password
+- After OTP verify, use the returned session to log the user in (today it sends them to /login,
+  which feels like registration failed).
+- Replace the 🇵🇰 emoji flag in PhoneField with an SVG; fields 44px like the rest; the password
+  checklist must not animate max-height; polished success/error/loading states.
+
+PHASE 4 (STOP after): Checks and wrap-up
+- tsc, eslint, vitest, impeccable detect (source + live), screenshots EN+UR at 1440 and 390,
+  reduced-motion pass, contrast spot-check, no horizontal scroll.
+- impeccable-finish-reviewer, then impeccable-documenter for DESIGN.md + design.json.
+
+AT EACH STOP, TELL ME (in simple Roman Urdu):
+- what changed and which URL on localhost:5173 to open
+- the files changed (for my commit)
+- anything still open
+Log every stop in DAILY-LOG.md and WORKLOG.md; backend findings in BACKEND-NOTES.md.
+```
+
+To start everything: Docker Desktop, then `docker compose -f infra/docker-compose.yml up -d`. To save battery: `docker compose stop ollama` when AI chat isn't needed, and `docker compose down` (never `-v`) when done.

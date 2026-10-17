@@ -19,6 +19,6 @@ STORY: Seller reads the promise → watches photo → English → Urdu → tags 
 
 FIRST VIEWPORT: Left: Outfit headline ("One photo. A complete listing in Urdu and English."), subline, persimmon "Start selling" + ink "Log in to your store". Right: the live AI demo card.
 
-FORM: Pinned in the user's own words on 2026-10-17: "docs/frontend/DESIGN-CONSULT.md ← approved \"Studio Light\" direction + migration plan" (§8: "/sell: Light hero with blobs, demo card in white with --shadow-xl. Steps with ink number discs, a persimmon 'Start selling', an ink secondary button. FAQ and a closing band in peach with the faint texture."). seed: none (user-pinned direction, no roll)
+FORM: Pinned in the user's own words on 2026-10-17: "docs/frontend/DESIGN-CONSULT.md ← approved \"Studio Light\" direction + migration plan" (§8: "/sell: Light hero with blobs, demo card in white with --shadow-xl. Steps with ink number discs, a persimmon 'Start selling', an ink secondary button. FAQ and a closing band in peach with the faint texture."). seed: none (user-pinned direction, no roll; waiver confirmed by Rafia on 2026-10-17: "THEK HAI")
 
 FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance

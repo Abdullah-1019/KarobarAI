@@ -22,7 +22,7 @@ interface ButtonProps {
    * marketing-size use). secondary = ink pill. outline = white pill with a hairline that turns ink
    * on hover (outline-saffron is a kept alias, used by "Become a Seller"). ghost = ink text that
    * underlines on hover. icon = 44px round button (pass `aria-label`). danger / danger-ghost =
-   * destructive. outline-light = light outline for the interim ink bands only. */
+   * destructive. outline-light = light outline for ink surfaces. */
   variant?: ButtonVariant;
   size?: ButtonSize;
   /** Renders a client-side `<Link>` instead of a `<button>`. */

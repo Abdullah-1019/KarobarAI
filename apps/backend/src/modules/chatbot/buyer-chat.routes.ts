@@ -9,6 +9,7 @@ import {
   getPublicStorefrontHandler,
   getStoreForProductHandler,
   sendBuyerMessageHandler,
+  streamBuyerMessageHandler,
 } from './buyer-chat.controller';
 import { sendBuyerMessageSchema } from './buyer-chat.dto';
 
@@ -37,4 +38,5 @@ export const buyerChatRouter = Router();
 buyerChatRouter.get('/by-product/:productPublicId', getStoreForProductHandler);
 buyerChatRouter.get('/:storeSlug', getPublicStorefrontHandler);
 buyerChatRouter.post('/:storeSlug/chat', optionalAuthenticate, buyerChatRateLimit, validateBody(sendBuyerMessageSchema), sendBuyerMessageHandler);
+buyerChatRouter.post('/:storeSlug/chat/stream', optionalAuthenticate, buyerChatRateLimit, validateBody(sendBuyerMessageSchema), streamBuyerMessageHandler);
 buyerChatRouter.get('/:storeSlug/chat/:sessionId', optionalAuthenticate, buyerChatRateLimit, getBuyerConversationHandler);

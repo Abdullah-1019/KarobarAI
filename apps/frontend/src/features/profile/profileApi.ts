@@ -25,8 +25,23 @@ export function getProfile(): Promise<ProfileDTO> {
   return unwrap(apiClient.get<ApiEnvelope<ProfileDTO>>('/profile/me'));
 }
 
+export function updateBuyerDisplayName(displayName: string | null): Promise<ProfileDTO> {
+  return unwrap(apiClient.patch<ApiEnvelope<ProfileDTO>>('/profile/me/display-name', { displayName }));
+}
+
 export function updateSellerProfile(input: UpdateSellerProfileInput): Promise<ProfileDTO> {
   return unwrap(apiClient.patch<ApiEnvelope<ProfileDTO>>('/profile/me', input));
+}
+
+export interface StoreDescriptionSuggestion {
+  descriptionEn: string;
+  descriptionUr: string;
+}
+
+export function generateStoreDescription(businessDetails: string): Promise<StoreDescriptionSuggestion> {
+  return unwrap(apiClient.post<ApiEnvelope<StoreDescriptionSuggestion>>('/profile/me/store/description-suggestion', {
+    businessDetails: businessDetails.trim() || undefined,
+  }));
 }
 
 // Not wired into any screen yet — the endpoint requires an existing addressId, and there is no

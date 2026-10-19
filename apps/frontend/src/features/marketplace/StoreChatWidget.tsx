@@ -5,8 +5,9 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
 import { AiMark } from '../../components';
+import { ChatMarkdown } from '../ai-chat/ChatMarkdown';
 import { useAuthStore } from '../../lib/authStore';
-import { sendBuyerMessage, type BuyerChatMessage } from './storeApi';
+import { streamBuyerMessage, type BuyerChatMessage } from './storeApi';
 import { StoreMonogram } from './StoreMonogram';
 
 interface StoreChatWidgetProps {
@@ -57,6 +58,8 @@ export function StoreChatWidget({
   const [error, setError] = useState('');
   const tailRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const activeRequest = useRef<AbortController | null>(null);
+  const pendingRequest = useRef<{ id: string; message: string } | null>(null);
   const isUrdu = locale === 'ur';
 
   useEffect(() => {
@@ -67,7 +70,10 @@ export function StoreChatWidget({
     setSessionId(undefined);
     setMessages([]);
     setError('');
+    activeRequest.current?.abort();
+    pendingRequest.current = null;
   }, [storeSlug]);
+  useEffect(() => () => activeRequest.current?.abort(), []);
 
   useEffect(() => {
     if (!loading) {
@@ -83,20 +89,33 @@ export function StoreChatWidget({
     if (!message || loading) return;
     setDraft('');
     setError('');
-    setMessages((current) => [...current, { role: 'USER', content: message, createdAt: new Date().toISOString() }]);
+    const userAt = new Date().toISOString();
+    setMessages((current) => [...current, { role: 'USER', content: message, createdAt: userAt }]);
     setLoading(true);
+    const controller = new AbortController();
+    activeRequest.current = controller;
+    if (pendingRequest.current?.message !== message) pendingRequest.current = { id: crypto.randomUUID(), message };
+    const replyAt = new Date().toISOString();
+    setMessages((current) => [...current, { role: 'ASSISTANT', content: '', createdAt: replyAt }]);
     try {
-      const result = await sendBuyerMessage(storeSlug, { message, sessionId, locale });
+      const result = await streamBuyerMessage(storeSlug, { message, sessionId, locale, requestId: pendingRequest.current!.id }, (text) => {
+        setMessages((current) => current.map((item) => item.createdAt === replyAt && item.role === 'ASSISTANT'
+          ? { ...item, content: item.content + text } : item));
+      }, controller.signal);
       setSessionId(result.sessionId);
-      setMessages((current) => [...current, { role: 'ASSISTANT', content: result.reply, createdAt: new Date().toISOString() }]);
+      pendingRequest.current = null;
+      setMessages((current) => current.map((item) => item.createdAt === replyAt && item.role === 'ASSISTANT'
+        ? { ...item, content: result.reply } : item));
       if (result.redirectToCheckout) {
         navigate(user?.role === 'BUYER' ? '/checkout' : '/login', user?.role === 'BUYER' ? undefined : { state: { redirect: '/checkout' } });
       }
     } catch {
-      setError(t('chat.error'));
+      setError(controller.signal.aborted ? t('chat.stopped') : t('chat.error'));
+      setMessages((current) => current.filter((item) => item.createdAt !== replyAt && item.createdAt !== userAt));
       // Give the unsent text back so the buyer doesn't have to retype it.
       setDraft(message);
     } finally {
+      if (activeRequest.current === controller) activeRequest.current = null;
       setLoading(false);
     }
   }
@@ -170,13 +189,13 @@ export function StoreChatWidget({
               </div>
             )}
             {messages.map((message, index) => (
-              <p
+              <div
                 key={`${message.createdAt}-${index}`}
                 dir="auto"
                 className={`store-chat__msg store-chat__msg--${message.role === 'USER' ? 'me' : 'store'}`}
               >
-                {message.content}
-              </p>
+                {message.role === 'ASSISTANT' ? <ChatMarkdown content={message.content} /> : message.content}
+              </div>
             ))}
             {loading && (
               <div className="store-chat__thinking">
@@ -189,6 +208,7 @@ export function StoreChatWidget({
                 {slow && <span className="store-chat__slow">{t('chat.slow')}</span>}
               </div>
             )}
+            {loading && <button type="button" onClick={() => activeRequest.current?.abort()}>{t('chat.stopGenerating')}</button>}
             <div ref={tailRef} />
           </div>
 

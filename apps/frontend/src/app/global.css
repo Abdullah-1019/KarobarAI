@@ -4970,6 +4970,81 @@ html[lang='ur'] .pdp-title {
 .store {
   padding-block-end: var(--sp-12);
 }
+.store-directory {
+  padding-block: var(--sp-8);
+}
+.store-directory__intro {
+  color: var(--text-secondary);
+}
+.store-directory__filters {
+  display: grid;
+  grid-template-columns: minmax(180px, 2fr) repeat(2, minmax(160px, 1fr));
+  gap: var(--sp-3);
+  margin-block: var(--sp-6);
+}
+.store-directory__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--sp-4);
+}
+.store-directory__card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: var(--sp-5);
+  color: var(--text-primary);
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
+  text-decoration: none;
+  transition: border-color 160ms ease, transform 160ms ease;
+}
+.store-directory__card:hover,
+.store-directory__card:focus-visible {
+  border-color: var(--brand-primary);
+  transform: translateY(-2px);
+}
+.store-directory__card p {
+  color: var(--text-secondary);
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.store-directory__pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: var(--sp-4);
+  margin-block: var(--sp-6);
+}
+@media (max-width: 640px) {
+  .store-directory__filters { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .store-directory__card { transition: none; }
+  .store-directory__card:hover { transform: none; }
+}
+.store-social-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-block: var(--sp-3);
+}
+.store-social-links a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  color: var(--text-primary);
+}
+.store-social-links a:hover,
+.store-social-links a:focus-visible { border-color: var(--brand-primary); color: var(--brand-primary); }
 .store-band {
   --band-pad: clamp(24px, 4vw, 56px);
   position: relative;

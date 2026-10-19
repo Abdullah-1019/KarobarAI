@@ -8,6 +8,8 @@ this deployment. Invalid envelopes are corrected at most twice, then rejected cl
 import asyncio
 import json
 import math
+import re
+from collections.abc import AsyncIterator
 from typing import Any
 
 import httpx
@@ -19,11 +21,14 @@ CORRECTIVE_PROMPT = (
 )
 SAFE_FAILURE_REPLY = "I couldn't safely process that request. Please rephrase it."
 INVENTORY_GROUNDING_INSTRUCTION = (
-    "Ground product availability and inventory claims only in supplied product facts or tool results. "
-    "Treat an explicit stock count as the maximum available quantity and compare it numerically with "
-    "the quantity requested by the user. If the requested quantity exceeds stock, clearly say that "
+    "Ground product availability and inventory claims only in supplied product facts "
+    "or tool results. "
+    "Treat an explicit stock count as the maximum available quantity and compare it "
+    "numerically with the quantity requested by the user. If the requested quantity "
+    "exceeds stock, clearly say that "
     "the requested amount is unavailable and state no larger quantity than the confirmed stock. "
-    "Never say the requested amount is available or confirm adding it. If stock is missing or unclear, "
+    "Never say the requested amount is available or confirm adding it. "
+    "If stock is missing or unclear, "
     "do not affirm availability."
 )
 
@@ -101,6 +106,67 @@ class SLMClient:
         raise InvalidEnvelopeError(
             f"Invalid Ollama JSON envelope after {self.max_attempts} attempts: {last_failure}"
         )
+
+    async def stream_chat(
+        self,
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]] | None = None,
+        response_format: dict[str, Any] | None = None,
+    ) -> AsyncIterator[dict[str, Any]]:
+        """Stream Ollama's actual generation. Tool-call JSON is never emitted as reply text."""
+        prompt_messages = _envelope_messages(messages, tools, response_format)
+        allowed = _allowed_tool_names(tools)
+        raw = ""
+        exposed = ""
+        timeout = httpx.Timeout(self.timeout_seconds, connect=min(10.0, self.timeout_seconds))
+        try:
+            if self._client is not None:
+                client = self._client
+                owns_client = False
+            else:
+                client = httpx.AsyncClient(timeout=timeout)
+                owns_client = True
+            try:
+                async with client.stream(
+                    "POST",
+                    f"{self.base_url}/api/chat",
+                    json={
+                        "model": self.model,
+                        "messages": prompt_messages,
+                        "stream": True,
+                        "options": {"temperature": 0, "num_predict": 512},
+                    },
+                    timeout=timeout,
+                ) as response:
+                    response.raise_for_status()
+                    async for line in response.aiter_lines():
+                        if not line:
+                            continue
+                        chunk = json.loads(line)
+                        if not isinstance(chunk, dict):
+                            raise ValueError("Invalid Ollama stream chunk")
+                        fragment = chunk.get("message", {}).get("content", "")
+                        if not isinstance(fragment, str):
+                            raise ValueError("Invalid Ollama stream content")
+                        raw += fragment
+                        reply_prefix = _completed_reply_prefix(raw)
+                        if reply_prefix is not None and len(reply_prefix) > len(exposed):
+                            delta = reply_prefix[len(exposed) :]
+                            exposed = reply_prefix
+                            yield {"type": "delta", "text": delta}
+                        if chunk.get("done") is True:
+                            break
+            finally:
+                if owns_client:
+                    await client.aclose()
+        except (httpx.HTTPError, json.JSONDecodeError, ValueError, TypeError) as error:
+            raise OllamaClientError("Ollama stream failed") from error
+
+        envelope, _ = _parse_envelope(raw, allowed)
+        if envelope is None:
+            # The original bounded corrective path remains the safe fallback.
+            envelope = await self.chat(messages, tools, response_format)
+        yield {"type": "final", "envelope": envelope}
 
     async def _post(self, path: str, payload: dict[str, Any]) -> dict[str, Any]:
         if self._client is not None:
@@ -199,6 +265,38 @@ def _allowed_tool_names(tools: list[dict[str, Any]] | None) -> set[str]:
         if isinstance(name, str):
             names.add(name)
     return names
+
+
+def _completed_reply_prefix(raw: str) -> str | None:
+    """Decode only complete characters inside a leading reply JSON string."""
+    match = re.match(r'^\s*\{\s*"reply"\s*:\s*"', raw)
+    if match is None:
+        return None
+    encoded = ""
+    index = match.end()
+    while index < len(raw):
+        char = raw[index]
+        if char == '"':
+            break
+        if char == "\\":
+            if index + 1 >= len(raw):
+                break
+            escape = raw[index + 1]
+            if escape == "u":
+                if index + 6 > len(raw):
+                    break
+                encoded += raw[index : index + 6]
+                index += 6
+                continue
+            encoded += raw[index : index + 2]
+            index += 2
+            continue
+        encoded += char
+        index += 1
+    try:
+        return json.loads('"' + encoded + '"')
+    except json.JSONDecodeError:
+        return None
 
 
 def _envelope_messages(

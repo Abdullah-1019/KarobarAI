@@ -68,6 +68,7 @@ export function StorefrontHeader({ user, cartCount, onLogout }: StorefrontHeader
         : [
             { key: 'orders', label: <Link to="/orders">{t('common:nav.orders')}</Link> },
             { key: 'returns', label: <Link to="/returns">{t('common:nav.myReturns')}</Link> },
+            { key: 'messages', label: <Link to="/messages">{t('common:nav.messages')}</Link> },
             { key: 'profile', label: <Link to="/buyer/profile">{t('common:nav.profile')}</Link> },
             { type: 'divider' },
             { key: 'logout', label: t('common:actions.logout'), onClick: onLogout },
@@ -98,6 +99,9 @@ export function StorefrontHeader({ user, cartCount, onLogout }: StorefrontHeader
                 {t('marketplace:nav.shop')}
               </NavLink>
               <CategoriesMenu />
+              <NavLink to="/stores" className="storefront-nav__link">
+                {t('common:nav.stores')}
+              </NavLink>
               <NavLink to="/sell" className="storefront-nav__link">
                 {t('marketplace:nav.sell')}
               </NavLink>
@@ -150,6 +154,10 @@ export function StorefrontHeader({ user, cartCount, onLogout }: StorefrontHeader
           <Link to="/search" className="storefront-drawer__link" onClick={() => setMenuOpen(false)}>
             <Search size={18} aria-hidden="true" />
             {t('common:nav.search')}
+          </Link>
+          <Link to="/stores" className="storefront-drawer__link" onClick={() => setMenuOpen(false)}>
+            <Store size={18} aria-hidden="true" />
+            {t('common:nav.stores')}
           </Link>
           <Link to="/sell" className="storefront-drawer__link" onClick={() => setMenuOpen(false)}>
             <Store size={18} aria-hidden="true" />

@@ -6,7 +6,7 @@ import { requireActiveSeller } from '../../core/middleware/requireActiveSeller';
 import { RateLimitError } from '../../core/errors/AppError';
 import { redis } from '../../core/redis';
 import { validateBody } from '../../core/middleware/validate';
-import { sellerConversationHandler, sellerMessageHandler } from './seller-chat.controller';
+import { sellerConversationHandler, sellerMessageHandler, streamSellerMessageHandler } from './seller-chat.controller';
 import { sellerMessageSchema } from './seller-chat.dto';
 
 export const sellerChatRouter = Router();
@@ -29,4 +29,5 @@ function sellerChatRateLimit(req: Request, _res: Response, next: NextFunction): 
 }
 
 sellerChatRouter.post('/', sellerChatRateLimit, validateBody(sellerMessageSchema), sellerMessageHandler);
+sellerChatRouter.post('/stream', sellerChatRateLimit, validateBody(sellerMessageSchema), streamSellerMessageHandler);
 sellerChatRouter.get('/:sessionId', sellerChatRateLimit, sellerConversationHandler);

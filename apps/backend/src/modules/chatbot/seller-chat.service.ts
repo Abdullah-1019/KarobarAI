@@ -1,6 +1,6 @@
 import { Prisma, type ChatRole } from '@prisma/client';
 
-import { NotFoundError } from '../../core/errors/AppError';
+import { ForbiddenError, NotFoundError } from '../../core/errors/AppError';
 import { prisma } from '../../core/prisma';
 import { runScopedAgentLoop } from './scoped-agent.service';
 import type { ScopeGuardConfig } from './scope-guard.service';
@@ -8,6 +8,7 @@ import { buildSellerContext } from './seller-context-builder.service';
 import { executeSellerTool, sellerTools } from './seller-tool-executor.service';
 import type { ToolCall } from './slm-client';
 import type { SellerMessageInput } from './seller-chat.dto';
+import { withChatRequestLock } from './chat-request.service';
 
 const SELLER_SCOPE: ScopeGuardConfig = {
   exemplarQuestions: [
@@ -137,16 +138,32 @@ async function assertSession(sellerId: bigint, sessionId: string): Promise<void>
   if (!session) throw new NotFoundError('Seller chat session not found', undefined, 'CHAT_SESSION_NOT_FOUND');
 }
 
-export async function sendSellerMessage(sellerId: bigint, input: SellerMessageInput) {
+export async function sendSellerMessage(sellerId: bigint, input: SellerMessageInput, streaming?: { onDelta: (text: string) => void; signal: AbortSignal }) {
+  return withChatRequestLock(input.requestId, () => sendSellerMessageUnlocked(sellerId, input, streaming));
+}
+
+async function sendSellerMessageUnlocked(sellerId: bigint, input: SellerMessageInput, streaming?: { onDelta: (text: string) => void; signal: AbortSignal }) {
   const context = await buildSellerContext(sellerId);
-  let sessionId = input.sessionId;
+  const userMessageId = input.requestId ? `u:${input.requestId}` : undefined;
+  const assistantMessageId = input.requestId ? `a:${input.requestId}` : undefined;
+  const priorUser = userMessageId ? await prisma.chatMessage.findUnique({ where: { id: userMessageId },
+    select: { content: true, sessionId: true, session: { select: { sellerId: true, context: true } } } }) : null;
+  if (priorUser && (priorUser.content !== input.message || priorUser.session.sellerId !== sellerId
+    || priorUser.session.context !== 'SELLER_ASSISTANT' || (input.sessionId && input.sessionId !== priorUser.sessionId))) {
+    throw new ForbiddenError('Chat request does not belong to this session');
+  }
+  let sessionId = priorUser?.sessionId ?? input.sessionId;
   if (sessionId) await assertSession(sellerId, sessionId);
   else {
     const session = await prisma.chatSession.create({ data: { context: 'SELLER_ASSISTANT', sellerId }, select: { id: true } });
     sessionId = session.id;
   }
-  const historyRows = await prisma.chatMessage.findMany({ where: { sessionId }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], take: 40 });
-  await prisma.chatMessage.create({ data: { sessionId, role: 'USER', content: input.message } });
+  if (assistantMessageId && priorUser) {
+    const prior = await prisma.chatMessage.findUnique({ where: { id: assistantMessageId }, select: { content: true, toolResult: true } });
+    if (prior) return { sessionId, reply: prior.content, toolCalls: (prior.toolResult as { toolCalls?: number } | null)?.toolCalls ?? 0 };
+  }
+  const historyRows = await prisma.chatMessage.findMany({ where: { sessionId, ...(userMessageId ? { id: { not: userMessageId } } : {}) }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], take: 40 });
+  if (!priorUser) await prisma.chatMessage.create({ data: { ...(userMessageId ? { id: userMessageId } : {}), sessionId, role: 'USER', content: input.message } });
 
   const result = WRITE_INTENT.test(input.message)
     ? { finalReply: READ_ONLY_REFUSAL[input.locale], steps: [] as Array<{ toolCall: ToolCall; toolResult: unknown }> }
@@ -157,6 +174,8 @@ export async function sendSellerMessage(sellerId: bigint, input: SellerMessageIn
       userMessage: input.message,
       toolExecutor: (toolCall) => executeSellerTool(context, toolCall),
       maxSteps: 4,
+      onDelta: streaming?.onDelta,
+      signal: streaming?.signal,
     }, SELLER_SCOPE, input.locale);
 
   if (!WRITE_INTENT.test(input.message) && isInventoryCountQuestion(input.message)) {
@@ -170,7 +189,8 @@ export async function sendSellerMessage(sellerId: bigint, input: SellerMessageIn
     await prisma.chatMessage.create({ data: { sessionId, role: 'ASSISTANT', content: '', toolCall: step.toolCall as unknown as Prisma.InputJsonValue } });
     await prisma.chatMessage.create({ data: { sessionId, role: 'TOOL', content: JSON.stringify(step.toolResult), toolResult: step.toolResult as Prisma.InputJsonValue } });
   }
-  await prisma.chatMessage.create({ data: { sessionId, role: 'ASSISTANT', content: result.finalReply } });
+  await prisma.chatMessage.create({ data: { ...(assistantMessageId ? { id: assistantMessageId, toolResult: { toolCalls: result.steps.length } } : {}),
+    sessionId, role: 'ASSISTANT', content: result.finalReply } });
   await prisma.chatSession.update({ where: { id: sessionId }, data: { updatedAt: new Date() } });
   return { sessionId, reply: result.finalReply, toolCalls: result.steps.length };
 }

@@ -16,6 +16,7 @@ jest.mock('../../src/core/middleware/requireActiveSeller', () => ({
 jest.mock('../../src/core/redis', () => ({ redis: { eval: jest.fn().mockResolvedValue(1) } }));
 jest.mock('../../src/modules/chatbot/seller-chat.controller', () => ({
   sellerMessageHandler: (_req: express.Request, res: express.Response) => res.status(200).json({ data: { sessionId: 'seller-session-123' } }),
+  streamSellerMessageHandler: (_req: express.Request, res: express.Response) => res.status(200).end(),
   sellerConversationHandler: (_req: express.Request, res: express.Response) => res.status(200).json({ data: { messages: [] } }),
 }));
 

@@ -2,7 +2,10 @@
 
 from typing import Any
 
+import json
+
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from app.services.slm_client import (
@@ -37,6 +40,22 @@ async def chat(payload: ChatRequest) -> dict[str, Any]:
         return fail_closed_response()
     except OllamaClientError as error:
         raise HTTPException(status_code=502, detail="Local model unavailable") from error
+
+
+@router.post("/chat/stream")
+async def chat_stream(payload: ChatRequest) -> StreamingResponse:
+    async def events():
+        try:
+            async for item in _slm_client.stream_chat(
+                payload.messages, payload.tools, payload.response_format
+            ):
+                yield f"data: {json.dumps(item, ensure_ascii=False)}\n\n"
+        except OllamaClientError:
+            yield 'data: {"type":"error","code":"LOCAL_AI_UNAVAILABLE"}\n\n'
+
+    return StreamingResponse(
+        events(), media_type="text/event-stream", headers={"Cache-Control": "no-store"}
+    )
 
 
 @router.post("/embeddings")

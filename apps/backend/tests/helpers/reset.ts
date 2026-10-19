@@ -30,6 +30,7 @@ export async function resetDb(): Promise<void> {
   await prisma.payment.deleteMany();
   await prisma.codRemittance.deleteMany(); // CodRemittance.orderId is Restrict, so it must precede order deletion.
   await prisma.chatSession.deleteMany();
+  await prisma.humanConversation.deleteMany(); // Cascades human messages, attachments and reports.
   await prisma.settlement.deleteMany(); // Feature 11 — Settlement.orderId is onDelete: Restrict, must precede order.deleteMany()
   await prisma.dispute.deleteMany(); // Feature 10 — Dispute.returnId is onDelete: Restrict, must precede return.deleteMany()
   await prisma.returnShipmentEvent.deleteMany();

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { asyncHandler } from '../../core/http/asyncHandler';
 import { ok } from '../../core/http/envelope';
 import * as buyerChatService from './buyer-chat.service';
+import { streamChatResponse } from './chat-stream';
 import type { SendBuyerMessageInput } from './buyer-chat.dto';
 
 const storeSlugSchema = z.string().min(1).max(180).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
@@ -27,6 +28,12 @@ export const sendBuyerMessageHandler = asyncHandler(async (req, res) => {
   const input = req.body as SendBuyerMessageInput;
   const data = await buyerChatService.sendBuyerMessage(parseStoreSlug(req.params.storeSlug), input, req.user);
   res.status(200).json(ok(data));
+});
+
+export const streamBuyerMessageHandler = asyncHandler(async (req, res) => {
+  const input = req.body as SendBuyerMessageInput;
+  await streamChatResponse(req, res, (onDelta, signal) =>
+    buyerChatService.sendBuyerMessage(parseStoreSlug(req.params.storeSlug), input, req.user, { onDelta, signal }));
 });
 
 export const getBuyerConversationHandler = asyncHandler(async (req, res) => {

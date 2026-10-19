@@ -33,11 +33,12 @@ import type {
   UpdateSettingsInput,
 } from './profile.dto';
 import { createStoreSlug } from './store-slug';
+import { mergeSocialLinks, storedSocialLinks } from './store-social-links';
 
 async function loadUser(publicId: string) {
   const user = await prisma.user.findUnique({
     where: { publicId },
-    include: { sellerProfile: true, buyerProfile: true },
+    include: { sellerProfile: { include: { storeCategory: true } }, buyerProfile: true },
   });
   if (!user) throw new AuthError();
   return user;
@@ -60,6 +61,7 @@ export async function getMyProfile(publicId: string): Promise<ProfileDTO> {
     return {
       ...base,
       role: 'BUYER',
+      displayName: user.buyerProfile?.displayName ?? null,
       // Full address object deferred to the addresses feature — only the id is returned here.
       defaultAddressId: user.buyerProfile?.defaultAddressId?.toString() ?? null,
     };
@@ -74,6 +76,15 @@ export async function getMyProfile(publicId: string): Promise<ProfileDTO> {
       // post-fetch, is the whole point: there's nothing to accidentally leak.
       storeName: user.sellerProfile?.storeName ?? '',
       storeDescription: user.sellerProfile?.storeDescription ?? null,
+      storeDescriptionUr: user.sellerProfile?.storeDescriptionUr ?? null,
+      storeCategory: user.sellerProfile?.storeCategory ? {
+        id: user.sellerProfile.storeCategory.categoryId.toString(),
+        slug: user.sellerProfile.storeCategory.slug,
+        nameEn: user.sellerProfile.storeCategory.nameEn,
+        nameUr: user.sellerProfile.storeCategory.nameUr,
+      } : null,
+      city: user.sellerProfile?.city ?? null,
+      socialLinks: storedSocialLinks(user.sellerProfile?.socialLinks),
       logoUrl: user.sellerProfile?.logoUrl ?? null,
       bannerUrl: user.sellerProfile?.bannerUrl ?? null,
       // Feature 3 Task 1.4: a seller_profiles row always exists from account activation (a
@@ -86,6 +97,14 @@ export async function getMyProfile(publicId: string): Promise<ProfileDTO> {
   // ADMIN / SUPPORT — identity fields only, per the confirmed Task 0 assumption (no App Flow
   // screen AD01-AD08 is a self-profile view).
   return { ...base, role: user.role as 'ADMIN' | 'SUPPORT' };
+}
+
+export async function updateBuyerDisplayName(publicId: string, displayName: string | null): Promise<BuyerProfileDTO> {
+  const user = await prisma.user.findUnique({ where: { publicId }, select: { userId: true, role: true } });
+  if (!user) throw new AuthError();
+  if (user.role !== 'BUYER') throw new ForbiddenError('Buyer account required');
+  await prisma.buyerProfile.update({ where: { userId: user.userId }, data: { displayName } });
+  return getMyProfile(publicId) as Promise<BuyerProfileDTO>;
 }
 
 // Feature 3 Task 3.2 — a seller who hasn't completed onboarding (createStore, below) has nothing
@@ -120,11 +139,24 @@ export async function updateSellerProfile(
   if (!user) throw new AuthError();
   await requireOnboardedSeller(user.userId);
 
+  if (input.storeCategoryId) {
+    const category = await prisma.category.findUnique({ where: { categoryId: BigInt(input.storeCategoryId) }, select: { categoryId: true } });
+    if (!category) throw new NotFoundError('Store category not found', undefined, 'CATEGORY_NOT_FOUND');
+  }
+
+  const current = input.socialLinks !== undefined
+    ? await prisma.sellerProfile.findUnique({ where: { userId: user.userId }, select: { socialLinks: true } })
+    : null;
+
   await prisma.sellerProfile.update({
     where: { userId: user.userId },
     data: {
       ...(input.storeName !== undefined && { storeName: input.storeName }),
       ...(input.storeDescription !== undefined && { storeDescription: input.storeDescription }),
+      ...(input.storeDescriptionUr !== undefined && { storeDescriptionUr: input.storeDescriptionUr }),
+      ...(input.storeCategoryId !== undefined && { storeCategoryId: input.storeCategoryId === null ? null : BigInt(input.storeCategoryId) }),
+      ...(input.city !== undefined && { city: input.city }),
+      ...(input.socialLinks !== undefined && { socialLinks: mergeSocialLinks(current?.socialLinks, input.socialLinks) }),
     },
   });
 
@@ -142,6 +174,10 @@ export async function createStore(publicId: string, input: CreateStoreInput): Pr
   const user = await prisma.user.findUnique({ where: { publicId }, select: { userId: true, publicId: true } });
   if (!user) throw new AuthError();
   const storeSlug = createStoreSlug(input.storeName, user.publicId);
+  if (input.storeCategoryId) {
+    const category = await prisma.category.findUnique({ where: { categoryId: BigInt(input.storeCategoryId) }, select: { categoryId: true } });
+    if (!category) throw new NotFoundError('Store category not found', undefined, 'CATEGORY_NOT_FOUND');
+  }
 
   const wallets: Array<{ type: PayoutWalletType; accountNumber: string }> = [];
   if (input.jazzcashAccountNumber) {
@@ -158,6 +194,10 @@ export async function createStore(publicId: string, input: CreateStoreInput): Pr
         storeName: input.storeName,
         storeSlug,
         storeDescription: input.storeDescription ?? null,
+        storeDescriptionUr: input.storeDescriptionUr ?? null,
+        storeCategoryId: input.storeCategoryId ? BigInt(input.storeCategoryId) : null,
+        city: input.city ?? null,
+        socialLinks: mergeSocialLinks({}, input.socialLinks ?? {}),
         // 3-step wizard per auth.service.ts's SellerProfile.onboardingStep contract comment —
         // this single "Finish" submission is the whole wizard server-side (Task 2.4's
         // assumption: per-step wizard progress is frontend-only, never persisted mid-flow).

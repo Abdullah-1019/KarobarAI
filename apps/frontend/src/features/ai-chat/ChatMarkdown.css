@@ -1,0 +1,5 @@
+.ai-chat-markdown { overflow-wrap: anywhere; }
+.ai-chat-markdown p { margin: 0 0 0.5rem; white-space: pre-wrap; }
+.ai-chat-markdown p:last-child { margin-bottom: 0; }
+.ai-chat-markdown pre { max-width: 100%; overflow-x: auto; padding: 0.75rem; border-radius: 0.5rem; background: var(--bg-sunken); color: var(--text-primary); }
+.ai-chat-markdown ul, .ai-chat-markdown ol { margin: 0.35rem 0; padding-inline-start: 1.4rem; }

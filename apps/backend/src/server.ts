@@ -23,6 +23,8 @@ import { buyerChatRouter } from './modules/chatbot/buyer-chat.routes';
 import { sellerChatRouter } from './modules/chatbot/seller-chat.routes';
 import { publicCatalogRouter, sellerProductRouter } from './modules/catalog';
 import { healthRouter } from './modules/health/health.routes';
+import { humanChatRouter } from './modules/human-chat/human-chat.routes';
+import { registerHumanChatSocket } from './modules/human-chat/human-chat.socket';
 import { notificationRouter, startNotificationConsumer } from './modules/notification';
 import { checkoutRouter, orderRouter, sellerOrderRouter } from './modules/order';
 import { profileRouter } from './modules/profile';
@@ -69,6 +71,7 @@ app.use('/api/v1/profile', profileRouter);
 app.use('/api/v1', publicCatalogRouter);
 app.use('/api/v1/seller/products', sellerProductRouter);
 app.use('/api/v1/cart', cartRouter);
+app.use('/api/v1/human-chat', humanChatRouter);
 app.use('/api/v1/stores', buyerChatRouter);
 app.use('/api/v1/seller/chat', sellerChatRouter);
 app.use('/api/v1/addresses', addressRouter);
@@ -104,7 +107,7 @@ app.use(errorHandler);
 // only the actual `.listen()` call — and the BullMQ worker/poll-job bootstrap — are guarded to
 // real process startup.
 export const httpServer = http.createServer(app);
-initSocketServer(httpServer);
+registerHumanChatSocket(initSocketServer(httpServer));
 
 if (require.main === module) {
   httpServer.listen(config.port, () => {

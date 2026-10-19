@@ -33,6 +33,47 @@ export async function chatWithLocalModel(
   }
 }
 
+export async function chatWithLocalModelStream(
+  messages: Array<{ role: string; content: string }>,
+  tools: ChatToolDefinition[],
+  onDelta: (text: string) => void,
+  signal?: AbortSignal,
+): Promise<ChatEnvelope> {
+  try {
+    const boundedSignal = signal ? AbortSignal.any([signal, AbortSignal.timeout(600_000)]) : AbortSignal.timeout(600_000);
+    const response = await fetch(`${config.aiServiceUrl}/internal/chat/stream`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages, tools }), signal: boundedSignal,
+    });
+    if (!response.ok || !response.body) throw new Error('AI stream unavailable');
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let final: ChatEnvelope | undefined;
+    while (true) {
+      const { done, value } = await reader.read();
+      buffer += decoder.decode(value ?? new Uint8Array(), { stream: !done });
+      if (buffer.length > 128_000) throw new Error('AI stream event too large');
+      const events = buffer.split('\n\n');
+      buffer = events.pop() ?? '';
+      for (const event of events) {
+        const line = event.split('\n').find((part) => part.startsWith('data: '));
+        if (!line) continue;
+        const item = JSON.parse(line.slice(6)) as Record<string, unknown>;
+        if (item.type === 'delta' && typeof item.text === 'string') onDelta(item.text);
+        else if (item.type === 'final') final = parseChatEnvelope(item.envelope, new Set(tools.map((tool) => tool.name)));
+        else if (item.type === 'error') throw new Error('AI stream failed');
+      }
+      if (done) break;
+    }
+    if (!final) throw new Error('AI stream ended without a final envelope');
+    return final;
+  } catch (error) {
+    if (signal?.aborted) throw error;
+    throw new DependencyError('Local AI service is unavailable', undefined, 'LOCAL_AI_UNAVAILABLE');
+  }
+}
+
 export function parseChatEnvelope(value: unknown, allowedTools: Set<string>): ChatEnvelope {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return { reply: SAFE_AGENT_REPLY };
   const envelope = value as Record<string, unknown>;

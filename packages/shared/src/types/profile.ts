@@ -1,4 +1,5 @@
 import type { Language, UserRole, UserStatus } from '../enums/index';
+import type { StoreSocialLinks } from '../schemas/profile';
 
 // Response DTOs for GET /api/v1/profile/me (Feature 2 Task 2) — one canonical shape per role,
 // consumed by both apps/backend (response typing) and apps/frontend (query typing).
@@ -14,6 +15,7 @@ interface BaseProfileDTO {
 
 export interface BuyerProfileDTO extends BaseProfileDTO {
   role: 'BUYER';
+  displayName: string | null;
   defaultAddressId: string | null; // BigInt as string — see schemas/profile.ts note
 }
 
@@ -23,6 +25,10 @@ export interface SellerProfileDTO extends BaseProfileDTO {
   // assumption in the module doc; those are admin/payout-feature concerns, not profile data.
   storeName: string;
   storeDescription: string | null;
+  storeDescriptionUr: string | null;
+  storeCategory: { id: string; slug: string; nameEn: string; nameUr: string } | null;
+  city: string | null;
+  socialLinks: StoreSocialLinks;
   logoUrl: string | null;
   bannerUrl: string | null;
   // Feature 3 (Store Management): true once onboarding (POST /profile/me/store) has completed.

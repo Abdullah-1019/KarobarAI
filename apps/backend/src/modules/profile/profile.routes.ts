@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { z } from 'zod';
 
 import { authenticate } from '../../core/middleware/authenticate';
 import { authorize } from '../../core/middleware/authorize';
@@ -8,6 +9,8 @@ import {
   changePasswordHandler,
   createStoreHandler,
   getMeHandler,
+  updateBuyerDisplayNameHandler,
+  generateStoreDescriptionHandler,
   getSettingsHandler,
   getStoreStatusHandler,
   removeAvatarHandler,
@@ -27,6 +30,7 @@ import {
   updateSellerProfileSchema,
   updateSettingsSchema,
 } from './profile.dto';
+import { generateStoreDescriptionSchema } from './store-description.service';
 
 export const profileRouter = Router();
 
@@ -50,6 +54,9 @@ profileRouter.use(authenticate);
  *         description: Missing/invalid/expired access token
  */
 profileRouter.get('/me', getMeHandler);
+profileRouter.patch('/me/display-name', authorize('BUYER'), validateBody(z.object({
+  displayName: z.string().trim().min(2).max(80).regex(/^[^\p{Cc}\p{Cf}<>]+$/u).nullable(),
+}).strict()), updateBuyerDisplayNameHandler);
 
 /**
  * @swagger
@@ -80,6 +87,14 @@ profileRouter.patch(
   authorize('SELLER'),
   validateBody(updateSellerProfileSchema),
   updateSellerProfileHandler,
+);
+
+// Suggestions are returned only; the seller must explicitly save edited text via PATCH /me.
+profileRouter.post(
+  '/me/store/description-suggestion',
+  authorize('SELLER'),
+  validateBody(generateStoreDescriptionSchema),
+  generateStoreDescriptionHandler,
 );
 
 /**

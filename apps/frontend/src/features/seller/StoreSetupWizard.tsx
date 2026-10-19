@@ -1,14 +1,15 @@
 import { useState } from 'react';
-import { Alert, Button, Input, Typography } from 'antd';
+import { Alert, Button, Input, Select, Typography } from 'antd';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { Navigate, useNavigate } from 'react-router-dom';
 
-import { createStoreSchema } from '@karobarai/shared';
+import { createStoreSchema, type CategoryDTO } from '@karobarai/shared';
 import { ApiError } from '../../api';
 import { EmptyState, SkeletonLoader } from '../../components';
 import { PROFILE_QUERY_KEY, createStore, getProfile } from '../profile/profileApi';
+import { CATEGORIES_QUERY_KEY, getCategories } from '../catalog/catalogApi';
 import { formatProfileError } from '../profile/profileErrors';
 
 interface FormValues {
@@ -16,6 +17,16 @@ interface FormValues {
   storeDescription: string;
   jazzcashAccountNumber: string;
   easypaisaAccountNumber: string;
+  storeCategoryId: string | null;
+  city: string;
+  socialLinks: Record<SocialPlatform, string>;
+}
+
+const SOCIAL_PLATFORMS = ['facebook', 'instagram', 'tiktok', 'youtube', 'whatsapp', 'website'] as const;
+type SocialPlatform = typeof SOCIAL_PLATFORMS[number];
+
+function flattenCategories(categories: CategoryDTO[]): CategoryDTO[] {
+  return categories.flatMap((category) => [category, ...flattenCategories(category.children)]);
 }
 
 // App Flow SCR-S00 — the Store-Setup Wizard's persistence layer. Single-page form rather than a
@@ -27,6 +38,12 @@ export function StoreSetupWizard() {
   const { t } = useTranslation(['profile', 'common']);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { i18n } = useTranslation();
+  const { data: categories = [] } = useQuery({ queryKey: CATEGORIES_QUERY_KEY, queryFn: getCategories });
+  const categoryOptions = flattenCategories(categories).map((category) => ({
+    value: category.id,
+    label: i18n.language.startsWith('ur') ? category.nameUr : category.nameEn,
+  }));
 
   const { data: profile, isPending, isError, error, refetch } = useQuery({
     queryKey: PROFILE_QUERY_KEY,
@@ -43,7 +60,7 @@ export function StoreSetupWizard() {
     setError,
     formState: { errors },
   } = useForm<FormValues>({
-    defaultValues: { storeName: '', storeDescription: '', jazzcashAccountNumber: '', easypaisaAccountNumber: '' },
+    defaultValues: { storeName: '', storeDescription: '', jazzcashAccountNumber: '', easypaisaAccountNumber: '', storeCategoryId: null, city: '', socialLinks: Object.fromEntries(SOCIAL_PLATFORMS.map((platform) => [platform, ''])) as Record<SocialPlatform, string> },
   });
 
   if (isPending) {
@@ -75,6 +92,9 @@ export function StoreSetupWizard() {
     const payload = {
       storeName: values.storeName,
       storeDescription: values.storeDescription.trim() === '' ? null : values.storeDescription,
+      storeCategoryId: values.storeCategoryId,
+      city: values.city,
+      socialLinks: values.socialLinks,
       jazzcashAccountNumber: values.jazzcashAccountNumber.trim() === '' ? undefined : values.jazzcashAccountNumber,
       easypaisaAccountNumber: values.easypaisaAccountNumber.trim() === '' ? undefined : values.easypaisaAccountNumber,
     };
@@ -82,7 +102,7 @@ export function StoreSetupWizard() {
     const parsed = createStoreSchema.safeParse(payload);
     if (!parsed.success) {
       for (const issue of parsed.error.issues) {
-        const field = issue.path[0] as keyof FormValues;
+        const field = issue.path.join('.') as Parameters<typeof setError>[0];
         setError(field, { message: issue.message });
       }
       return;
@@ -144,6 +164,30 @@ export function StoreSetupWizard() {
             <Typography.Text type="danger">{errors.storeDescription.message}</Typography.Text>
           )}
         </div>
+
+        <div style={{ marginBottom: 'var(--sp-4)' }}>
+          <label htmlFor="store-setup-category">{t('profile:storeBrand.category')}</label>
+          <Controller name="storeCategoryId" control={control} render={({ field }) => (
+            <Select id="store-setup-category" value={field.value ?? undefined} onChange={(value: string | undefined) => field.onChange(value ?? null)}
+              options={categoryOptions} allowClear showSearch optionFilterProp="label" style={{ width: '100%' }} />
+          )} />
+          {errors.storeCategoryId && <Typography.Text type="danger">{errors.storeCategoryId.message}</Typography.Text>}
+        </div>
+        <div style={{ marginBottom: 'var(--sp-4)' }}>
+          <label htmlFor="store-setup-city">{t('profile:storeBrand.city')}</label>
+          <Controller name="city" control={control} render={({ field }) => <Input {...field} id="store-setup-city" maxLength={80} />} />
+          {errors.city && <Typography.Text type="danger">{errors.city.message}</Typography.Text>}
+        </div>
+        <Typography.Title level={5}>{t('profile:storeBrand.socialLinks')}</Typography.Title>
+        {SOCIAL_PLATFORMS.map((platform) => (
+          <div key={platform} style={{ marginBottom: 'var(--sp-3)' }}>
+            <label htmlFor={`store-setup-${platform}`}>{t(`profile:storeBrand.${platform}`)}</label>
+            <Controller name={`socialLinks.${platform}`} control={control} render={({ field }) => (
+              <Input {...field} id={`store-setup-${platform}`} maxLength={255} placeholder={platform === 'whatsapp' ? '+923001234567' : 'https://'} />
+            )} />
+            {errors.socialLinks?.[platform] && <Typography.Text type="danger">{errors.socialLinks[platform]?.message}</Typography.Text>}
+          </div>
+        ))}
 
         <Typography.Title level={5}>{t('profile:storeSetup.walletSectionTitle')}</Typography.Title>
         <Typography.Paragraph type="secondary" style={{ marginTop: 'calc(-1 * var(--sp-2))' }}>

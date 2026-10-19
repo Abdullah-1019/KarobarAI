@@ -9,7 +9,7 @@ jest.mock('../../src/modules/chatbot/buyer-context-builder.service', () => ({
   getPublicStorefront: jest.fn(),
   getStoreForLiveProduct: jest.fn(),
 }));
-jest.mock('../../src/modules/chatbot/scoped-agent.service', () => ({ runScopedAgentLoop: jest.fn() }));
+jest.mock('../../src/modules/chatbot/agent-loop.service', () => ({ runAgentLoop: jest.fn() }));
 jest.mock('../../src/modules/chatbot/buyer-tool-executor.service', () => ({
   ...jest.requireActual('../../src/modules/chatbot/buyer-tool-executor.service'),
   executeBuyerTool: jest.fn(),
@@ -22,7 +22,7 @@ jest.mock('../../src/modules/chatbot/buyer-catalog-lookup.service', () => ({
 
 import { prisma } from '../../src/core/prisma';
 import { buildBuyerContext } from '../../src/modules/chatbot/buyer-context-builder.service';
-import { runScopedAgentLoop } from '../../src/modules/chatbot/scoped-agent.service';
+import { runAgentLoop } from '../../src/modules/chatbot/agent-loop.service';
 import { getCatalogReply, resolveCartRequest } from '../../src/modules/chatbot/buyer-catalog-lookup.service';
 import { executeBuyerTool } from '../../src/modules/chatbot/buyer-tool-executor.service';
 import { getBuyerConversation, sendBuyerMessage } from '../../src/modules/chatbot/buyer-chat.service';
@@ -42,10 +42,10 @@ describe('buyer chat service', () => {
     jest.mocked(prisma.chatSession.create).mockResolvedValue({ id: 'session12345' } as never);
     jest.mocked(getCatalogReply).mockResolvedValue(null);
     jest.mocked(resolveCartRequest).mockResolvedValue(null);
-    jest.mocked(runScopedAgentLoop).mockResolvedValue({ finalReply: 'Grounded response', steps: [] });
+    jest.mocked(runAgentLoop).mockResolvedValue({ finalReply: 'Grounded response', steps: [] });
   });
 
-  it('creates a fixed-store guest session, applies scope guard, and persists the exchange', async () => {
+  it('creates a fixed-store guest session, uses the buyer agent and persists the exchange', async () => {
     const result = await sendBuyerMessage('sample-store-seller-id', {
       message: 'Do you have cotton shirts?', locale: 'en',
     });
@@ -54,17 +54,36 @@ describe('buyer chat service', () => {
       data: { context: 'BUYER_STORE', storeId: 41n, buyerUserId: null },
       select: { id: true },
     });
-    expect(runScopedAgentLoop).toHaveBeenCalledWith(expect.objectContaining({
+    expect(runAgentLoop).toHaveBeenCalledWith(expect.objectContaining({
       maxSteps: 4,
       tools: expect.arrayContaining([expect.objectContaining({ name: 'redirect_checkout' })]),
-    }), expect.objectContaining({
-      similarityThreshold: 0.5,
-      exemplarQuestions: expect.arrayContaining(['do you have this in blue', 'کیا یہ نیلے رنگ میں موجود ہے']),
-      refusalMessage: expect.objectContaining({ en: expect.any(String), ur: expect.any(String) }),
-    }), 'en');
+    }));
     expect(prisma.chatMessage.create).toHaveBeenCalledTimes(2);
     expect(result).toEqual({ sessionId: 'session12345', reply: 'Grounded response', redirectToCheckout: false });
   });
+
+  it.each(['hello', 'helo', 'hi', 'salam', 'aoa'])(
+    'answers the greeting %s without an embedding or model request', async (message) => {
+      const started = performance.now();
+      const result = await sendBuyerMessage('sample-store-seller-id', { message, locale: 'en' });
+      if (process.env.CHAT_TIMING === '1') console.info(`mocked greeting ${message}: ${(performance.now() - started).toFixed(2)} ms`);
+      expect(result.reply).toContain('Sample Store');
+      expect(runAgentLoop).not.toHaveBeenCalled();
+      expect(getCatalogReply).not.toHaveBeenCalled();
+      expect(resolveCartRequest).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(['mujhe is ki qeemat batao', 'ye product kaisa hai', 'delivery kab hogi'])(
+    'lets the grounded agent understand Roman Urdu: %s', async (message) => {
+      await sendBuyerMessage('sample-store-seller-id', { message, locale: 'en' });
+      expect(runAgentLoop).toHaveBeenCalledWith(expect.objectContaining({
+        userMessage: message,
+        systemPrompt: expect.stringContaining('Roman Urdu'),
+        tools: expect.arrayContaining([expect.objectContaining({ name: 'search_products' })]),
+      }));
+    },
+  );
 
   it('does not reuse a session under a different store slug', async () => {
     jest.mocked(prisma.chatSession.findFirst).mockResolvedValue(null);
@@ -72,7 +91,7 @@ describe('buyer chat service', () => {
     await expect(sendBuyerMessage('other-store-seller-id', {
       message: 'Hello', sessionId: 'session12345', locale: 'en',
     })).rejects.toMatchObject({ code: 'CHAT_SESSION_NOT_FOUND', statusCode: 404 });
-    expect(runScopedAgentLoop).not.toHaveBeenCalled();
+    expect(runAgentLoop).not.toHaveBeenCalled();
   });
 
   it.each(['hair clips', 'Hair clips', 'and hair clip', 'wallet'])(
@@ -82,12 +101,12 @@ describe('buyer chat service', () => {
       expect(result.reply).toContain('Hair Clips - 6 Pack');
       expect(result.reply).toContain('12 in stock');
       expect(getCatalogReply).toHaveBeenCalledWith(41n, message, 'en');
-      expect(runScopedAgentLoop).not.toHaveBeenCalled();
+      expect(runAgentLoop).not.toHaveBeenCalled();
     },
   );
 
   it('does not claim a cart mutation after the tool rejected malformed arguments', async () => {
-    jest.mocked(runScopedAgentLoop).mockResolvedValue({
+    jest.mocked(runAgentLoop).mockResolvedValue({
       finalReply: 'The item has been added to your cart.',
       steps: [{ toolCall: { type: 'add_to_cart', payload: { productId: 'Cotton Socks' } }, toolResult: { ok: false, error: 'Invalid cart request.' } }],
     });
@@ -109,7 +128,7 @@ describe('buyer chat service', () => {
     expect(result.reply).toContain('Added 1 × White Sugar - 1 kg');
     expect(result.reply).toContain('No order has been placed');
     expect(result.redirectToCheckout).toBe(false);
-    expect(runScopedAgentLoop).not.toHaveBeenCalled();
+    expect(runAgentLoop).not.toHaveBeenCalled();
   });
 
   it('keeps a purchase inquiry read-only until the buyer explicitly requests a cart update', async () => {
@@ -117,7 +136,7 @@ describe('buyer chat service', () => {
     const result = await sendBuyerMessage('sample-store-seller-id', { message: 'i want to buy sugar', locale: 'en' });
     expect(result.reply).toContain('White Sugar - 1 kg');
     expect(executeBuyerTool).not.toHaveBeenCalled();
-    expect(runScopedAgentLoop).not.toHaveBeenCalled();
+    expect(runAgentLoop).not.toHaveBeenCalled();
   });
 
   it('never treats a chat order request as a completed order', async () => {
@@ -125,12 +144,12 @@ describe('buyer chat service', () => {
       message: 'place the order of cotton socks quantity 1', locale: 'en',
     });
     expect(result.reply).toContain('No order has been placed');
-    expect(runScopedAgentLoop).not.toHaveBeenCalled();
+    expect(runAgentLoop).not.toHaveBeenCalled();
     expect(result.redirectToCheckout).toBe(false);
   });
 
   it('returns redirect intent only as a frontend navigation signal', async () => {
-    jest.mocked(runScopedAgentLoop).mockResolvedValue({
+    jest.mocked(runAgentLoop).mockResolvedValue({
       finalReply: 'Your cart is ready.',
       steps: [{ toolCall: { type: 'redirect_checkout', payload: {} }, toolResult: { signal: 'redirect_checkout' } }],
     });

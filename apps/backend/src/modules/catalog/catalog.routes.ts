@@ -1,5 +1,7 @@
 import { Router } from 'express';
 
+import { asyncHandler } from '../../core/http/asyncHandler';
+import { ok } from '../../core/http/envelope';
 import { authenticate } from '../../core/middleware/authenticate';
 import { authorize } from '../../core/middleware/authorize';
 import { optionalAuthenticate } from '../../core/middleware/optionalAuthenticate';
@@ -31,6 +33,8 @@ import {
   updateProductSchema,
 } from './catalog.dto';
 import { getCategoryBySlugHandler, getHomeFeedHandler } from './marketplace.controller';
+import { storeDirectoryQuerySchema } from './store-directory.dto';
+import { getFeaturedStores, listPublicStores } from './store-directory.service';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Public router — no authenticate requirement. Dual-visibility model (Task 1): Guest/Buyer/
@@ -39,6 +43,12 @@ import { getCategoryBySlugHandler, getHomeFeedHandler } from './marketplace.cont
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const publicCatalogRouter = Router();
+publicCatalogRouter.get('/stores/featured', asyncHandler(async (_req, res) => {
+  res.status(200).json(ok(await getFeaturedStores()));
+}));
+publicCatalogRouter.get('/stores', validateQuery(storeDirectoryQuerySchema), asyncHandler(async (req, res) => {
+  res.status(200).json(ok(await listPublicStores(storeDirectoryQuerySchema.parse(req.query))));
+}));
 
 /**
  * @swagger

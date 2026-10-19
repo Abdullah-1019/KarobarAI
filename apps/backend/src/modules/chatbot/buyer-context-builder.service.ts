@@ -1,6 +1,7 @@
 import { NotFoundError } from '../../core/errors/AppError';
 import { prisma } from '../../core/prisma';
 import * as cartService from '../cart/cart.service';
+import { publicSocialLinks } from '../profile/store-social-links';
 
 export interface BuyerStoreContext {
   storeId: bigint;
@@ -9,8 +10,13 @@ export interface BuyerStoreContext {
     publicId: string;
     name: string;
     description: string | null;
+    descriptionUr: string | null;
     logoUrl: string | null;
     bannerUrl: string | null;
+    category: { id: string; slug: string; nameEn: string; nameUr: string } | null;
+    city: string | null;
+    memberSince: string;
+    socialLinks: ReturnType<typeof publicSocialLinks>;
     policies: { returns: null; shipping: null; payment: null };
   };
   cart: Awaited<ReturnType<typeof cartService.getCart>> | null;
@@ -19,13 +25,13 @@ export interface BuyerStoreContext {
 async function findPublicStore(storeSlug: string) {
   const seller = await prisma.sellerProfile.findUnique({
     where: { storeSlug },
-    include: { user: { select: { publicId: true, status: true } } },
+    include: { storeCategory: true, user: { select: { publicId: true, status: true, role: true, deletedAt: true } } },
   });
   if (
     !seller ||
     seller.deletedAt ||
     !seller.onboardingCompletedAt ||
-    seller.user.status !== 'ACTIVE'
+    seller.user.status !== 'ACTIVE' || seller.user.role !== 'SELLER' || seller.user.deletedAt
   ) {
     throw new NotFoundError('Store not found', undefined, 'STORE_NOT_FOUND');
   }
@@ -38,8 +44,18 @@ function toPublicStore(seller: Awaited<ReturnType<typeof findPublicStore>>) {
     publicId: seller.user.publicId,
     name: seller.storeName,
     description: seller.storeDescription,
+    descriptionUr: seller.storeDescriptionUr,
     logoUrl: seller.logoUrl,
     bannerUrl: seller.bannerUrl,
+    category: seller.storeCategory ? {
+      id: seller.storeCategory.categoryId.toString(),
+      slug: seller.storeCategory.slug,
+      nameEn: seller.storeCategory.nameEn,
+      nameUr: seller.storeCategory.nameUr,
+    } : null,
+    city: seller.city,
+    memberSince: seller.createdAt.toISOString(),
+    socialLinks: publicSocialLinks(seller.socialLinks),
     // The current seller profile schema has no store-specific policy fields. Null means
     // "not provided" and tools must state that, never infer marketplace policy.
     policies: { returns: null, shipping: null, payment: null } as const,

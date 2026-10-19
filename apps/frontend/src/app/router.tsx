@@ -17,8 +17,9 @@ import { ForgotPasswordPage, LoginPage, OtpVerifyPage, RegisterPage, ResetPasswo
 import { AddProductPage, EditProductPage, SellerProductsPage } from '../features/catalog';
 import { CartPage, CheckoutConfirmationPage, CheckoutPage } from '../features/cart';
 import { UiGalleryPage } from '../features/dev/UiGalleryPage';
-import { CategoryPage, HomePage, ProductDetailPage, SearchPage, SellPage, StorePage, StorefrontLayout } from '../features/marketplace';
+import { CategoryPage, HomePage, ProductDetailPage, SearchPage, SellPage, StoreDirectoryPage, StorePage, StorefrontLayout } from '../features/marketplace';
 import { NotificationCenterPage } from '../features/notifications';
+import { HumanMessagesPage } from '../features/human-chat/HumanMessagesPage';
 import { BuyerOrderDetailPage, BuyerOrdersPage, SellerOrderDetailPage, SellerOrdersPage } from '../features/orders';
 import { ChangePasswordPage, ProfilePage, SettingsPage } from '../features/profile';
 import { BuyerReturnsPage, ReturnStatusPage, ReturnWizardPage, SellerReturnDetailPage, SellerReturnsPage } from '../features/returns';
@@ -52,6 +53,7 @@ export const router = createBrowserRouter([
       { path: '/category/:slug', element: <CategoryPage /> },
       { path: '/product/:id', element: <ProductDetailPage /> },
       { path: '/store/:storeSlug', element: <StorePage /> },
+      { path: '/stores', element: <StoreDirectoryPage /> },
       { path: '/sell', element: <SellPage /> },
       { path: '/cart', element: <CartPage /> },
       {
@@ -63,6 +65,7 @@ export const router = createBrowserRouter([
           { path: '/orders/:id', element: <BuyerOrderDetailPage /> },
           { path: '/orders/:id/track', element: <BuyerTrackingPage /> },
           { path: '/returns', element: <BuyerReturnsPage /> },
+          { path: '/messages', element: <HumanMessagesPage /> },
           { path: '/orders/:id/return', element: <ReturnWizardPage /> },
           { path: '/orders/:id/return/status', element: <ReturnStatusPage /> },
           { path: '/orders/:id/return/:returnId/status', element: <ReturnStatusPage /> },
@@ -94,6 +97,7 @@ export const router = createBrowserRouter([
               { path: '/seller/orders/:id', element: <SellerOrderDetailPage /> },
               { path: '/seller/orders/:id/track', element: <SellerTrackingPage /> },
               { path: '/seller/returns', element: <SellerReturnsPage /> },
+              { path: '/seller/messages', element: <HumanMessagesPage /> },
               { path: '/seller/returns/:id', element: <SellerReturnDetailPage /> },
               { path: '/seller/profile', element: <ProfilePage /> },
               { path: '/seller/profile/settings', element: <SettingsPage /> },

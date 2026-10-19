@@ -12,10 +12,14 @@ import { buildBuyerContext, getPublicStorefront } from '../../src/modules/chatbo
 
 const store = {
   userId: 41n,
-  user: { publicId: 'seller-public-id', status: 'ACTIVE' },
+  user: { publicId: 'seller-public-id', status: 'ACTIVE', role: 'SELLER', deletedAt: null },
   storeSlug: 'sample-store-seller-id',
   storeName: 'Sample Store',
   storeDescription: 'Seller-provided description',
+  storeCategory: null,
+  city: null,
+  socialLinks: {},
+  createdAt: new Date('2026-01-01T00:00:00.000Z'),
   logoUrl: null,
   bannerUrl: null,
   deletedAt: null,

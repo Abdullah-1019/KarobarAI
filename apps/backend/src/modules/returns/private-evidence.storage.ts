@@ -40,7 +40,7 @@ export async function savePrivateEvidence(key: string, buffer: Buffer, contentTy
 }
 
 export async function readPrivateEvidence(key: string): Promise<{ buffer: Buffer; contentType: string }> {
-  if (!/^(returns|dispatch)\/[a-zA-Z0-9/_-]+\.(jpg|jpeg|png|webp)$/.test(key)) throw new Error('Invalid evidence key');
+  if (!/^(returns|dispatch|human-chat)\/[a-zA-Z0-9/_-]+\.(jpg|jpeg|png|webp)$/.test(key)) throw new Error('Invalid evidence key');
   const object = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
   if (!object.Body) throw new Error('Evidence is empty');
   const bytes = await object.Body.transformToByteArray();
@@ -49,6 +49,6 @@ export async function readPrivateEvidence(key: string): Promise<{ buffer: Buffer
 }
 
 export async function deletePrivateEvidence(key: string): Promise<void> {
-  if (!/^(returns|dispatch)\/[a-zA-Z0-9/_-]+\.(jpg|jpeg|png|webp)$/.test(key)) throw new Error('Invalid evidence key');
+  if (!/^(returns|dispatch|human-chat)\/[a-zA-Z0-9/_-]+\.(jpg|jpeg|png|webp)$/.test(key)) throw new Error('Invalid evidence key');
   await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
 }

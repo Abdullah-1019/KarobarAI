@@ -3,7 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 
-import { ArrowIcon, Button, EmptyState, Section } from '../../components';
+import { ArrowIcon, Button, EmptyState, Section, Skeleton } from '../../components';
+import { useLanguage } from '../../hooks';
 import { Hero } from './Hero';
 import { TrustStrip } from './TrustStrip';
 import { ProductGridSkeleton } from './ProductGridSkeleton';
@@ -13,6 +14,8 @@ import { NewArrivalsGrid } from './NewArrivalsGrid';
 import { AiBanner } from './AiBanner';
 import { HOME_FEED_QUERY_KEY, getHomeFeed } from './marketplaceApi';
 import { formatMarketplaceError } from './marketplaceErrors';
+import { StoreMonogram } from './StoreMonogram';
+import { getFeaturedStores } from './storeApi';
 
 // SCR-B01 — entry + discovery. Identical content for Guest and authenticated Buyer (no
 // personalization in MVP scope, per F5-marketplace-backend.md's Known limitations). No outer
@@ -29,11 +32,13 @@ import { formatMarketplaceError } from './marketplaceErrors';
 export function HomePage() {
   const { t } = useTranslation(['marketplace', 'common']);
   const navigate = useNavigate();
+  const { language } = useLanguage();
 
   const { data, isPending, isError, error, refetch } = useQuery({
     queryKey: HOME_FEED_QUERY_KEY,
     queryFn: getHomeFeed,
   });
+  const stores = useQuery({ queryKey: ['stores', 'featured'], queryFn: getFeaturedStores });
 
   const hasProducts = !!data && (data.featured.length > 0 || data.newArrivals.length > 0);
   // New arrivals skip what Featured already shows, so the page never repeats a row — unless that
@@ -46,6 +51,35 @@ export function HomePage() {
     <div>
       <Hero categories={data?.categories} products={data ? [...data.featured, ...data.newArrivals] : undefined} />
       <TrustStrip />
+
+      <Section title={t('directory.homeTitle')} action={<Link to="/stores" className="section-action-link">{t('directory.viewAll')}<ArrowIcon size={16} /></Link>}>
+        {stores.isPending && (
+          <div className="store-directory__grid" aria-busy="true" aria-label={t('directory.loading')}>
+            {Array.from({ length: 8 }, (_, index) => <Skeleton key={index} height={180} radius="var(--card-radius)" />)}
+          </div>
+        )}
+        {stores.isError && (
+          <Alert type="error" showIcon message={t('directory.error')}
+            action={<Button variant="outline" onClick={() => stores.refetch()}>{t('common:actions.retry')}</Button>} />
+        )}
+        {stores.data?.length === 0 && <EmptyState title={t('directory.emptyHome')} />}
+        {stores.data && stores.data.length > 0 && (
+          <div className="store-directory__grid">
+            {stores.data.map((store) => (
+              <Link key={store.slug} to={`/store/${encodeURIComponent(store.slug)}`} className="store-directory__card">
+                <StoreMonogram name={store.name} logoUrl={store.logoUrl} />
+                <strong dir="auto">{store.name}</strong>
+                {store.category && <span>{language === 'UR' ? store.category.nameUr : store.category.nameEn}</span>}
+                {store.city && <span dir="auto">{store.city}</span>}
+                {(language === 'UR' ? store.descriptionUr ?? store.description : store.description ?? store.descriptionUr) && (
+                  <p dir="auto">{language === 'UR' ? store.descriptionUr ?? store.description : store.description ?? store.descriptionUr}</p>
+                )}
+                <span>{t('store.products', { count: store.productCount })}</span>
+              </Link>
+            ))}
+          </div>
+        )}
+      </Section>
 
       {isPending && (
         <>

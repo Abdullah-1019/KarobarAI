@@ -10,6 +10,7 @@ import type {
   UpdateSettingsInput,
 } from './profile.dto';
 import * as profileService from './profile.service';
+import { generateStoreDescription, type GenerateStoreDescriptionInput } from './store-description.service';
 
 // Requires `authenticate` (mounted once on the whole router, profile.routes.ts) — req.user is
 // guaranteed set in every handler below.
@@ -19,10 +20,23 @@ export const getMeHandler = asyncHandler(async (req, res) => {
   res.status(200).json(ok(profile));
 });
 
+export const updateBuyerDisplayNameHandler = asyncHandler(async (req, res) => {
+  const profile = await profileService.updateBuyerDisplayName(req.user!.sub, req.body.displayName as string | null);
+  res.status(200).json(ok(profile));
+});
+
 export const updateSellerProfileHandler = asyncHandler(async (req, res) => {
   const input = req.body as UpdateSellerProfileInput;
   const profile = await profileService.updateSellerProfile(req.user!.sub, input);
   res.status(200).json(ok(profile));
+});
+
+export const generateStoreDescriptionHandler = asyncHandler(async (req, res) => {
+  const suggestion = await generateStoreDescription(
+    req.user!.sub,
+    req.body as GenerateStoreDescriptionInput,
+  );
+  res.status(200).json(ok(suggestion));
 });
 
 export const setDefaultAddressHandler = asyncHandler(async (req, res) => {

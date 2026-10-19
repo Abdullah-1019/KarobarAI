@@ -368,6 +368,9 @@ export function ProductDetailPage() {
                 <Button variant="outline" icon={<MessageCircle size={18} aria-hidden="true" />} onClick={() => setChatOpen(true)}>
                   {t('pdp.askStore')}
                 </Button>
+                <Link to={`/messages?store=${encodeURIComponent(store.slug)}&product=${encodeURIComponent(id)}`}>
+                  {t('humanChat:start')}
+                </Link>
               </div>
             </section>
           )}

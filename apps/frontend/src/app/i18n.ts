@@ -9,6 +9,7 @@ import {
   cart as cartEn,
   catalog as catalogEn,
   common as commonEn,
+  humanChat as humanChatEn,
   marketplace as marketplaceEn,
   notifications as notificationsEn,
   orders as ordersEn,
@@ -22,6 +23,7 @@ import {
   cart as cartUr,
   catalog as catalogUr,
   common as commonUr,
+  humanChat as humanChatUr,
   marketplace as marketplaceUr,
   notifications as notificationsUr,
   orders as ordersUr,
@@ -61,6 +63,7 @@ i18n.use(initReactI18next).init({
   resources: {
     en: {
       common: commonEn,
+      humanChat: humanChatEn,
       auth: authEn,
       profile: profileEn,
       catalog: catalogEn,
@@ -74,6 +77,7 @@ i18n.use(initReactI18next).init({
     },
     ur: {
       common: commonUr,
+      humanChat: humanChatUr,
       auth: authUr,
       profile: profileUr,
       catalog: catalogUr,

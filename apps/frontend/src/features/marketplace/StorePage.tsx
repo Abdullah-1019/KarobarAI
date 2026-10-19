@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Select } from 'antd';
 import { useQuery } from '@tanstack/react-query';
-import { Banknote, MessageCircle, Package } from 'lucide-react';
+import { Banknote, Camera, Globe, MapPin, MessageCircle, Music2, Package, Play, Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 
@@ -100,6 +100,9 @@ export function StorePage() {
   }
 
   const { store } = storeQuery.data;
+  const socialIcons = { facebook: Users, instagram: Camera, tiktok: Music2, youtube: Play, whatsapp: MessageCircle, website: Globe };
+  const socialEntries = Object.entries(store.socialLinks).filter((entry): entry is [keyof typeof socialIcons, string] =>
+    entry[0] in socialIcons && typeof entry[1] === 'string' && entry[1].startsWith('https://'));
   // The window shows the store's own goods: three real products with art, never stock imagery.
   const windowItems = products.filter((p) => p.imageUrl).slice(0, 3);
 
@@ -110,8 +113,12 @@ export function StorePage() {
           <Breadcrumb items={[{ label: t('common:nav.home'), to: '/' }, { label: store.name }]} />
           <StoreMonogram name={store.name} logoUrl={store.logoUrl} size={72} className="store-band__mark" />
           <h1 className="store-band__title" dir="auto">{store.name}</h1>
-          {store.description && <p className="store-band__desc" dir="auto">{store.description}</p>}
+          {(isUr ? store.descriptionUr ?? store.description : store.description ?? store.descriptionUr) && (
+            <p className="store-band__desc" dir="auto">{isUr ? store.descriptionUr ?? store.description : store.description ?? store.descriptionUr}</p>
+          )}
+          {store.category && <p>{isUr ? store.category.nameUr : store.category.nameEn}</p>}
           <ul className="store-band__facts">
+            {store.city && <li><MapPin size={16} aria-hidden="true" /><span dir="auto">{store.city}</span></li>}
             <li>
               <Package size={16} strokeWidth={1.9} aria-hidden="true" />
               {t('store.products', { count: products.length })}
@@ -121,8 +128,20 @@ export function StorePage() {
               {t('store.cod')}
             </li>
           </ul>
+          <p>{t('store.memberSince', { date: new Date(store.memberSince).toLocaleDateString(isUr ? 'ur-PK' : 'en-PK') })}</p>
+          {socialEntries.length > 0 && (
+            <div className="store-social-links" aria-label={t('store.socialLinks')}>
+              {socialEntries.map(([platform, url]) => {
+                const Icon = socialIcons[platform];
+                return <a key={platform} href={url} target="_blank" rel="noopener noreferrer nofollow" aria-label={platform} title={platform}><Icon size={18} aria-hidden="true" /></a>;
+              })}
+            </div>
+          )}
           <Button variant="secondary" icon={<MessageCircle size={18} aria-hidden="true" />} onClick={() => setChatOpen(true)}>
             {t('pdp.askStore')}
+          </Button>
+          <Button variant="outline" onClick={() => navigate(`/messages?store=${encodeURIComponent(storeSlug)}`)}>
+            {t('humanChat:start')}
           </Button>
         </div>
 

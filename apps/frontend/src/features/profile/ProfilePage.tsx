@@ -1,11 +1,12 @@
-import { Alert, Button, Card, Descriptions, Typography } from 'antd';
-import { useQuery } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
+import { Alert, Button, Card, Descriptions, Input, Typography } from 'antd';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
 import { SkeletonLoader } from '../../components';
 import { AvatarUpload } from './AvatarUpload';
-import { PROFILE_QUERY_KEY, getProfile } from './profileApi';
+import { PROFILE_QUERY_KEY, getProfile, updateBuyerDisplayName } from './profileApi';
 import { formatProfileError } from './profileErrors';
 
 // NOT roleHomePath() — that returns the role's storefront/dashboard home ('/' for Buyer), not
@@ -21,11 +22,28 @@ function profileBasePath(role: 'BUYER' | 'SELLER'): string {
 // App Flow SCR-B12 (Buyer)/SCR-S10 (Seller) profile views. GET /me discriminates on `role` —
 // F2-profiles-backend.md: one contract, three shapes, no per-role endpoint.
 export function ProfilePage() {
-  const { t } = useTranslation(['profile', 'common']);
+  const { t } = useTranslation(['profile', 'common', 'humanChat']);
+  const queryClient = useQueryClient();
+  const [displayName, setDisplayName] = useState('');
+  const [nameSaving, setNameSaving] = useState(false);
+  const [nameError, setNameError] = useState(false);
   const { data: profile, isPending, isError, error } = useQuery({
     queryKey: PROFILE_QUERY_KEY,
     queryFn: getProfile,
   });
+  useEffect(() => {
+    if (profile?.role === 'BUYER') setDisplayName(profile.displayName ?? '');
+  }, [profile]);
+
+  async function saveName() {
+    if (!displayName.trim() || displayName.trim().length > 80) { setNameError(true); return; }
+    setNameSaving(true); setNameError(false);
+    try {
+      const updated = await updateBuyerDisplayName(displayName.trim());
+      queryClient.setQueryData(PROFILE_QUERY_KEY, updated);
+    } catch { setNameError(true); }
+    finally { setNameSaving(false); }
+  }
 
   if (isPending) {
     return (
@@ -65,6 +83,12 @@ export function ProfilePage() {
             </>
           )}
         </Descriptions>
+        {profile.role === 'BUYER' && <div style={{ marginTop: 'var(--sp-5)' }}>
+          <label htmlFor="buyer-display-name">{t('humanChat:displayName')}</label>
+          <Input id="buyer-display-name" value={displayName} maxLength={80} onChange={(event) => setDisplayName(event.target.value)} />
+          <Button style={{ marginTop: 'var(--sp-3)' }} onClick={() => void saveName()} loading={nameSaving}>{t('humanChat:saveName')}</Button>
+          {nameError && <p role="alert">{t('humanChat:nameError')}</p>}
+        </div>}
       </Card>
 
       {/* Settings/Change Password only have routes for Buyer/Seller — App Flow has no admin

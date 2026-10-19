@@ -1,5 +1,5 @@
 import type { MenuProps } from 'antd';
-import { BarChart3, Bot, ClipboardList, Package, Settings, Undo2, Wallet } from 'lucide-react';
+import { BarChart3, Bot, ClipboardList, MessageCircle, Package, Settings, Undo2, Wallet } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link, Outlet, useNavigate } from 'react-router-dom';
 
@@ -23,7 +23,7 @@ import { logout as logoutApi } from '../auth/authApi';
 // second nav item pointing at the same URL would just be a confusing duplicate. "Wallet" has no
 // dedicated screen yet either — it resolves via the existing `/seller/*` placeholder route
 // (SellerPlaceholder's intended purpose) rather than a route this phase invents.
-const SIDEBAR_ITEMS_KEY = ['products', 'orders', 'returns', 'analytics', 'assistant', 'wallet', 'settings'] as const;
+const SIDEBAR_ITEMS_KEY = ['products', 'orders', 'returns', 'messages', 'analytics', 'assistant', 'wallet', 'settings'] as const;
 
 export function SellerLayout() {
   const { t } = useTranslation(['common']);
@@ -52,6 +52,7 @@ export function SellerLayout() {
     products: { key: 'products', to: '/seller', label: t('nav.products'), icon: Package, exact: true },
     orders: { key: 'orders', to: '/seller/orders', label: t('nav.orders'), icon: ClipboardList },
     returns: { key: 'returns', to: '/seller/returns', label: t('nav.returns'), icon: Undo2 },
+    messages: { key: 'messages', to: '/seller/messages', label: t('nav.messages'), icon: MessageCircle },
     analytics: { key: 'analytics', to: '/seller/analytics', label: t('nav.analytics'), icon: BarChart3 },
     assistant: { key: 'assistant', to: '/seller/assistant', label: 'Business assistant', icon: Bot },
     wallet: { key: 'wallet', to: '/seller/wallet', label: t('nav.wallet'), icon: Wallet },
@@ -59,7 +60,7 @@ export function SellerLayout() {
   };
   const sidebarItems = SIDEBAR_ITEMS_KEY.map((key) => allItems[key]);
   // 5 max per §15 — mobile drops Wallet (still reachable from the desktop/tablet sidebar).
-  const bottomTabItems = sidebarItems.filter((item) => item.key !== 'wallet' && item.key !== 'settings');
+  const bottomTabItems = sidebarItems.filter((item) => ['products', 'orders', 'returns', 'messages', 'analytics'].includes(item.key));
 
   return (
     <AppShell

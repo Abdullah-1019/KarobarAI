@@ -13,7 +13,7 @@ import { randomUUID } from 'node:crypto';
 import { getStorageAdapter } from '../../adapters/storage';
 import { config } from '../../core/config';
 import { encryptField } from '../../core/crypto/fieldCipher';
-import { AuthError, BusinessRuleError, ConflictError, ForbiddenError, NotFoundError } from '../../core/errors/AppError';
+import { AuthError, BusinessRuleError, ConflictError, DependencyError, ForbiddenError, NotFoundError } from '../../core/errors/AppError';
 import { signAccessToken } from '../../core/jwt';
 import { logger } from '../../core/logger';
 import { prisma } from '../../core/prisma';
@@ -34,11 +34,12 @@ import type {
 } from './profile.dto';
 import { createStoreSlug } from './store-slug';
 import { mergeSocialLinks, storedSocialLinks } from './store-social-links';
+import { buyerDisplayName, isMissingBuyerDisplayNameColumn } from './buyer-display-name';
 
 async function loadUser(publicId: string) {
   const user = await prisma.user.findUnique({
     where: { publicId },
-    include: { sellerProfile: { include: { storeCategory: true } }, buyerProfile: true },
+    include: { sellerProfile: { include: { storeCategory: true } }, buyerProfile: { select: { defaultAddressId: true } } },
   });
   if (!user) throw new AuthError();
   return user;
@@ -61,7 +62,7 @@ export async function getMyProfile(publicId: string): Promise<ProfileDTO> {
     return {
       ...base,
       role: 'BUYER',
-      displayName: user.buyerProfile?.displayName ?? null,
+      displayName: user.buyerProfile ? await buyerDisplayName(user.userId) : null,
       // Full address object deferred to the addresses feature — only the id is returned here.
       defaultAddressId: user.buyerProfile?.defaultAddressId?.toString() ?? null,
     };
@@ -103,7 +104,14 @@ export async function updateBuyerDisplayName(publicId: string, displayName: stri
   const user = await prisma.user.findUnique({ where: { publicId }, select: { userId: true, role: true } });
   if (!user) throw new AuthError();
   if (user.role !== 'BUYER') throw new ForbiddenError('Buyer account required');
-  await prisma.buyerProfile.update({ where: { userId: user.userId }, data: { displayName } });
+  try {
+    await prisma.buyerProfile.update({ where: { userId: user.userId }, data: { displayName } });
+  } catch (error) {
+    if (isMissingBuyerDisplayNameColumn(error)) {
+      throw new DependencyError('Display names are unavailable until the pending database migration is applied');
+    }
+    throw error;
+  }
   return getMyProfile(publicId) as Promise<BuyerProfileDTO>;
 }
 

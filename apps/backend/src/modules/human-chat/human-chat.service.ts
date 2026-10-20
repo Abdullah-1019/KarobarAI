@@ -7,6 +7,7 @@ import { prisma } from '../../core/prisma';
 import { redis } from '../../core/redis';
 import { validateImageFile } from '../../core/upload/imageValidation';
 import { deletePrivateEvidence, readPrivateEvidence, savePrivateEvidence } from '../returns/private-evidence.storage';
+import { buyerDisplayName, buyerDisplayNames } from '../profile/buyer-display-name';
 
 type Actor = { userId: bigint; role: 'BUYER' | 'SELLER'; preferredLanguage: 'EN' | 'UR' };
 const messageInclude = { attachments: { orderBy: { position: 'asc' as const } } };
@@ -29,7 +30,7 @@ async function conversationFor(actor: Actor, id: string) {
   const row = await prisma.humanConversation.findFirst({ where: {
     id,
     ...(actor.role === 'BUYER' ? { buyerId: actor.userId } : { sellerId: actor.userId }),
-  }, include: { seller: { select: { storeName: true, storeSlug: true } }, buyer: { select: { buyerProfile: { select: { displayName: true } } } } } });
+  }, include: { seller: { select: { storeName: true, storeSlug: true } } } });
   if (!row) throw new NotFoundError('Conversation not found');
   return row;
 }
@@ -77,17 +78,18 @@ export async function listConversations(actor: Actor, page: number, limit: numbe
   const where = actor.role === 'BUYER' ? { buyerId: actor.userId } : { sellerId: actor.userId };
   const [rows, total] = await prisma.$transaction([
     prisma.humanConversation.findMany({ where, orderBy: [{ lastMessageAt: 'desc' }, { id: 'desc' }], skip: (page - 1) * limit, take: limit,
-      include: { seller: { select: { storeName: true, storeSlug: true } }, buyer: { select: { buyerProfile: { select: { displayName: true } } } },
+      include: { seller: { select: { storeName: true, storeSlug: true } },
         messages: { orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: 1, include: messageInclude } } }),
     prisma.humanConversation.count({ where }),
   ]);
+  const names = actor.role === 'SELLER' ? await buyerDisplayNames(rows.map((row) => row.buyerId)) : new Map<bigint, string>();
   const items = await Promise.all(rows.map(async (row) => {
     const lastReadAt = actor.role === 'BUYER' ? row.buyerLastReadAt : row.sellerLastReadAt;
     const unreadCount = await prisma.humanMessage.count({ where: { conversationId: row.id, senderId: { not: actor.userId },
       ...(lastReadAt ? { createdAt: { gt: lastReadAt } } : {}) } });
     const otherReadAt = actor.role === 'BUYER' ? row.sellerLastReadAt : row.buyerLastReadAt;
     return { id: row.id, storeName: row.seller.storeName, storeSlug: row.seller.storeSlug,
-      buyerName: actor.role === 'SELLER' ? row.buyer.buyerProfile?.displayName ?? null : undefined,
+      buyerName: actor.role === 'SELLER' ? names.get(row.buyerId) ?? null : undefined,
       blocked: Boolean(row.buyerBlockedAt || row.sellerBlockedAt), unreadCount,
       lastMessage: row.messages[0] ? serializeMessage(row.messages[0], actor, otherReadAt) : null,
       lastMessageAt: row.lastMessageAt.toISOString() };
@@ -104,7 +106,7 @@ export async function listMessages(actor: Actor, id: string, cursor: string | un
   const items = rows.slice(0, limit);
   const otherReadAt = actor.role === 'BUYER' ? conversation.sellerLastReadAt : conversation.buyerLastReadAt;
   return { conversation: { id: conversation.id, storeName: conversation.seller.storeName, storeSlug: conversation.seller.storeSlug,
-    buyerName: actor.role === 'SELLER' ? conversation.buyer.buyerProfile?.displayName ?? null : undefined,
+    buyerName: actor.role === 'SELLER' ? await buyerDisplayName(conversation.buyerId) : undefined,
     blocked: Boolean(conversation.buyerBlockedAt || conversation.sellerBlockedAt),
     blockedByMe: Boolean(actor.role === 'BUYER' ? conversation.buyerBlockedAt : conversation.sellerBlockedAt) },
     items: items.map((row) => serializeMessage(row, actor, otherReadAt)), nextCursor: rows.length > limit ? items[items.length - 1]?.id : null };
@@ -128,6 +130,7 @@ export async function sendMessage(actor: Actor, id: string, clientId: string, co
   if (existing) return { message: serializeMessage(existing, actor), created: false, participantIds: participantIds(conversation) };
   await enforceRate(`rate:f21:human-send:${actor.userId}`, 60, 20);
   const prepared = files.map((file, position) => ({ file, position, mimeType: validateImageFile(file, 'CHAT_IMAGE_TOO_LARGE', 'CHAT_IMAGE_INVALID') }));
+  const buyerName = actor.role === 'BUYER' ? await buyerDisplayName(actor.userId) : null;
   const saved: string[] = [];
   try {
     for (const item of prepared) {
@@ -144,9 +147,6 @@ export async function sendMessage(actor: Actor, id: string, clientId: string, co
       await tx.humanConversation.updateMany({ where: { id, lastMessageAt: { lte: created.createdAt } }, data: { lastMessageAt: created.createdAt } });
       const recipientId = actor.role === 'BUYER' ? current.sellerId : current.buyerId;
       const recipient = await tx.user.findUnique({ where: { userId: recipientId }, select: { preferredLanguage: true } });
-      const buyerName = actor.role === 'BUYER'
-        ? (await tx.buyerProfile.findUnique({ where: { userId: actor.userId }, select: { displayName: true } }))?.displayName?.trim()
-        : null;
       if (recipient) await tx.notification.create({ data: { userId: recipientId, channel: 'IN_APP', eventType: 'HUMAN_CHAT_MESSAGE',
         message: buyerName
           ? recipient.preferredLanguage === 'UR' ? `${buyerName} نے آپ کو پیغام بھیجا ہے` : `${buyerName} sent you a message`

@@ -48,9 +48,28 @@ function participantIds(conversation: { buyerId: bigint; sellerId: bigint }): st
   return [conversation.buyerId.toString(), conversation.sellerId.toString()];
 }
 
-function serializeMessage(message: { id: string; senderId: bigint; content: string; createdAt: Date; attachments: { id: string; mimeType: string; byteSize: number }[] }, actor: Actor, otherReadAt?: Date | null) {
+let deliveryTableMissingUntil = 0;
+function deliveryTableMissing(error: unknown): boolean {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2021'
+    && String(error.meta?.table).includes('human_message_deliveries');
+}
+
+async function deliveryDates(messageIds: string[]): Promise<Map<string, Date>> {
+  if (!messageIds.length || Date.now() < deliveryTableMissingUntil) return new Map();
+  try {
+    const rows = await prisma.humanMessageDelivery.findMany({ where: { messageId: { in: messageIds } },
+      select: { messageId: true, deliveredAt: true } });
+    return new Map(rows.map((row) => [row.messageId, row.deliveredAt]));
+  } catch (error) {
+    if (deliveryTableMissing(error)) { deliveryTableMissingUntil = Date.now() + 30_000; return new Map(); }
+    throw error;
+  }
+}
+
+function serializeMessage(message: { id: string; senderId: bigint; content: string; createdAt: Date; attachments: { id: string; mimeType: string; byteSize: number }[] }, actor: Actor, otherReadAt?: Date | null, deliveredAt?: Date) {
+  const seen = message.senderId === actor.userId && Boolean(otherReadAt && message.createdAt <= otherReadAt);
   return { id: message.id, mine: message.senderId === actor.userId, content: message.content, createdAt: message.createdAt.toISOString(),
-    seen: message.senderId === actor.userId && Boolean(otherReadAt && message.createdAt <= otherReadAt),
+    seen, status: seen ? 'SEEN' : deliveredAt ? 'DELIVERED' : 'SENT', deliveredAt: deliveredAt?.toISOString() ?? null,
     attachments: message.attachments.map((item) => ({ id: item.id, mimeType: item.mimeType, byteSize: item.byteSize })) };
 }
 
@@ -83,6 +102,7 @@ export async function listConversations(actor: Actor, page: number, limit: numbe
     prisma.humanConversation.count({ where }),
   ]);
   const names = actor.role === 'SELLER' ? await buyerDisplayNames(rows.map((row) => row.buyerId)) : new Map<bigint, string>();
+  const deliveries = await deliveryDates(rows.flatMap((row) => row.messages.map((message) => message.id)));
   const items = await Promise.all(rows.map(async (row) => {
     const lastReadAt = actor.role === 'BUYER' ? row.buyerLastReadAt : row.sellerLastReadAt;
     const unreadCount = await prisma.humanMessage.count({ where: { conversationId: row.id, senderId: { not: actor.userId },
@@ -91,7 +111,7 @@ export async function listConversations(actor: Actor, page: number, limit: numbe
     return { id: row.id, storeName: row.seller.storeName, storeSlug: row.seller.storeSlug,
       buyerName: actor.role === 'SELLER' ? names.get(row.buyerId) ?? null : undefined,
       blocked: Boolean(row.buyerBlockedAt || row.sellerBlockedAt), unreadCount,
-      lastMessage: row.messages[0] ? serializeMessage(row.messages[0], actor, otherReadAt) : null,
+      lastMessage: row.messages[0] ? serializeMessage(row.messages[0], actor, otherReadAt, deliveries.get(row.messages[0].id)) : null,
       lastMessageAt: row.lastMessageAt.toISOString() };
   }));
   return { items, page, limit, total, hasMore: page * limit < total };
@@ -104,12 +124,13 @@ export async function listMessages(actor: Actor, id: string, cursor: string | un
   const rows = await prisma.humanMessage.findMany({ where: { conversationId: id }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}), take: limit + 1, include: messageInclude });
   const items = rows.slice(0, limit);
+  const deliveries = await deliveryDates(items.map((row) => row.id));
   const otherReadAt = actor.role === 'BUYER' ? conversation.sellerLastReadAt : conversation.buyerLastReadAt;
   return { conversation: { id: conversation.id, storeName: conversation.seller.storeName, storeSlug: conversation.seller.storeSlug,
     buyerName: actor.role === 'SELLER' ? await buyerDisplayName(conversation.buyerId) : undefined,
     blocked: Boolean(conversation.buyerBlockedAt || conversation.sellerBlockedAt),
     blockedByMe: Boolean(actor.role === 'BUYER' ? conversation.buyerBlockedAt : conversation.sellerBlockedAt) },
-    items: items.map((row) => serializeMessage(row, actor, otherReadAt)), nextCursor: rows.length > limit ? items[items.length - 1]?.id : null };
+    items: items.map((row) => serializeMessage(row, actor, otherReadAt, deliveries.get(row.id))), nextCursor: rows.length > limit ? items[items.length - 1]?.id : null };
 }
 
 export async function getUnreadCount(actor: Actor) {
@@ -127,7 +148,7 @@ export async function sendMessage(actor: Actor, id: string, clientId: string, co
   if (!content && files.length === 0) throw new ValidationError('Message or image required');
   if (files.length > 3) throw new ValidationError('Maximum three images per message');
   const existing = await prisma.humanMessage.findFirst({ where: { conversationId: id, senderId: actor.userId, clientId }, include: messageInclude });
-  if (existing) return { message: serializeMessage(existing, actor), created: false, participantIds: participantIds(conversation) };
+  if (existing) return { message: serializeMessage(existing, actor, undefined, (await deliveryDates([existing.id])).get(existing.id)), created: false, participantIds: participantIds(conversation) };
   await enforceRate(`rate:f21:human-send:${actor.userId}`, 60, 20);
   const prepared = files.map((file, position) => ({ file, position, mimeType: validateImageFile(file, 'CHAT_IMAGE_TOO_LARGE', 'CHAT_IMAGE_INVALID') }));
   const buyerName = actor.role === 'BUYER' ? await buyerDisplayName(actor.userId) : null;
@@ -167,7 +188,32 @@ export async function sendMessage(actor: Actor, id: string, clientId: string, co
     await Promise.allSettled(saved.map((key) => deletePrivateEvidence(key)));
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
       const duplicate = await prisma.humanMessage.findFirst({ where: { conversationId: id, senderId: actor.userId, clientId }, include: messageInclude });
-      if (duplicate) return { message: serializeMessage(duplicate, actor), created: false, participantIds: participantIds(conversation) };
+      if (duplicate) return { message: serializeMessage(duplicate, actor, undefined, (await deliveryDates([duplicate.id])).get(duplicate.id)), created: false, participantIds: participantIds(conversation) };
+    }
+    throw error;
+  }
+}
+
+/** One verified recipient device is sufficient. The unique message_id makes retries idempotent. */
+export async function acknowledgeDelivery(actor: Actor, conversationId: string, messageIds: string[]) {
+  const conversation = await conversationFor(actor, conversationId);
+  const uniqueIds = [...new Set(messageIds)];
+  if (!uniqueIds.length || uniqueIds.length > 50) throw new ValidationError('Invalid delivery acknowledgement');
+  const messages = await prisma.humanMessage.findMany({ where: { conversationId, id: { in: uniqueIds } },
+    select: { id: true, senderId: true } });
+  const senderId = actor.role === 'BUYER' ? conversation.sellerId : conversation.buyerId;
+  if (messages.length !== uniqueIds.length || messages.some((message) => message.senderId !== senderId)) {
+    throw new ForbiddenError('Cannot acknowledge these messages');
+  }
+  if (Date.now() < deliveryTableMissingUntil) return { supported: false, changed: false, senderId: null, messageIds: [] as string[] };
+  try {
+    const result = await prisma.humanMessageDelivery.createMany({ data: messages.map((message) => ({ messageId: message.id })), skipDuplicates: true });
+    return { supported: true, changed: result.count > 0,
+      senderId: senderId.toString(), messageIds: uniqueIds };
+  } catch (error) {
+    if (deliveryTableMissing(error)) {
+      deliveryTableMissingUntil = Date.now() + 30_000;
+      return { supported: false, changed: false, senderId: null, messageIds: [] as string[] };
     }
     throw error;
   }

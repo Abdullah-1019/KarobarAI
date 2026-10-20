@@ -593,11 +593,23 @@ model HumanMessage {
   conversation   HumanConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   sender         User     @relation("HumanMessageSender", fields: [senderId], references: [userId], onDelete: Restrict)
   attachments    HumanMessageAttachment[]
+  delivery       HumanMessageDelivery?
   reports        HumanConversationReport[]
 
   @@unique([conversationId, senderId, clientId], map: "uq_human_message_client_retry")
   @@index([conversationId, createdAt, id], map: "idx_human_message_page")
   @@map("human_messages")
+}
+
+// The first authenticated recipient device to acknowledge a persisted message wins.
+// A separate table keeps older deployments able to read/send messages until this
+// additive migration is applied.
+model HumanMessageDelivery {
+  messageId   String       @id @map("message_id")
+  deliveredAt DateTime     @default(now()) @map("delivered_at") @db.Timestamptz(6)
+  message     HumanMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@map("human_message_deliveries")
 }
 
 model HumanMessageAttachment {

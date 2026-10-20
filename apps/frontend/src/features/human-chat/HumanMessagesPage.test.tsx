@@ -25,7 +25,7 @@ function renderPage(path = '/messages') {
 beforeEach(() => {
   void i18n.changeLanguage('en');
   vi.clearAllMocks();
-  vi.mocked(useHumanChatSocket).mockReturnValue({ status: 'connected', typing: false, setTyping: vi.fn() });
+  vi.mocked(useHumanChatSocket).mockReturnValue({ status: 'connected', joined: true, typing: false, setTyping: vi.fn(), acknowledgeDelivery: vi.fn() });
   useAuthStore.getState().setSession('test-token', { id: 'buyer', role: 'BUYER', status: 'ACTIVE', preferredLanguage: 'EN' });
   vi.mocked(listHumanConversations).mockResolvedValue({ items: [{ id: 'conv', storeName: 'Cloth Corner', storeSlug: 'cloth-corner',
     blocked: false, unreadCount: 1, lastMessage: null, lastMessageAt: '2026-10-19T00:00:00.000Z' }], page: 1, limit: 20, total: 1, hasMore: false });
@@ -49,6 +49,9 @@ describe('human messages page', () => {
     fireEvent.change(await screen.findByPlaceholderText('Write a message'), { target: { value: 'Thanks' } });
     fireEvent.click(screen.getByRole('button', { name: 'Send' }));
     await waitFor(() => expect(sendHumanMessage).toHaveBeenCalledWith('conv', expect.any(String), 'Thanks', []));
+    expect(await screen.findByText('Thanks')).toBeInTheDocument();
+    expect(screen.getByLabelText('Sent')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Sending…')).not.toBeInTheDocument();
   });
 
   it('provides an empty state', async () => {
@@ -58,10 +61,23 @@ describe('human messages page', () => {
   });
 
   it('keeps REST history visible when live updates are offline', async () => {
-    vi.mocked(useHumanChatSocket).mockReturnValue({ status: 'offline', typing: false, setTyping: vi.fn() });
+    vi.mocked(useHumanChatSocket).mockReturnValue({ status: 'offline', joined: false, typing: false, setTyping: vi.fn(), acknowledgeDelivery: vi.fn() });
     renderPage('/messages?conversation=conv');
     expect(await screen.findByText('Hello buyer')).toBeInTheDocument();
     expect(screen.getByText(/Live updates unavailable/)).toBeInTheDocument();
+  });
+
+  it('acknowledges a fetched conversation preview without marking it read', async () => {
+    const acknowledgeDelivery = vi.fn();
+    vi.mocked(useHumanChatSocket).mockReturnValue({ status: 'connected', joined: false, typing: false, setTyping: vi.fn(), acknowledgeDelivery });
+    vi.mocked(listHumanConversations).mockResolvedValue({ items: [{ id: 'conv', storeName: 'Cloth Corner', storeSlug: 'cloth-corner',
+      blocked: false, unreadCount: 1, lastMessage: { id: 'preview', mine: false, seen: false, content: 'New message',
+        createdAt: '2026-10-19T00:00:00.000Z', attachments: [] }, lastMessageAt: '2026-10-19T00:00:00.000Z' }],
+      page: 1, limit: 20, total: 1, hasMore: false });
+    renderPage();
+    expect(await screen.findByText('New message')).toBeInTheDocument();
+    expect(acknowledgeDelivery).toHaveBeenCalledWith('conv', ['preview']);
+    expect(markHumanConversationRead).not.toHaveBeenCalled();
   });
 
   it('shows the buyer name for sellers and labels persisted reads', async () => {
@@ -73,6 +89,44 @@ describe('human messages page', () => {
     renderPage('/seller/messages?conversation=conv');
     expect((await screen.findAllByText('Ayesha Khan')).length).toBeGreaterThan(0);
     expect(screen.getByLabelText('Seen')).toBeInTheDocument();
+  });
+
+  it('shows one grey tick after persistence, two grey ticks after delivery, and two blue ticks after read', async () => {
+    const base = { mine: true, seen: false, attachments: [], createdAt: '2026-10-19T00:00:00.000Z' };
+    vi.mocked(listHumanMessages).mockResolvedValue({ conversation: { id: 'conv', storeName: 'Cloth Corner', storeSlug: 'cloth-corner', blocked: false, blockedByMe: false },
+      items: [
+        { ...base, id: 'sent', content: 'One', status: 'SENT' },
+        { ...base, id: 'delivered', content: 'Two', status: 'DELIVERED' },
+        { ...base, id: 'seen', content: 'Three', status: 'SEEN', seen: true },
+      ], nextCursor: null });
+    renderPage('/messages?conversation=conv');
+    expect(await screen.findByText('Three')).toBeInTheDocument();
+    expect(screen.getByLabelText('Sent')).toHaveClass('human-chat__receipt--sent');
+    expect(screen.getByLabelText('Delivered')).toHaveClass('human-chat__receipt--delivered');
+    expect(screen.getByLabelText('Seen')).toHaveClass('human-chat__receipt--seen');
+  });
+
+  it('keeps accessible receipt labels and message text in dark theme', async () => {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    try {
+      vi.mocked(listHumanMessages).mockResolvedValue({ conversation: { id: 'conv', storeName: 'Cloth Corner', storeSlug: 'cloth-corner', blocked: false, blockedByMe: false },
+        items: [{ id: 'dark-message', mine: true, seen: false, status: 'DELIVERED', content: 'Visible message',
+          createdAt: '2026-10-19T00:00:00.000Z', attachments: [] }], nextCursor: null });
+      renderPage('/messages?conversation=conv');
+      expect(await screen.findByText('Visible message')).toBeInTheDocument();
+      expect(screen.getByLabelText('Delivered')).toHaveClass('human-chat__receipt--delivered');
+    } finally {
+      document.documentElement.removeAttribute('data-theme');
+    }
+  });
+
+  it('shows typing in the header and acknowledges only fetched incoming messages', async () => {
+    const acknowledgeDelivery = vi.fn();
+    vi.mocked(useHumanChatSocket).mockReturnValue({ status: 'connected', joined: true, typing: true, setTyping: vi.fn(), acknowledgeDelivery });
+    renderPage('/messages?conversation=conv');
+    expect(await screen.findByText('Hello buyer')).toBeInTheDocument();
+    expect(screen.getByText('Seller is typing…')).toBeInTheDocument();
+    expect(acknowledgeDelivery).toHaveBeenCalledWith('conv', ['msg']);
   });
 
   it('uses Buyer instead of an internal identifier when the buyer has no display name', async () => {

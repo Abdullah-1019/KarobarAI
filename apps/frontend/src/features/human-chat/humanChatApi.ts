@@ -7,6 +7,8 @@ export interface HumanMessage {
   content: string;
   createdAt: string;
   seen: boolean;
+  status?: 'SENT' | 'DELIVERED' | 'SEEN';
+  deliveredAt?: string | null;
   attachments: { id: string; mimeType: string; byteSize: number }[];
 }
 export interface HumanConversation {

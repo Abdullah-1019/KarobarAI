@@ -1,6 +1,7 @@
 // English translation bundle — "common" namespace for Day 1; per-screen namespaces are added
 // alongside each feature as it lands (react-i18next).
 export const humanChat = {
+  delivered: 'Delivered',
   buyer: 'Buyer', buyerTyping: 'Buyer is typing…', sellerTyping: 'Seller is typing…',
   sending: 'Sending…', sent: 'Sent', seen: 'Seen',
   displayName: 'Name shown to sellers in messages', saveName: 'Save name', nameError: 'Enter a name of 2–80 characters and try again.',

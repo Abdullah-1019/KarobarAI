@@ -27,11 +27,15 @@ function join(socket: Socket, conversationId: string): Promise<{ ok: boolean }> 
   return new Promise((resolve) => socket.emit('conversation:join', { conversationId }, resolve));
 }
 
-function event(socket: Socket, name: string): Promise<{ conversationId: string; messageId?: string; readAt?: string }> {
+function event(socket: Socket, name: string, timeoutMs = 3_000): Promise<{ conversationId: string; messageId?: string; messageIds?: string[]; readAt?: string; typing?: boolean }> {
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`Missing ${name} event`)), 3_000);
+    const timer = setTimeout(() => reject(new Error(`Missing ${name} event`)), timeoutMs);
     socket.once(name, (payload) => { clearTimeout(timer); resolve(payload); });
   });
+}
+
+function deliveryAck(socket: Socket, conversationId: string, messageIds: string[]): Promise<{ ok: boolean }> {
+  return new Promise((resolve) => socket.emit('delivery:ack', { conversationId, messageIds }, resolve));
 }
 
 beforeAll(async () => {
@@ -58,6 +62,40 @@ async function fixture() {
 }
 
 describe('F21 human chat Socket.IO on isolated services', () => {
+  it('requires a recipient-device acknowledgement before Delivered and a persisted read before Seen', async () => {
+    const { buyer, seller, conversationId } = await fixture();
+    const buyerSocket = await connect(buyer.accessToken);
+    expect(await join(buyerSocket, conversationId)).toEqual({ ok: true });
+    const sent = await request(app).post(`/api/v1/human-chat/conversations/${conversationId}/messages`)
+      .set('Authorization', `Bearer ${buyer.accessToken}`).field('clientId', randomUUID()).field('content', 'Status check');
+    expect(sent.status).toBe(201);
+    expect(sent.body.data.status).toBe('SENT');
+    const senderHistory = () => request(app).get(`/api/v1/human-chat/conversations/${conversationId}/messages`)
+      .set('Authorization', `Bearer ${buyer.accessToken}`);
+    expect((await senderHistory()).body.data.items[0].status).toBe('SENT');
+    expect((await deliveryAck(buyerSocket, conversationId, [sent.body.data.id])).ok).toBe(false);
+    expect(await prisma.humanMessageDelivery.count()).toBe(0);
+
+    const stranger = await createTestUser('BUYER');
+    const outsider = await connect(stranger.accessToken);
+    expect((await deliveryAck(outsider, conversationId, [sent.body.data.id])).ok).toBe(false);
+
+    const sellerSocket = await connect(seller.accessToken);
+    const secondDevice = await connect(seller.accessToken);
+    expect(await join(secondDevice, conversationId)).toEqual({ ok: true });
+    const delivered = event(buyerSocket, 'delivery:changed');
+    expect(await deliveryAck(sellerSocket, conversationId, [sent.body.data.id])).toMatchObject({ ok: true });
+    expect(await delivered).toMatchObject({ conversationId, messageIds: [sent.body.data.id] });
+    expect((await senderHistory()).body.data.items[0].status).toBe('DELIVERED');
+    expect((await deliveryAck(secondDevice, conversationId, [sent.body.data.id])).ok).toBe(true);
+    expect(await prisma.humanMessageDelivery.count()).toBe(1);
+
+    const read = await request(app).post(`/api/v1/human-chat/conversations/${conversationId}/read`)
+      .set('Authorization', `Bearer ${seller.accessToken}`).send({ lastSeenMessageId: sent.body.data.id });
+    expect(read.status).toBe(200);
+    expect((await senderHistory()).body.data.items[0].status).toBe('SEEN');
+  });
+
   it('authenticates, rejects nonparticipant rooms, emits only after persistence, and suppresses retry broadcasts', async () => {
     const { buyer, seller, conversationId } = await fixture();
     await expect(connect()).rejects.toThrow('Unauthorized');
@@ -156,6 +194,20 @@ describe('F21 human chat Socket.IO on isolated services', () => {
     const left = event(sellerSocket, 'typing:changed');
     buyerSocket.emit('conversation:leave', { conversationId });
     expect(await left).toMatchObject({ conversationId, typing: false });
+    expect(await join(buyerSocket, conversationId)).toEqual({ ok: true });
+    const startedAgain = event(sellerSocket, 'typing:changed');
+    buyerSocket.emit('typing:set', { conversationId, typing: true });
+    expect(await startedAgain).toMatchObject({ conversationId, typing: true });
+    const disconnected = event(sellerSocket, 'typing:changed');
+    buyerSocket.disconnect();
+    expect(await disconnected).toMatchObject({ conversationId, typing: false });
+    const expiringSocket = await connect(buyer.accessToken);
+    expect(await join(expiringSocket, conversationId)).toEqual({ ok: true });
+    const expiringStart = event(sellerSocket, 'typing:changed');
+    expiringSocket.emit('typing:set', { conversationId, typing: true });
+    expect(await expiringStart).toMatchObject({ conversationId, typing: true });
+    const expired = event(sellerSocket, 'typing:changed', 7_000);
+    expect(await expired).toMatchObject({ conversationId, typing: false });
     expect(leaked).toHaveLength(0);
   });
 });

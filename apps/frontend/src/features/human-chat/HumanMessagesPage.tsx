@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
+import { Check, CheckCheck } from 'lucide-react';
 
 import { useAuthStore } from '../../lib/authStore';
 import { blockHumanConversation, listHumanConversations, listHumanMessages, loadHumanAttachment, markHumanConversationRead, openHumanConversation, reportHumanConversation, sendHumanMessage } from './humanChatApi';
@@ -23,12 +24,16 @@ function PrivateImage({ conversationId, attachmentId }: { conversationId: string
   return src ? <img src={src} alt="" className="human-chat__image" /> : <span className="human-chat__image-placeholder" />;
 }
 
-function Message({ item, conversationId, sentLabel, seenLabel }: { item: HumanMessage; conversationId: string; sentLabel: string; seenLabel: string }) {
+function Message({ item, conversationId, sentLabel, deliveredLabel, seenLabel }: { item: HumanMessage; conversationId: string; sentLabel: string; deliveredLabel: string; seenLabel: string }) {
+  const status = item.seen ? 'SEEN' : item.status ?? 'SENT';
+  const label = status === 'SEEN' ? seenLabel : status === 'DELIVERED' ? deliveredLabel : sentLabel;
   return <li className={`human-chat__message ${item.mine ? 'human-chat__message--mine' : ''}`}>
     {item.content && <p dir="auto">{item.content}</p>}
     {item.attachments.map((attachment) => <PrivateImage key={attachment.id} conversationId={conversationId} attachmentId={attachment.id} />)}
     <footer><time dateTime={item.createdAt}>{new Date(item.createdAt).toLocaleString()}</time>
-      {item.mine && <span aria-label={item.seen ? seenLabel : sentLabel}>{item.seen ? seenLabel : sentLabel}</span>}</footer>
+      {item.mine && <span className={`human-chat__receipt human-chat__receipt--${status.toLowerCase()}`} aria-label={label} title={label}>
+        {status === 'SENT' ? <Check size={16} aria-hidden="true" /> : <CheckCheck size={16} aria-hidden="true" />}
+      </span>}</footer>
   </li>;
 }
 
@@ -40,7 +45,7 @@ export function HumanMessagesPage() {
   const store = params.get('store');
   const product = params.get('product') ?? undefined;
   const queryClient = useQueryClient();
-  const { status: socketStatus, typing, setTyping } = useHumanChatSocket(selectedId);
+  const { status: socketStatus, typing, setTyping, acknowledgeDelivery } = useHumanChatSocket(selectedId);
   const [page, setPage] = useState(1);
   const [older, setOlder] = useState<HumanMessage[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -49,12 +54,20 @@ export function HumanMessagesPage() {
   const [pendingClientId, setPendingClientId] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [sendingPreview, setSendingPreview] = useState('');
+  const [persistedPreview, setPersistedPreview] = useState<{ conversationId: string; message: HumanMessage } | null>(null);
   const [error, setError] = useState('');
   const [reportOpen, setReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState('');
 
   const conversations = useQuery({ queryKey: ['human-conversations', page], queryFn: () => listHumanConversations(page) });
   const messages = useQuery({ queryKey: ['human-messages', selectedId], queryFn: () => listHumanMessages(selectedId!), enabled: Boolean(selectedId) });
+
+  useEffect(() => {
+    if (socketStatus !== 'connected') return;
+    for (const row of conversations.data?.items ?? []) {
+      if (row.lastMessage && !row.lastMessage.mine) acknowledgeDelivery(row.id, [row.lastMessage.id]);
+    }
+  }, [socketStatus, conversations.data, acknowledgeDelivery]);
 
   useEffect(() => {
     if (!store || user?.role !== 'BUYER') return;
@@ -65,12 +78,17 @@ export function HumanMessagesPage() {
     return () => { cancelled = true; };
   }, [store, product, user?.role, setParams, t]);
 
-  useEffect(() => { setOlder([]); setNextCursor(null); setError(''); }, [selectedId]);
+  useEffect(() => { setOlder([]); setNextCursor(null); setError(''); setPersistedPreview(null); }, [selectedId]);
+  useEffect(() => {
+    if (persistedPreview && messages.data?.items.some((item) => item.id === persistedPreview.message.id)) setPersistedPreview(null);
+  }, [messages.data, persistedPreview]);
   useEffect(() => {
     if (!selectedId || !messages.data) return;
     if (older.length === 0) setNextCursor(messages.data.nextCursor);
-    const latestIncoming = messages.data.items.find((item) => !item.mine);
+    const incoming = [...messages.data.items, ...older].filter((item) => !item.mine);
+    const latestIncoming = incoming[0];
     if (!latestIncoming) return;
+    if (socketStatus === 'connected') acknowledgeDelivery(selectedId, incoming.map((item) => item.id));
     const markVisibleRead = () => {
       if (document.visibilityState !== 'visible') return;
       void markHumanConversationRead(selectedId, latestIncoming.id).then(() => queryClient.invalidateQueries({ queryKey: ['human-conversations'] }));
@@ -78,7 +96,7 @@ export function HumanMessagesPage() {
     markVisibleRead();
     document.addEventListener('visibilitychange', markVisibleRead);
     return () => document.removeEventListener('visibilitychange', markVisibleRead);
-  }, [selectedId, messages.data, queryClient, older.length]);
+  }, [selectedId, messages.data, queryClient, older, socketStatus, acknowledgeDelivery]);
 
   useEffect(() => {
     if (!content || !selectedId) return;
@@ -95,9 +113,11 @@ export function HumanMessagesPage() {
     const clientId = pendingClientId ?? crypto.randomUUID();
     setPendingClientId(clientId);
     try {
-      await sendHumanMessage(selectedId, clientId, content.trim(), files);
+      const persisted = await sendHumanMessage(selectedId, clientId, content.trim(), files);
+      setPersistedPreview({ conversationId: selectedId, message: persisted });
+      setSending(false); setSendingPreview('');
       setContent(''); setFiles([]); setPendingClientId(null);
-      await Promise.all([queryClient.invalidateQueries({ queryKey: ['human-messages', selectedId] }), queryClient.invalidateQueries({ queryKey: ['human-conversations'] })]);
+      void Promise.allSettled([queryClient.invalidateQueries({ queryKey: ['human-messages', selectedId] }), queryClient.invalidateQueries({ queryKey: ['human-conversations'] })]);
     } catch { setError(t('failed')); }
     finally { setSending(false); setSendingPreview(''); }
   }
@@ -151,9 +171,10 @@ export function HumanMessagesPage() {
         {messages.isPending && selectedId && <p>{t('loading')}</p>}
         {messages.isError && <button onClick={() => void messages.refetch()}>{t('retry')}</button>}
         {selectedId && messages.data && <>
-          <header className="human-chat__thread-head"><strong>{user?.role === 'SELLER'
+          <header className="human-chat__thread-head"><div><strong>{user?.role === 'SELLER'
             ? current?.buyerName?.trim() || messages.data.conversation.buyerName?.trim() || t('buyer')
             : current?.storeName ?? messages.data.conversation.storeName}</strong>
+            {typing && <p role="status" className="human-chat__typing">{t(user?.role === 'SELLER' ? 'buyerTyping' : 'sellerTyping')}</p>}</div>
             <div>{(!messages.data.conversation.blocked || messages.data.conversation.blockedByMe) &&
               <button onClick={() => void setBlock(!messages.data!.conversation.blockedByMe)}>{t(messages.data.conversation.blockedByMe ? 'unblock' : 'block')}</button>}
               <button onClick={() => setReportOpen((value) => !value)}>{t('report')}</button></div></header>
@@ -161,10 +182,11 @@ export function HumanMessagesPage() {
             <button disabled={reportReason.trim().length < 10} onClick={() => void report()}>{t('submitReport')}</button></div>}
           {nextCursor && <button onClick={() => void loadOlder()}>{t('previous')}</button>}
           {history.length === 0 && <p>{t('noMessages')}</p>}
-          <ol className="human-chat__history">{history.map((item) => <Message key={item.id} item={item} conversationId={selectedId} sentLabel={t('sent')} seenLabel={t('seen')} />)}
+          <ol className="human-chat__history">{history.map((item) => <Message key={item.id} item={item} conversationId={selectedId} sentLabel={t('sent')} deliveredLabel={t('delivered')} seenLabel={t('seen')} />)}
+            {persistedPreview?.conversationId === selectedId && !history.some((item) => item.id === persistedPreview.message.id) &&
+              <Message item={persistedPreview.message} conversationId={selectedId} sentLabel={t('sent')} deliveredLabel={t('delivered')} seenLabel={t('seen')} />}
             {sending && <li className="human-chat__message human-chat__message--mine" aria-label={t('sending')}>
               {sendingPreview && <p dir="auto">{sendingPreview}</p>}<small>{t('sending')}</small></li>}</ol>
-          {typing && <p role="status" className="human-chat__typing">{t(user?.role === 'SELLER' ? 'buyerTyping' : 'sellerTyping')}</p>}
           {messages.data.conversation.blocked ? <p>{t('blocked')}</p> : <div className="human-chat__compose">
             <textarea value={content} maxLength={2000} onChange={(event) => {
               setContent(event.target.value); setPendingClientId(null); setTyping(Boolean(event.target.value.trim()));

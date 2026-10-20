@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 import { verifyAccessToken } from '../../core/jwt';
 import { redis } from '../../core/redis';
-import { assertConversationCanType, assertConversationParticipant, resolveActor } from './human-chat.service';
+import { acknowledgeDelivery, assertConversationCanType, assertConversationParticipant, resolveActor } from './human-chat.service';
 
 const conversationIdSchema = z.string().cuid();
 let namespace: Namespace | undefined;
@@ -37,7 +37,11 @@ export function registerHumanChatSocket(io: SocketIOServer): void {
 
   namespace.on('connection', (socket) => {
     const typingTimers = new Map<string, ReturnType<typeof setTimeout>>();
+    const lastTypingSignal = new Map<string, number>();
+    const typingGeneration = new Map<string, number>();
     const stopTyping = (id: string) => {
+      typingGeneration.set(id, (typingGeneration.get(id) ?? 0) + 1);
+      lastTypingSignal.delete(id);
       const timer = typingTimers.get(id);
       if (!timer) return;
       clearTimeout(timer);
@@ -82,17 +86,38 @@ export function registerHumanChatSocket(io: SocketIOServer): void {
       const { conversationId, typing } = parsed.data;
       if (!socket.rooms.has(conversationRoom(conversationId))) return;
       if (!typing) { stopTyping(conversationId); return; }
+      if (Date.now() - (lastTypingSignal.get(conversationId) ?? 0) < 500) return;
+      const generation = typingGeneration.get(conversationId) ?? 0;
       try {
         const { actor } = await authenticatedActor(socket.data.humanChatToken as string);
         await assertConversationCanType(actor, conversationId);
-        if (!socket.connected || !socket.rooms.has(conversationRoom(conversationId))) return;
+        if (!socket.connected || !socket.rooms.has(conversationRoom(conversationId))
+          || generation !== (typingGeneration.get(conversationId) ?? 0)) return;
         const current = typingTimers.get(conversationId);
         if (current) clearTimeout(current);
         else socket.to(conversationRoom(conversationId)).emit('typing:changed', { conversationId, typing: true });
         const timer = setTimeout(() => stopTyping(conversationId), 5000);
         timer.unref();
         typingTimers.set(conversationId, timer);
+        lastTypingSignal.set(conversationId, Date.now());
       } catch { stopTyping(conversationId); }
+    });
+    socket.on('delivery:ack', async (payload: unknown, ack?: (result: { ok: boolean; supported?: boolean }) => void) => {
+      const parsed = z.object({ conversationId: conversationIdSchema,
+        messageIds: z.array(z.string().cuid()).min(1).max(50) }).strict().safeParse(payload);
+      if (!parsed.success) {
+        ack?.({ ok: false }); return;
+      }
+      try {
+        const { actor } = await authenticatedActor(socket.data.humanChatToken as string);
+        const result = await acknowledgeDelivery(actor, parsed.data.conversationId, parsed.data.messageIds);
+        if (result.changed && result.senderId) {
+          namespace?.to(userRoom(result.senderId)).emit('delivery:changed', {
+            conversationId: parsed.data.conversationId, messageIds: result.messageIds,
+          });
+        }
+        ack?.({ ok: result.supported, supported: result.supported });
+      } catch { ack?.({ ok: false }); }
     });
   });
 }

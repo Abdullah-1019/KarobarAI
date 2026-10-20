@@ -1,6 +1,7 @@
 // Urdu translation bundle — "common" namespace for Day 1; per-screen namespaces are added
 // alongside each feature as it lands (react-i18next).
 export const humanChat = {
+  delivered: 'پہنچ گیا',
   buyer: 'خریدار', buyerTyping: 'خریدار لکھ رہا ہے…', sellerTyping: 'فروخت کنندہ لکھ رہا ہے…',
   sending: 'بھیجا جا رہا ہے…', sent: 'بھیج دیا گیا', seen: 'دیکھ لیا گیا',
   displayName: 'پیغامات میں فروخت کنندہ کو دکھایا جانے والا نام', saveName: 'نام محفوظ کریں', nameError: '۲ سے ۸۰ حروف کا نام درج کریں اور دوبارہ کوشش کریں۔',

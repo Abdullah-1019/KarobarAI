@@ -78,6 +78,7 @@ export function AddProductPage() {
 
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
+  const [generateErrorCode, setGenerateErrorCode] = useState<string | null>(null);
   const [aiGenerated, setAiGenerated] = useState(false);
   const [revealKey, setRevealKey] = useState(0);
   const [categoryGuess, setCategoryGuess] = useState<string | null>(null);
@@ -122,6 +123,7 @@ export function AddProductPage() {
 
   async function handleGenerate(id: string) {
     setGenerateError(null);
+    setGenerateErrorCode(null);
     setGenerating(true);
     try {
       const result = await generateDraft(id);
@@ -142,6 +144,7 @@ export function AddProductPage() {
       toast.success(t('catalog:aiWizard.generateSuccess'));
     } catch (err) {
       setGenerateError(formatCatalogError(t, err));
+      setGenerateErrorCode(err instanceof ApiError ? err.code : null);
       setAiGenerated(false);
     } finally {
       setGenerating(false);
@@ -297,7 +300,7 @@ export function AddProductPage() {
           message={generateError}
           description={t('catalog:aiWizard.generateFailedHint')}
           action={
-            stagingId && (
+            stagingId && generateErrorCode !== 'AI_IMAGE_NOT_IDENTIFIABLE' && (
               <Button size="small" onClick={() => handleGenerate(stagingId)}>
                 {t('catalog:aiWizard.retry')}
               </Button>

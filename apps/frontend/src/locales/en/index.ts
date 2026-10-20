@@ -415,6 +415,7 @@ export const catalog = {
     PRODUCT_IMAGE_REQUIRED: 'Upload at least one image first.',
     PRODUCT_NOT_DRAFT: 'This action is only available for draft products.',
     AI_GENERATION_FAILED: 'AI generation is unavailable right now — try again shortly.',
+    AI_IMAGE_NOT_IDENTIFIABLE: 'AI could not identify a product in this photo. Upload a clear photo of the item, or enter the details yourself.',
     AI_GENERATION_TIMEOUT: 'AI generation took too long — try again, or fill in the details yourself.',
     AI_SERVICE_UNAVAILABLE: 'AI generation is temporarily unavailable — try again, or fill in the details yourself.',
     AI_STAGING_NOT_FOUND: 'Your uploaded photos expired — please upload again.',

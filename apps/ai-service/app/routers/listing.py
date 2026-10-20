@@ -20,7 +20,7 @@ _orchestrator = build_default_orchestrator()
 @router.post(
     "/generate-listing",
     response_model=GeneratedListing,
-    responses={502: {"description": "Listing generation failed"}},
+    responses={422: {"description": "Photo did not identify a product"}, 502: {"description": "Listing generation failed"}},
 )
 def generate_listing_route(payload: GenerateListingRequest) -> GeneratedListing | JSONResponse:
     try:
@@ -32,4 +32,6 @@ def generate_listing_route(payload: GenerateListingRequest) -> GeneratedListing 
                 return JSONResponse(status_code=503, content={"error": "LISTING_PROVIDER_NOT_CONFIGURED"})
             if cause.reason == "rate_limited":
                 return JSONResponse(status_code=429, content={"error": "LISTING_PROVIDER_RATE_LIMITED"})
+            if cause.reason == "unidentifiable_image":
+                return JSONResponse(status_code=422, content={"error": "LISTING_IMAGE_NOT_IDENTIFIABLE"})
         return JSONResponse(status_code=502, content={"error": "GENERATION_FAILED"})

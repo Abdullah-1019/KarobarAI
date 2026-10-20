@@ -13,7 +13,7 @@ import axios from 'axios';
 
 import { getStorageAdapter } from '../../adapters/storage';
 import { config } from '../../core/config';
-import { DependencyError, NotFoundError } from '../../core/errors/AppError';
+import { BusinessRuleError, DependencyError, NotFoundError } from '../../core/errors/AppError';
 import { logger } from '../../core/logger';
 import { prisma } from '../../core/prisma';
 import { validateImageFile } from '../../core/upload/imageValidation';
@@ -70,7 +70,10 @@ const CORE_API_AI_TIMEOUT_MS = config.aiServiceTimeoutMs;
 // silently defeat this distinction in tests. Real axios errors carry these same properties
 // regardless of whether isAxiosError() is called.
 function classifyAiServiceError(err: unknown): { code: string; message: string } {
-  const shaped = err as { code?: string; response?: { status?: number } } | null;
+  const shaped = err as { code?: string; response?: { status?: number; data?: { error?: string } } } | null;
+  if (shaped?.response?.status === 422 && shaped.response.data?.error === 'LISTING_IMAGE_NOT_IDENTIFIABLE') {
+    return { code: 'AI_IMAGE_NOT_IDENTIFIABLE', message: 'AI could not identify a product in this image' };
+  }
   if (shaped?.code === 'ECONNABORTED') {
     return { code: 'AI_GENERATION_TIMEOUT', message: 'AI listing generation timed out' };
   }
@@ -99,6 +102,9 @@ async function callAiService(imageUrl: string, hint: string | undefined) {
   } catch (err) {
     const { code, message } = classifyAiServiceError(err);
     logger.warn({ code }, '[ai-store-builder] AI Service call failed');
+    if (code === 'AI_IMAGE_NOT_IDENTIFIABLE') {
+      throw new BusinessRuleError(message, undefined, code);
+    }
     throw new DependencyError(message, undefined, code);
   }
 }

@@ -160,7 +160,11 @@ class GeminiListingClient(LlmClient):
             if not isinstance(data, dict) or set(data) != set(FIELDS):
                 raise ValueError("unexpected listing fields")
             listing = GeneratedListing.model_validate(data)
-            if not all(getattr(listing, name).strip() for name in FIELDS[:4]):
+            # The prompt explicitly asks for empty titles when the photo does not identify
+            # a product. Keep that seller-actionable outcome distinct from a provider fault.
+            if not listing.title_en.strip() or not listing.title_ur.strip():
+                raise GeminiListingError("unidentifiable_image")
+            if not listing.description_en.strip() or not listing.description_ur.strip():
                 raise ValueError("empty required listing text")
             return listing
         except (ValueError, TypeError, KeyError, IndexError, ValidationError) as error:

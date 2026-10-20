@@ -39,6 +39,8 @@ aiStoreBuilderRouter.post('/upload', arrayImageUpload('images', 10, 'PRODUCT_IMA
  *         description: "AiGenerateResponseDTO — {stagingId, draft, seoPreview}. Retry-safe: re-invokes generation against the same stagingId without re-upload."
  *       404:
  *         description: AI_STAGING_NOT_FOUND (expired or unknown stagingId)
+ *       422:
+ *         description: AI_IMAGE_NOT_IDENTIFIABLE (upload a clear product photo or enter details manually)
  *       503:
  *         description: AI_GENERATION_TIMEOUT | AI_GENERATION_FAILED | AI_SERVICE_UNAVAILABLE (DependencyError — distinguish by error.code, not status)
  */

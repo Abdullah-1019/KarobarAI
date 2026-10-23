@@ -19,7 +19,8 @@ import {
 
 import type { SellerFraudFlag, SellerPerformanceItemDTO } from '@karobarai/shared';
 import { EmptyState, PageHeader, PriceDisplay, SkeletonLoader, StatusTag, type StatusVariant } from '../../components';
-import { DateRangeFilter, toRangeParams, type RangePreset } from '../analytics/DateRangeFilter';
+import { DateRangeFilter } from '../analytics/DateRangeFilter';
+import { toRangeParams, type RangePreset } from '../analytics/rangePresets';
 import { getGmvTrend, getOrderReturnTrend, getSellerPerformance, gmvTrendQueryKey, orderReturnTrendQueryKey, sellerPerformanceQueryKey } from './adminApi';
 import { formatAdminError } from './adminErrors';
 

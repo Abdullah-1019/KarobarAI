@@ -17,11 +17,9 @@ export function PasswordStrength({ password }: { password: string }) {
           <span key={segment} className="kaStrengthSeg" />
         ))}
       </div>
-      {score > 0 && (
-        <span className="kaStrengthLabel">
-          {t(`common:passwordStrength.${labelKey}`)}
-        </span>
-      )}
+      <span className="kaStrengthLabel" aria-live="polite">
+        {score > 0 ? t(`common:passwordStrength.${labelKey}`) : null}
+      </span>
     </div>
   );
 }
@@ -33,17 +31,21 @@ const RULES = [
   { key: 'special', test: (p: string) => /[^A-Za-z0-9]/.test(p) },
 ] as const;
 
-// The four-item rule checklist beneath a password field, expanded while the field is focused.
-export function PasswordChecklist({ password, visible }: { password: string; visible: boolean }) {
+// The four-rule checklist beneath a password field: a fixed 2×2 grid of chips that is always laid
+// out (no collapsing max-height), so the form never jumps — only each chip's colour changes as a
+// rule is met.
+export function PasswordChecklist({ password }: { password: string }) {
   const { t } = useTranslation(['auth']);
 
   return (
-    <ul className="kaChecklist" data-visible={visible}>
+    <ul className="kaChecklist">
       {RULES.map((rule) => {
         const met = rule.test(password);
         return (
           <li key={rule.key} className="kaChecklistItem" data-met={met}>
-            <Check size={14} aria-hidden="true" />
+            <span className="kaChecklistMark" aria-hidden="true">
+              <Check size={11} strokeWidth={3} />
+            </span>
             {t(`auth:controls.checklist.${rule.key}`)}
           </li>
         );

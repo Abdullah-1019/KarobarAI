@@ -1,19 +1,31 @@
-import { useEffect, useRef, useState } from 'react';
-import { Alert, Button, Card, Input, Space, Spin, Typography } from 'antd';
-import { Send } from 'lucide-react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { AlertCircle, Boxes, ClipboardList, PackageX, Plus, RotateCcw, SendHorizontal, Square, TrendingUp, Truck, type LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-import { PageHeader } from '../../components';
+import { AiMark } from '../../components';
 import { ChatMarkdown } from '../ai-chat/ChatMarkdown';
 import { useAuthStore } from '../../lib/authStore';
 import { getSellerAssistantConversation, streamSellerAssistantMessage, type SellerAssistantMessage } from './sellerAssistantApi';
+import './sellerAssistant.css';
 
+const PROMPTS: Array<{ key: string; icon: LucideIcon }> = [
+  { key: 'sales', icon: TrendingUp },
+  { key: 'pending', icon: ClipboardList },
+  { key: 'stock', icon: PackageX },
+  { key: 'top', icon: Boxes },
+  { key: 'returns', icon: RotateCcw },
+  { key: 'delivery', icon: Truck },
+];
+
+// Seller's read-only business assistant. Streams replies (streamSellerAssistantMessage) and keeps
+// the session per seller in sessionStorage. Layout: an AiMark welcome with suggested questions
+// as pills; then the user's questions as ink bubbles and the assistant's answers as plain text
+// beside the mark, with a calm three-dot indicator until the first words arrive.
 export function SellerAssistantPage() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation(['catalog']);
   const sellerUserId = useAuthStore((state) => state.user?.id);
   const sessionStorageKey = sellerUserId ? `seller-assistant-session:${sellerUserId}` : undefined;
   const locale = i18n.language.toLowerCase().startsWith('ur') ? 'ur' : 'en';
-  const isUrdu = locale === 'ur';
   const [sessionId, setSessionId] = useState<string | undefined>(() => {
     if (!sessionStorageKey || typeof window === 'undefined') return undefined;
     return window.sessionStorage.getItem(sessionStorageKey) ?? undefined;
@@ -23,11 +35,15 @@ export function SellerAssistantPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const activeRequest = useRef<AbortController | null>(null);
   const pendingRequest = useRef<{ id: string; message: string } | null>(null);
   useEffect(() => () => activeRequest.current?.abort(), []);
 
-  useEffect(() => { scrollRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, loading]);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+  }, [messages, loading]);
   useEffect(() => {
     if (!sessionId || !sessionStorageKey) return;
     window.sessionStorage.setItem(sessionStorageKey, sessionId);
@@ -35,21 +51,30 @@ export function SellerAssistantPage() {
       window.sessionStorage.removeItem(sessionStorageKey);
       setSessionId(undefined);
       setMessages([]);
-      setError(isUrdu ? 'گفتگو لوڈ نہیں ہو سکی۔' : 'Conversation could not be loaded.');
+      setError(t('catalog:assistantChat.loadError'));
     });
   // Reload persisted history when a session is created; send response already updates the view.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId, sessionStorageKey]);
 
+  useLayoutEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 140)}px`;
+  }, [draft]);
+
   function startNewConversation() {
+    activeRequest.current?.abort();
     if (sessionStorageKey) window.sessionStorage.removeItem(sessionStorageKey);
     setSessionId(undefined);
     setMessages([]);
     setError('');
+    inputRef.current?.focus();
   }
 
-  async function send() {
-    const message = draft.trim();
+  async function send(text?: string) {
+    const message = (text ?? draft).trim();
     if (!message || loading) return;
     setDraft(''); setError(''); setLoading(true);
     const userAt = new Date().toISOString();
@@ -57,12 +82,12 @@ export function SellerAssistantPage() {
     const controller = new AbortController();
     activeRequest.current = controller;
     if (pendingRequest.current?.message !== message) pendingRequest.current = { id: crypto.randomUUID(), message };
-    const replyAt = new Date().toISOString();
+    const replyAt = new Date(Date.now() + 1).toISOString();
     setMessages((current) => [...current, { role: 'ASSISTANT', content: '', createdAt: replyAt }]);
     try {
-      const result = await streamSellerAssistantMessage({ message, sessionId, locale, requestId: pendingRequest.current!.id }, (text) => {
+      const result = await streamSellerAssistantMessage({ message, sessionId, locale, requestId: pendingRequest.current!.id }, (delta) => {
         setMessages((current) => current.map((item) => item.createdAt === replyAt && item.role === 'ASSISTANT'
-          ? { ...item, content: item.content + text } : item));
+          ? { ...item, content: item.content + delta } : item));
       }, controller.signal);
       setSessionId(result.sessionId);
       pendingRequest.current = null;
@@ -70,37 +95,96 @@ export function SellerAssistantPage() {
         ? { ...item, content: result.reply } : item));
     } catch {
       setMessages((current) => current.filter((item) => item.createdAt !== replyAt && item.createdAt !== userAt));
-      setError(controller.signal.aborted ? (isUrdu ? 'جواب روک دیا گیا۔' : 'Generation stopped.')
-        : (isUrdu ? 'پیغام نہیں بھیجا جا سکا۔ دوبارہ کوشش کریں۔' : 'Message could not be sent. Please try again.'));
+      setError(controller.signal.aborted ? t('catalog:assistantChat.stopped') : t('catalog:assistantChat.sendError'));
       setDraft(message);
     } finally { if (activeRequest.current === controller) activeRequest.current = null; setLoading(false); }
   }
 
+  const empty = messages.length === 0;
+
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto' }}>
-      <PageHeader title={isUrdu ? 'کاروباری معاون' : 'Business assistant'} />
-      <Card extra={messages.length > 0 ? <Button size="small" onClick={startNewConversation}>{isUrdu ? '\u0646\u0626\u06cc \u06af\u0641\u062a\u06af\u0648' : 'New conversation'}</Button> : undefined}>
-        <Typography.Paragraph type="secondary">
-          {isUrdu ? 'اپنی فروخت، آرڈرز، انوینٹری، جائزوں، واپسیوں یا ڈیلیوری کے بارے میں پوچھیں۔ یہ معاون صرف ڈیٹا پڑھ سکتا ہے۔' : 'Ask about sales, orders, inventory, reviews, returns, or deliveries. This assistant is read-only.'}
-        </Typography.Paragraph>
-        <div dir={isUrdu ? 'rtl' : 'ltr'} style={{ minHeight: 300, maxHeight: '55vh', overflowY: 'auto', padding: 12 }} aria-live="polite">
-          <Space direction="vertical" style={{ width: '100%' }} size="middle">
-            {messages.map((message, index) => (
-              <div key={`${message.createdAt}-${index}`} style={{ alignSelf: message.role === 'USER' ? 'flex-end' : 'flex-start', maxWidth: '90%', margin: 0, padding: 12, borderRadius: 10, background: message.role === 'USER' ? 'var(--brand-primary-soft)' : 'var(--bg-sunken)' }}>
-                {message.role === 'ASSISTANT' ? <ChatMarkdown content={message.content} /> : message.content}
-              </div>
-            ))}
-            {loading && <Spin size="small" />}
-            {loading && <Button onClick={() => activeRequest.current?.abort()}>{isUrdu ? 'جواب روکیں' : 'Stop generating'}</Button>}
-            <div ref={scrollRef} />
-          </Space>
+    <div className="saPage">
+      <header className="saHead">
+        <span className="saHeadMark" aria-hidden="true"><AiMark size={20} color="var(--ai-accent)" /></span>
+        <div className="saHeadText">
+          <h1>{t('catalog:assistantChat.title')}</h1>
+          <p>{t('catalog:assistantChat.subtitle')}</p>
         </div>
-        {error && <Alert type="error" showIcon message={error} style={{ margin: '12px 0' }} />}
-        <Space.Compact style={{ width: '100%', marginTop: 12 }}>
-          <Input.TextArea value={draft} maxLength={1000} autoSize={{ minRows: 1, maxRows: 4 }} aria-label={isUrdu ? 'آپ کا پیغام' : 'Your message'} placeholder={isUrdu ? 'اپنا سوال لکھیں' : 'Ask a business question'} onChange={(event) => setDraft(event.target.value)} onPressEnter={(event) => { if (!event.shiftKey) { event.preventDefault(); void send(); } }} />
-          <Button type="primary" icon={<Send size={16} />} aria-label={isUrdu ? 'بھیجیں' : 'Send'} loading={loading} disabled={!draft.trim()} onClick={() => void send()} />
-        </Space.Compact>
-      </Card>
+        {!empty && (
+          <button type="button" className="saGhost" onClick={startNewConversation}>
+            <Plus size={16} aria-hidden="true" /> {t('catalog:assistantChat.newChat')}
+          </button>
+        )}
+      </header>
+
+      <section className="saChat" dir={locale === 'ur' ? 'rtl' : 'ltr'}>
+        <div className="saScroll" ref={scrollRef} aria-live="polite">
+          {empty ? (
+            <div className="saWelcome">
+              <span className="saOrb" aria-hidden="true"><AiMark size={40} color="var(--ai-accent)" /></span>
+              <h2>{t('catalog:assistantChat.welcomeTitle')}</h2>
+              <p>{t('catalog:assistantChat.welcomeBody')}</p>
+              <ul className="saPrompts">
+                {PROMPTS.map(({ key, icon: Icon }, index) => (
+                  <li key={key} style={{ animationDelay: `${120 + index * 60}ms` }}>
+                    <button type="button" className="saPrompt" disabled={loading} onClick={() => void send(t(`catalog:assistantChat.prompts.${key}`))}>
+                      <Icon size={16} aria-hidden="true" />
+                      {t(`catalog:assistantChat.prompts.${key}`)}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <ol className="saThread">
+              {messages.map((message, index) => (
+                message.role === 'USER' ? (
+                  <li key={`${message.createdAt}-${index}`} className="saUser" dir="auto">{message.content}</li>
+                ) : (
+                  <li key={`${message.createdAt}-${index}`} className="saBot">
+                    <span className="saBotMark" aria-hidden="true"><AiMark size={16} color="var(--ai-accent)" /></span>
+                    <div className="saBotBody">
+                      {message.content
+                        ? <ChatMarkdown content={message.content} />
+                        : <span className="saThinking" role="status"><span className="saDots" aria-hidden="true"><i /><i /><i /></span>{t('catalog:assistantChat.thinking')}</span>}
+                    </div>
+                  </li>
+                )
+              ))}
+            </ol>
+          )}
+        </div>
+
+        {loading && (
+          <button type="button" className="saStop" onClick={() => activeRequest.current?.abort()}>
+            <Square size={12} aria-hidden="true" /> {t('catalog:assistantChat.stop')}
+          </button>
+        )}
+
+        {error && <p className="saError" role="alert"><AlertCircle size={16} aria-hidden="true" />{error}</p>}
+
+        <div className="saCompose">
+          <div className="saComposeBar">
+            <textarea
+              ref={inputRef}
+              rows={1}
+              value={draft}
+              maxLength={1000}
+              dir="auto"
+              aria-label={t('catalog:assistantChat.inputLabel')}
+              placeholder={t('catalog:assistantChat.placeholder')}
+              onChange={(event) => setDraft(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); void send(); }
+              }}
+            />
+            <button type="button" className="saSend" aria-label={t('catalog:assistantChat.send')} disabled={!draft.trim() || loading} onClick={() => void send()}>
+              <SendHorizontal size={18} aria-hidden="true" />
+            </button>
+          </div>
+          <p className="saNote">{t('catalog:assistantChat.note')}</p>
+        </div>
+      </section>
     </div>
   );
 }

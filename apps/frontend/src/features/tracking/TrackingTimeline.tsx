@@ -61,9 +61,15 @@ export function TrackingTimeline({ timeline, colorForStatus }: TrackingTimelineP
         const Icon = STATUS_ICON[event.status] ?? Circle;
         const color = colorForStatus?.(event.status) ?? (isCurrent ? 'var(--brand-primary)' : 'var(--text-secondary)');
         return (
-          <div key={`${event.status}-${event.eventTime}`} style={{ display: 'flex', gap: 'var(--sp-3)' }}>
+          <div
+            key={`${event.status}-${event.eventTime}`}
+            className="tlEvent"
+            data-current={isCurrent || undefined}
+            style={{ display: 'flex', gap: 'var(--sp-3)', animationDelay: `${Math.min(index, 8) * 70}ms` }}
+          >
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <span
+                className="tlIcon"
                 style={{
                   display: 'flex',
                   alignItems: 'center',

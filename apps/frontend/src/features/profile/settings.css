@@ -1,0 +1,527 @@
+/* Settings, Store/Brand and Change password (Studio Light). Builds on profile.css (pfPage, pfTabs,
+   pfPanel): grouped white cards with an icon tile and a one-line hint, two-column field grids,
+   a lilac AI helper, selectable language tiles, notification rows. Logical properties throughout. */
+
+.stPage {
+  max-width: 960px;
+}
+.stHead {
+  display: grid;
+  gap: 4px;
+}
+.stTitle {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: clamp(26px, 2.6vw, 34px);
+  font-weight: 600;
+  line-height: 1.15;
+}
+.stSub {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+}
+.stStack {
+  display: grid;
+  gap: 16px;
+}
+
+/* Cards */
+.stCard {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  padding: clamp(16px, 2.2vw, 24px);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  background: var(--bg-surface);
+  animation: stRise 420ms var(--ease-soft) both;
+}
+.stStack > .stCard:nth-child(2),
+.stStack > form > .stCard:nth-child(2) {
+  animation-delay: 60ms;
+}
+.stStack > .stCard:nth-child(3),
+.stStack > form > .stCard:nth-child(3) {
+  animation-delay: 120ms;
+}
+.stCardHead {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.stCardHead > div {
+  flex: 1;
+  min-width: 0;
+}
+.stCardIcon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 13px;
+  background: var(--studio-tint-lilac);
+  color: var(--info);
+}
+.stCardTitle {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 17px;
+  font-weight: 600;
+}
+.stCardHint {
+  margin: 2px 0 0;
+  font-size: var(--fs-xs);
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+/* Fields */
+.stGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 18px;
+}
+.stField {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-width: 0;
+}
+.stLabel {
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.stError {
+  font-size: var(--fs-xs);
+  color: var(--error);
+}
+.stUrdu {
+  font-family: var(--font-urdu-ui);
+  line-height: 1.9;
+}
+
+/* AI helper */
+.stAi {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid color-mix(in srgb, var(--ai-accent) 35%, var(--border));
+  border-radius: 20px;
+  background:
+    radial-gradient(90% 120% at 100% 0%, color-mix(in srgb, var(--wash-peach) 80%, transparent), transparent 70%),
+    var(--studio-tint-lilac);
+}
+.stAiHead {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.stAiMark {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: var(--studio-ink);
+}
+.stAiTitle {
+  margin: 0;
+  font-weight: 600;
+}
+.stSuggestion {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 16px;
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-sm);
+  animation: stRise 320ms var(--ease-soft);
+}
+.stSuggestionTitle {
+  margin: 0;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--success);
+}
+.stSuggestionPair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.stSuggestionPair p {
+  margin: 0;
+  font-size: var(--fs-sm);
+  line-height: 1.6;
+}
+
+/* Logo + banner */
+.stMedia {
+  display: grid;
+  grid-template-columns: minmax(0, 220px) minmax(0, 1fr);
+  gap: 18px;
+}
+.stMediaItem {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  padding: 14px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 18px;
+  min-width: 0;
+}
+
+/* Status */
+.stStatus {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+.stStatusValue {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.stShimmer {
+  display: block;
+  width: 120px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--bg-sunken);
+  animation: stPulse 1.4s ease-in-out infinite;
+}
+
+/* Sticky save bar (base look from seller.css .slActionBar) */
+.stActionBar {
+  align-items: center;
+  justify-content: space-between;
+  padding-inline-start: 20px;
+}
+.stActionHint {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+/* Language tiles */
+.stLangs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.stLang {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1.5px solid var(--border);
+  border-radius: 18px;
+  background: var(--bg-surface);
+  font: inherit;
+  color: var(--text-primary);
+  text-align: start;
+  cursor: pointer;
+  transition:
+    border-color var(--dur-fast) var(--ease),
+    background var(--dur-fast) var(--ease),
+    transform var(--dur-base) var(--ease-soft);
+}
+.stLang:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: var(--border-strong);
+}
+.stLang[aria-checked='true'] {
+  border-color: var(--brand-ink);
+  background: var(--wash-lilac);
+}
+.stLang:disabled {
+  cursor: progress;
+}
+.stLangSample {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: var(--bg-sunken);
+  font-family: var(--font-heading);
+  font-size: 18px;
+  font-weight: 600;
+}
+.stLangSample[lang='ur'],
+.stLangName[lang='ur'] {
+  font-family: var(--font-urdu);
+}
+.stLang[aria-checked='true'] .stLangSample {
+  background: var(--bg-surface);
+}
+.stLangName {
+  flex: 1;
+  font-weight: 600;
+}
+.stLangCheck {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 50%;
+  color: transparent;
+  transition: all var(--dur-fast) var(--ease);
+}
+.stLang[aria-checked='true'] .stLangCheck {
+  border-color: var(--brand-ink);
+  background: var(--brand-ink);
+  color: var(--text-on-dark);
+}
+
+/* Notification rows */
+.stRows {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.stRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-block: 14px;
+}
+.stRow + .stRow {
+  border-block-start: 1px solid var(--border);
+}
+.stRowIcon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 13px;
+  background: var(--wash-peach);
+  color: var(--accent-ink);
+}
+.stRow:nth-child(2n) .stRowIcon {
+  background: var(--studio-tint-lilac);
+  color: var(--info);
+}
+.stRowText {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+  min-width: 0;
+}
+.stRowText label {
+  font-weight: 600;
+  font-size: var(--fs-sm);
+}
+.stRowText span {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+.stLocked {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-sunken);
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.stSaved {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--success);
+  white-space: nowrap;
+  animation: stFade 2.4s var(--ease) forwards;
+}
+.stSr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.stLang:focus-visible {
+  outline: 3px solid var(--brand-ring);
+  outline-offset: 2px;
+}
+
+/* Change password */
+.cpLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 300px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+.cpAside {
+  display: grid;
+  gap: 12px;
+  padding: 22px;
+  border-radius: 24px;
+  background:
+    radial-gradient(90% 90% at 0% 0%, var(--wash-lilac-blob), transparent 70%),
+    var(--wash-lilac);
+  animation: stRise 420ms var(--ease-soft) both;
+}
+.cpAsideIcon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: var(--bg-surface);
+  color: var(--info);
+  box-shadow: var(--shadow-sm);
+}
+.cpTips {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+.cpTips li {
+  display: flex;
+  gap: 8px;
+}
+.cpTips svg {
+  flex-shrink: 0;
+  margin-block-start: 2px;
+  color: var(--text-primary);
+}
+.cpForm {
+  animation-delay: 60ms;
+}
+.cpFields {
+  display: grid;
+  gap: 16px;
+}
+.cpMatch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: -8px 0 0;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+}
+.cpMatch[data-state='match'] {
+  color: var(--success);
+}
+.cpMatch[data-state='mismatch'] {
+  color: var(--error);
+}
+.cpActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-block-start: 4px;
+}
+.cpDone {
+  justify-items: center;
+  max-width: 520px;
+  margin-inline: auto;
+  padding: 36px 24px;
+  text-align: center;
+}
+.cpDoneMark {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: var(--success);
+  color: var(--text-on-brand);
+  box-shadow: 0 0 0 10px var(--success-soft);
+  animation: stPop 520ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* Motion */
+@keyframes stRise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@keyframes stPulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+@keyframes stFade {
+  0%,
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes stPop {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+}
+
+/* Urdu */
+[dir='rtl'] .stTitle,
+[dir='rtl'] .stCardTitle {
+  font-family: var(--font-urdu);
+  line-height: 1.8;
+}
+
+@media (max-width: 767px) {
+  .stGrid,
+  .stSuggestionPair,
+  .stMedia,
+  .stLangs,
+  .cpLayout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .stStatus {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .stActionBar {
+    border-radius: 20px;
+  }
+  .stActionHint {
+    display: none;
+  }
+  .stRow {
+    flex-wrap: wrap;
+  }
+  .stRowText {
+    flex-basis: calc(100% - 120px);
+  }
+  .cpActions .ant-btn {
+    flex: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stCard,
+  .stSuggestion,
+  .stShimmer,
+  .stSaved,
+  .cpAside,
+  .cpDoneMark {
+    animation: none;
+  }
+  .stLang,
+  .stLangCheck {
+    transition: none;
+  }
+}

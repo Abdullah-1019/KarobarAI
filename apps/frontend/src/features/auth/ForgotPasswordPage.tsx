@@ -29,6 +29,7 @@ export function ForgotPasswordPage() {
   const [sentInput, setSentInput] = useState<ForgotPasswordInput | null>(null);
   const [cooldown, setCooldown] = useState(0);
   const [resending, setResending] = useState(false);
+  const [resent, setResent] = useState(false);
 
   const {
     control,
@@ -70,10 +71,12 @@ export function ForgotPasswordPage() {
   async function handleResend() {
     if (cooldown > 0 || resending || !sentInput) return;
     setSubmitError(null);
+    setResent(false);
     setResending(true);
     try {
       await forgotPassword(sentInput);
       setCooldown(RESEND_COOLDOWN_SECONDS);
+      setResent(true);
     } catch (err) {
       setSubmitError(formatAuthError(t, err));
     } finally {
@@ -90,15 +93,20 @@ export function ForgotPasswordPage() {
           title={t('auth:forgotPassword.sent')}
           description={t('auth:forgotPassword.sentInstructions')}
         >
+          {submitError ? (
+            <FormAlert variant="error">{submitError}</FormAlert>
+          ) : resent ? (
+            <FormAlert variant="info">{t('auth:forgotPassword.resent')}</FormAlert>
+          ) : null}
           <PrimaryButton onClick={() => navigate('/login')}>
             {t('auth:forgotPassword.returnToLogin')}
           </PrimaryButton>
-          <div className="kaResendRow">
+          <div className="kaResendRow" aria-live="polite">
             {cooldown > 0 ? (
               <span>{t('auth:forgotPassword.resendIn', { seconds: cooldown })}</span>
             ) : (
               <button type="button" className="kaTextButton" onClick={handleResend} disabled={resending}>
-                {t('auth:forgotPassword.resend')}
+                {resending ? t('auth:forgotPassword.resending') : t('auth:forgotPassword.resend')}
               </button>
             )}
           </div>
@@ -131,12 +139,13 @@ export function ForgotPasswordPage() {
               error={errors.identifier?.message}
               placeholder={t('auth:forgotPassword.identifierPlaceholder')}
               autoComplete="username"
+              disabled={submitting}
               autoFocus
             />
           )}
         />
 
-        <PrimaryButton type="submit" loading={submitting}>
+        <PrimaryButton type="submit" loading={submitting} loadingLabel={t('auth:forgotPassword.sending')}>
           {t('auth:forgotPassword.submit')}
         </PrimaryButton>
       </form>

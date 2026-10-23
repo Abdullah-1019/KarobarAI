@@ -23,6 +23,8 @@ export function LoginPage() {
   const location = useLocation();
   const setSession = useAuthStore((state) => state.setSession);
 
+  // Arriving from a successful OTP check: confirm it here (OTP hands over to /login, no auto-login).
+  const justVerified = (location.state as { verified?: boolean } | null)?.verified === true;
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -72,7 +74,11 @@ export function LoginPage() {
         </>
       }
     >
-      {submitError && <FormAlert variant="error">{submitError}</FormAlert>}
+      {submitError ? (
+        <FormAlert variant="error">{submitError}</FormAlert>
+      ) : justVerified ? (
+        <FormAlert variant="success">{t('auth:login.verifiedNotice')}</FormAlert>
+      ) : null}
 
       <form onSubmit={onSubmit} noValidate>
         <Controller
@@ -88,6 +94,7 @@ export function LoginPage() {
               onBlur={field.onBlur}
               placeholder={t('auth:login.identifierPlaceholder')}
               autoComplete="username"
+              disabled={submitting}
               error={errors.identifier?.message}
             />
           )}
@@ -110,12 +117,13 @@ export function LoginPage() {
               onBlur={field.onBlur}
               placeholder={t('auth:login.passwordPlaceholder')}
               autoComplete="current-password"
+              disabled={submitting}
               error={errors.password?.message}
             />
           )}
         />
 
-        <PrimaryButton type="submit" loading={submitting} loadingLabel={t('auth:login.submit')}>
+        <PrimaryButton type="submit" loading={submitting} loadingLabel={t('auth:login.submitting')}>
           {t('auth:login.submit')}
         </PrimaryButton>
       </form>

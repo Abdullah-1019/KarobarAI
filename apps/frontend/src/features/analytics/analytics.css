@@ -1,0 +1,895 @@
+/* Seller analytics (Studio Light). A frosted lilac header band with one big figure and divided
+   segments, over glass cards that frost the shell's fixed washes. Persimmon marks the sales data
+   (the page's headline series); ink and indigo carry the rest. Logical properties throughout, so
+   everything mirrors under dir="rtl". */
+
+.anPage {
+  --an-glass: color-mix(in srgb, var(--bg-surface) 72%, transparent);
+  --an-edge: color-mix(in srgb, var(--bg-surface) 85%, transparent);
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+}
+
+/* ── Header band ─────────────────────────────────────────────────────────────────────────── */
+.anHero {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  gap: 24px;
+  padding: 26px 28px 18px;
+  border: 1px solid var(--an-edge);
+  border-radius: 28px;
+  background:
+    radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--wash-lilac) 92%, transparent), transparent 60%),
+    radial-gradient(90% 120% at 100% 100%, color-mix(in srgb, var(--wash-peach) 70%, transparent), transparent 65%),
+    var(--an-glass);
+  backdrop-filter: saturate(1.5) blur(18px);
+  -webkit-backdrop-filter: saturate(1.5) blur(18px);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+  animation: anRise 520ms var(--ease-soft) both;
+}
+.anHeroHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+.anEyebrow {
+  margin: 0 0 4px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.anTitle {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: clamp(26px, 2.2vw + 0.8rem, 36px);
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+}
+
+/* Three divided segments, like a statement header. */
+.anHeroRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, 1fr);
+}
+.anSeg {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding-inline: 24px;
+  border-inline-start: 1px solid var(--border-strong);
+}
+.anSeg--lead,
+.anHeroRow > .anSeg:first-child {
+  padding-inline-start: 0;
+  border-inline-start: 0;
+}
+.anSegLabel {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+}
+.anHeroNum {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: clamp(36px, 3.4vw + 1rem, 52px);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+.anHeroFrac {
+  color: var(--text-disabled);
+}
+.anSegNum {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+.anSegAside {
+  font-family: var(--font-body);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+.anSegHint {
+  margin: auto 0 0;
+  font-size: var(--fs-xs);
+  color: var(--text-tertiary);
+}
+
+/* Orders: one thin bar per day (delivered count), a barcode of the range. */
+.anBars {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  block-size: 44px;
+}
+.anBars--dense {
+  gap: 1px;
+}
+.anBar {
+  flex: 1 1 0;
+  min-inline-size: 1px;
+  max-inline-size: 10px;
+  border-radius: 2px 2px 0 0;
+  background: var(--border-strong);
+  transform-origin: bottom;
+  animation: anGrowY 600ms var(--ease-soft) both;
+}
+.anBar.is-on {
+  background: var(--brand-ink);
+}
+
+/* Buyers: new vs repeat split bar + legend. */
+.anSplit {
+  display: flex;
+  gap: 2px;
+  block-size: 10px;
+  margin-block-start: 6px;
+}
+.anSplitPart {
+  border-radius: 999px;
+  transform-origin: left;
+  animation: anGrowX 700ms var(--ease-soft) both;
+}
+.anSplitPart.is-new {
+  background: var(--chart-1);
+}
+.anSplitPart.is-repeat {
+  background: var(--chart-2);
+}
+.anSplitPart.is-empty {
+  background: var(--border-strong);
+}
+.anLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+.anLegend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.anLegend strong {
+  color: var(--text-primary);
+}
+.anDot {
+  display: inline-block;
+  inline-size: 8px;
+  block-size: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.anDot.is-new,
+.anDot.is-sales {
+  background: var(--chart-1);
+}
+.anDot.is-repeat {
+  background: var(--chart-2);
+}
+
+/* Payouts strip under the segments. */
+.anPayouts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding-block-start: 14px;
+  border-block-start: 1px dashed var(--border-strong);
+  font-size: var(--fs-sm);
+}
+.anPayoutsIcon {
+  display: grid;
+  place-items: center;
+  inline-size: 28px;
+  block-size: 28px;
+  border-radius: 9px;
+  background: var(--studio-tint-sand);
+  color: var(--text-primary);
+}
+.anPayoutsTitle {
+  font-weight: 600;
+}
+.anPayoutsNote {
+  color: var(--text-secondary);
+}
+.anPayoutsList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 22px;
+  margin: 0;
+}
+.anPayoutsList div {
+  display: flex;
+  gap: 6px;
+}
+.anPayoutsList dt {
+  color: var(--text-secondary);
+}
+.anPayoutsList dd {
+  margin: 0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.anDelta {
+  margin-inline-start: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: var(--fs-xs);
+}
+.anDelta.is-up {
+  background: var(--success-soft);
+  color: var(--success);
+}
+.anDelta.is-down {
+  background: var(--error-soft);
+  color: var(--error);
+}
+
+/* ── Card grid ───────────────────────────────────────────────────────────────────────────── */
+.anGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+.anCard {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  padding: 20px 22px;
+  border: 1px solid var(--an-edge);
+  border-radius: 24px;
+  background: var(--an-glass);
+  backdrop-filter: saturate(1.4) blur(16px);
+  -webkit-backdrop-filter: saturate(1.4) blur(16px);
+  box-shadow: var(--shadow-sm);
+  animation: anRise 560ms var(--ease-soft) both;
+}
+.anGrid > .anCard:nth-child(2) {
+  animation-delay: 60ms;
+}
+.anGrid > .anCard:nth-child(3) {
+  animation-delay: 120ms;
+}
+.anGrid > .anCard:nth-child(4) {
+  animation-delay: 160ms;
+}
+.anGrid > .anCard:nth-child(5) {
+  animation-delay: 200ms;
+}
+.anSpan2 {
+  grid-column: span 2;
+}
+.anCardHead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.anIcon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  inline-size: 38px;
+  block-size: 38px;
+  border-radius: 12px;
+  color: var(--text-primary);
+}
+.anIcon--peach {
+  background: var(--studio-tint-peach);
+  color: var(--brand-primary);
+}
+.anIcon--lilac {
+  background: var(--studio-tint-lilac);
+  color: var(--info);
+}
+.anIcon--sky {
+  background: var(--studio-tint-sky);
+  color: var(--info);
+}
+.anIcon--sand {
+  background: var(--studio-tint-sand);
+}
+.anIcon--rose {
+  background: var(--studio-tint-rose);
+}
+.anCardTitle {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  line-height: 1.25;
+}
+.anCardSub {
+  margin: 2px 0 0;
+  font-size: var(--fs-xs);
+  color: var(--text-tertiary);
+}
+.anQuiet {
+  margin: auto 0;
+  padding: 24px 8px;
+  text-align: center;
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+}
+
+/* Sales trend */
+.anChart {
+  position: relative;
+}
+.anChartNote {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: 38%;
+  margin: 0 auto;
+  width: fit-content;
+  max-width: 90%;
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-surface);
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+  box-shadow: var(--shadow-xs);
+}
+.anTip {
+  min-width: 150px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-md);
+}
+.anTip p {
+  margin: 0;
+}
+.anTipDate {
+  margin-block-end: 6px !important;
+  font-size: var(--fs-xs);
+  color: var(--text-tertiary);
+}
+.anTipRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+}
+.anTipRow strong {
+  margin-inline-start: auto;
+  color: var(--text-primary);
+}
+.anTipMuted {
+  margin-block-start: 2px !important;
+  font-size: var(--fs-xs);
+  padding-inline-start: 14px;
+}
+.anChart .recharts-surface {
+  overflow: visible;
+}
+
+/* Order health gauge */
+.anGauge {
+  position: relative;
+  inline-size: min(100%, 260px);
+  margin-inline: auto;
+}
+.anGaugeTicks {
+  display: block;
+  inline-size: 100%;
+  block-size: auto;
+}
+.anTick {
+  stroke: var(--border-strong);
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+.anTick.is-lit {
+  stroke: var(--chart-1);
+  animation: anTickIn 380ms var(--ease-soft) both;
+}
+.anGaugeCenter {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: 2px;
+  display: grid;
+  justify-items: center;
+}
+.anGaugeNum {
+  font-family: var(--font-heading);
+  font-size: 32px;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.anGaugeLabel {
+  margin-block-start: 4px;
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+.anGaugeCaption {
+  margin: -6px 0 0;
+  text-align: center;
+  font-size: var(--fs-xs);
+  color: var(--text-tertiary);
+}
+.anMiniStats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+.anMiniStats div {
+  padding: 10px;
+  border-radius: 14px;
+  background: var(--bg-sunken);
+}
+.anMiniStats dt {
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--text-secondary);
+}
+.anMiniStats dd {
+  margin: 4px 0 0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.anChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.anChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  background: var(--bg-surface);
+}
+.anChip strong {
+  color: var(--text-primary);
+}
+
+/* Busy-days heatmap: one sequential indigo ramp. */
+.anHeat {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 5px;
+}
+.anHeatHead {
+  overflow: hidden;
+  text-align: center;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+.anCell {
+  display: block;
+  block-size: 26px;
+  border-radius: 7px;
+  background: var(--bg-sunken);
+  animation: anPop 380ms var(--ease-soft) both;
+  cursor: pointer;
+  transition: box-shadow 160ms ease;
+}
+.anHeat--dense {
+  gap: 3px;
+}
+.anHeat--dense .anCell {
+  block-size: 13px;
+  border-radius: 4px;
+}
+.anCell.l1 {
+  background: color-mix(in srgb, var(--info) 20%, var(--bg-surface));
+}
+.anCell.l2 {
+  background: color-mix(in srgb, var(--info) 42%, var(--bg-surface));
+}
+.anCell.l3 {
+  background: color-mix(in srgb, var(--info) 68%, var(--bg-surface));
+}
+.anCell.l4 {
+  background: var(--info);
+}
+.anCell.is-pad {
+  background: transparent;
+  cursor: default;
+  animation: none;
+}
+.anCell.is-focus {
+  box-shadow:
+    0 0 0 2px var(--bg-surface),
+    0 0 0 4px var(--brand-ink);
+}
+.anHeatFoot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  margin-block-start: auto;
+}
+.anHeatReadout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--text-primary);
+}
+.anHeatTag {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--studio-tint-lilac);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--info);
+}
+.anHeatScale {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+.anHeatScale .anCell {
+  inline-size: 11px;
+  block-size: 11px;
+  border-radius: 3px;
+  animation: none;
+  cursor: default;
+}
+
+/* Category bars */
+.anCats {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.anCatLine {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-block-end: 6px;
+  font-size: var(--fs-sm);
+}
+.anCatName {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.anCatVal {
+  flex-shrink: 0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.anCatPct {
+  margin-inline-start: 8px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+}
+.anCatTrack {
+  display: block;
+  block-size: 8px;
+  border-radius: 999px;
+  background: var(--bg-sunken);
+  overflow: hidden;
+}
+.anCatFill {
+  display: block;
+  block-size: 100%;
+  min-inline-size: 4px;
+  border-radius: 999px;
+  background: var(--chart-2);
+  transform-origin: left;
+  animation: anGrowX 800ms var(--ease-soft) both;
+}
+
+/* Top products */
+.anRanks {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.anRank {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 16px;
+  animation: anRise 460ms var(--ease-soft) both;
+  transition: background-color 160ms ease;
+}
+.anRank:hover {
+  background: var(--bg-sunken);
+}
+.anRank.is-first {
+  background: var(--studio-tint-lilac);
+}
+.anRankNo {
+  inline-size: 18px;
+  flex-shrink: 0;
+  text-align: center;
+  font-family: var(--font-heading);
+  font-weight: 600;
+  color: var(--text-tertiary);
+}
+.anRank.is-first .anRankNo {
+  color: var(--info);
+}
+.anRankBody {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+.anRankTitle {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.anRankTitle:hover {
+  color: var(--brand-primary);
+}
+.anRankMeta {
+  font-size: var(--fs-xs);
+  color: var(--text-tertiary);
+}
+.anRankVal {
+  flex-shrink: 0;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── States ──────────────────────────────────────────────────────────────────────────────── */
+.anShimmer {
+  display: block;
+  border-radius: 12px;
+  background: linear-gradient(90deg, var(--bg-sunken) 0%, color-mix(in srgb, var(--bg-sunken) 40%, var(--bg-surface)) 50%, var(--bg-sunken) 100%);
+  background-size: 200% 100%;
+  animation: anShimmer 1.4s linear infinite;
+}
+.anError {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--error-soft);
+  font-size: var(--fs-sm);
+  color: var(--error);
+}
+.anError span {
+  flex: 1;
+  min-width: 12ch;
+}
+
+/* New-seller empty state, inside the header band. */
+.anEmpty {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 24px 36px;
+  padding-block: 8px 12px;
+}
+.anEmptyArt {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  inline-size: 220px;
+  block-size: 130px;
+  padding: 16px;
+  border: 1.5px dashed var(--border-strong);
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--bg-surface) 60%, transparent);
+}
+.anEmptyArt > span:not(.anEmptyBadge) {
+  flex: 1;
+  border-radius: 6px 6px 2px 2px;
+  background: color-mix(in srgb, var(--info) 22%, var(--bg-surface));
+  transform-origin: bottom;
+  animation: anBreathe 2.6s var(--ease-soft) infinite alternate both;
+}
+.anEmptyBadge {
+  position: absolute;
+  inset-block-start: -14px;
+  inset-inline-end: -14px;
+  display: grid;
+  place-items: center;
+  inline-size: 40px;
+  block-size: 40px;
+  border-radius: 14px;
+  background: var(--brand-ink);
+  color: var(--text-on-dark);
+  box-shadow: var(--shadow-md);
+}
+.anEmptyText {
+  flex: 1 1 260px;
+  max-width: 46ch;
+}
+.anEmptyTitle {
+  margin: 0 0 6px;
+  font-family: var(--font-heading);
+  font-size: var(--fs-xl);
+  font-weight: 600;
+}
+.anEmptyBody {
+  margin: 0 0 16px;
+  font-size: var(--fs-sm);
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.anSrOnly {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ── Motion ──────────────────────────────────────────────────────────────────────────────── */
+@keyframes anRise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+@keyframes anGrowY {
+  from {
+    transform: scaleY(0);
+  }
+}
+@keyframes anGrowX {
+  from {
+    transform: scaleX(0);
+  }
+}
+@keyframes anPop {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+@keyframes anTickIn {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes anBreathe {
+  from {
+    transform: scaleY(0.55);
+  }
+}
+@keyframes anShimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+/* ── RTL ─────────────────────────────────────────────────────────────────────────────────── */
+[dir='rtl'] .anTitle,
+[dir='rtl'] .anCardTitle,
+[dir='rtl'] .anEmptyTitle {
+  font-family: var(--font-urdu);
+  line-height: 1.6;
+}
+[dir='rtl'] .anEyebrow {
+  letter-spacing: 0;
+  text-transform: none;
+}
+[dir='rtl'] .anPage {
+  font-family: var(--font-urdu-ui);
+}
+[dir='rtl'] .anSplitPart,
+[dir='rtl'] .anCatFill {
+  transform-origin: right;
+}
+[dir='rtl'] .anGaugeTicks {
+  transform: scaleX(-1);
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────────────────────────── */
+@media (max-width: 1100px) {
+  .anGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .anGrid > .anCard:last-child {
+    grid-column: span 2;
+  }
+}
+@media (max-width: 767px) {
+  .anHero {
+    padding: 20px 18px 14px;
+    border-radius: 24px;
+  }
+  .anHeroRow {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+  }
+  .anSeg {
+    padding-inline: 0;
+    padding-block-start: 16px;
+    border-inline-start: 0;
+    border-block-start: 1px solid var(--border-strong);
+  }
+  .anHeroRow > .anSeg:first-child {
+    padding-block-start: 0;
+    border-block-start: 0;
+  }
+  .anGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .anSpan2,
+  .anGrid > .anCard:last-child {
+    grid-column: auto;
+  }
+  .anCard {
+    padding: 18px 16px;
+  }
+  .anEmptyArt {
+    inline-size: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .anHero,
+  .anCard,
+  .anBar,
+  .anSplitPart,
+  .anTick.is-lit,
+  .anCell,
+  .anCatFill,
+  .anRank,
+  .anEmptyArt > span,
+  .anShimmer {
+    animation: none;
+  }
+}

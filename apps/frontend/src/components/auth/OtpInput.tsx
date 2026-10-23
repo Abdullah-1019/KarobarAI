@@ -9,6 +9,8 @@ export interface OtpInputProps {
   /** Fired once all boxes are filled — lets the screen auto-submit. */
   onComplete?: (value: string) => void;
   invalid?: boolean;
+  /** Visual phase while/after the code is checked. */
+  state?: 'verifying' | 'success';
   disabled?: boolean;
   autoFocus?: boolean;
 }
@@ -21,6 +23,7 @@ export function OtpInput({
   onChange,
   onComplete,
   invalid,
+  state,
   disabled,
   autoFocus,
 }: OtpInputProps) {
@@ -74,7 +77,7 @@ export function OtpInput({
   };
 
   return (
-    <div className="kaOtp" data-invalid={invalid ? 'true' : undefined} dir="ltr">
+    <div className="kaOtp" data-invalid={invalid ? 'true' : undefined} data-state={state} dir="ltr">
       {Array.from({ length }, (_, index) => (
         <input
           key={index}

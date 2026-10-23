@@ -24,6 +24,8 @@ export { AIFieldBadge } from './AIFieldBadge';
 export { RecommendationTier } from './RecommendationTier';
 export { LanguageToggle } from './LanguageToggle/LanguageToggle';
 export { AuthLayout } from './auth/AuthLayout';
+export { readAuthRole, writeAuthRole } from './auth/authRole';
+export type { AuthRole } from './auth/authRole';
 export { TextField, type TextFieldProps } from './auth/TextField';
 export { PhoneField, type PhoneFieldProps } from './auth/PhoneField';
 export { PasswordField, type PasswordFieldProps } from './auth/PasswordField';

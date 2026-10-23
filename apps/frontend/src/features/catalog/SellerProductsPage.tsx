@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { Alert, Button, Card, Divider, Segmented, Table, Typography } from 'antd';
+import { Alert, Button } from 'antd';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { BarChart3, ClipboardList, PackagePlus } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Check, ClipboardList, Plus } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
-import type { ProductStatus, SellerProductListItemDTO } from '@karobarai/shared';
-import { EmptyState, MetricCard, PageHeader, PriceDisplay, ProductThumbnail, SkeletonLoader } from '../../components';
+import type { ProductStatus } from '@karobarai/shared';
+import { AiMark, PriceDisplay, ProductThumbnail, SkeletonLoader } from '../../components';
 import { OrderStatusTag } from '../orders/OrderStatusTag';
 import { listSellerOrders, sellerOrdersQueryKey } from '../orders/ordersApi';
 import { PROFILE_QUERY_KEY, getProfile } from '../profile/profileApi';
@@ -15,22 +15,17 @@ import { formatCatalogError } from './catalogErrors';
 import { ProductStatusTag } from './ProductStatusTag';
 
 type StatusFilter = ProductStatus | 'ALL';
+const FILTERS: StatusFilter[] = ['ALL', 'LIVE', 'DRAFT', 'OUT_OF_STOCK', 'REMOVED'];
 
-// SCR-S01/S02's seller-facing product list — the seller's own /seller/products view, per
-// F4-catalog-backend.md's GET /seller/products (cursor-paginated, status filter, ownership
-// implicit from the auth token).
+// The Seller's landing page (`/seller` — there is no separate dashboard route; SellerLayout's
+// comment documents why). Studio Light: a lilac greeting band carrying the store's real counts and
+// the one bold moment — the "add with AI" card that leads into the AI Store Builder — then the
+// product list (filter pills + image-forward rows) beside recent orders.
 //
-// E4: this is also the Seller's landing page — there is no separate /seller/dashboard route
-// (SellerLayout.tsx's own comment documents this as a deliberate Phase C decision, not an
-// oversight) — so the "at a glance" summary the E4 brief asks for lives here, above the product
-// table, rather than inventing a new route. Deliberately has no revenue metric: RevenueCards'
-// own code comment documents that revenue reads "Rs. 0" for every real seller until a settlement
-// engine exists — surfacing it here would look like a bug, not a feature. Product counts and
-// recent orders reuse data/endpoints already used elsewhere in the app (getProfile, the same
-// listSellerOrders call SellerOrdersPage makes) — no new API surface.
+// Deliberately no revenue metric: RevenueCards documents that revenue reads "Rs. 0" for every
+// real seller until a settlement engine exists. Counts reuse existing endpoints only.
 export function SellerProductsPage() {
   const { t } = useTranslation(['catalog', 'common']);
-  const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
 
   const backendStatus = statusFilter === 'ALL' ? undefined : statusFilter;
@@ -44,240 +39,258 @@ export function SellerProductsPage() {
 
   const items = data?.pages.flatMap((page) => page.items) ?? [];
 
-  // Independent of `statusFilter` above (always the unfiltered set). Deliberately a *different*
-  // query key from `sellerProductsQueryKey(undefined)` even though it hits the same endpoint with
-  // the same params — that key is already used by the useInfiniteQuery above, and React Query
-  // caches purely by key: a plain useQuery sharing an infinite query's key reads back that query's
-  // `{pages, pageParams}` cache shape instead of the plain `{items, nextCursor}` this queryFn
-  // actually returns, crashing on `.items` being undefined. Found via live browser testing, not
-  // type-checking (TypeScript can't see a runtime cache-shape collision).
+  // Distinct query keys (…'summary') on purpose: the same endpoints back infinite queries
+  // elsewhere, and React Query caches by key — sharing one would read the infinite cache shape
+  // ({pages}) and crash on `.items`. Found in live testing; see git history for details.
   const { data: allProducts } = useQuery({
     queryKey: [...sellerProductsQueryKey(undefined), 'summary'],
     queryFn: () => listSellerProducts(undefined, undefined),
   });
   const { data: profile } = useQuery({ queryKey: PROFILE_QUERY_KEY, queryFn: getProfile });
-  // Distinct key for the same reason as `allProducts` above — sellerOrdersQueryKey(undefined) is
-  // already used by OrderListPage's useInfiniteQuery (its "All" tab), and this is a genuinely
-  // separate page (this crashed in production testing: navigating between /seller and
-  // /seller/orders hit the exact same cache-shape collision as the products one, just across two
-  // different files sharing one global query-key namespace instead of within one file).
-  const { data: recentOrdersPage } = useQuery({
+  const { data: recentOrdersPage, isPending: ordersPending } = useQuery({
     queryKey: [...sellerOrdersQueryKey(undefined), 'summary'],
     queryFn: () => listSellerOrders(undefined, undefined),
   });
 
   const storeName = profile?.role === 'SELLER' ? profile.storeName : undefined;
-  const recentOrders = recentOrdersPage?.items.slice(0, 3) ?? [];
-  // Only shown once we know it's the *complete* catalog, not a partial first page — there's no
-  // dedicated count endpoint, so a count next to "load more" would risk understating it.
+  const recentOrders = recentOrdersPage?.items.slice(0, 4) ?? [];
+  // Counts only once we know it's the complete catalog (no count endpoint) — never understate.
   const countsComplete = !!allProducts && !allProducts.nextCursor;
+  const totalCount = allProducts?.items.length ?? 0;
   const liveCount = allProducts?.items.filter((p) => p.status === 'LIVE').length ?? 0;
   const outOfStockCount = allProducts?.items.filter((p) => p.status === 'OUT_OF_STOCK').length ?? 0;
 
-  const columns = [
-    {
-      title: '',
-      dataIndex: 'primaryImageUrl',
-      key: 'image',
-      width: 56,
-      render: (url: string | null) => <ProductThumbnail src={url} size={40} />,
-    },
-    {
-      title: t('catalog:productsList.columnTitle'),
-      dataIndex: 'titleEn',
-      key: 'titleEn',
-      render: (titleEn: string, record: SellerProductListItemDTO) => (
-        <Link to={`/seller/products/${record.id}/edit`}>{titleEn}</Link>
-      ),
-    },
-    {
-      title: t('catalog:productsList.columnPrice'),
-      dataIndex: 'price',
-      key: 'price',
-      render: (price: string) => <PriceDisplay amount={price} size="sm" />,
-    },
-    {
-      title: t('catalog:productsList.columnStock'),
-      dataIndex: 'stock',
-      key: 'stock',
-    },
-    {
-      title: t('catalog:productsList.columnStatus'),
-      dataIndex: 'status',
-      key: 'status',
-      render: (status: ProductStatus) => <ProductStatusTag status={status} />,
-    },
-    {
-      title: '',
-      key: 'actions',
-      width: 80,
-      render: (_: unknown, record: SellerProductListItemDTO) => (
-        <Link to={`/seller/products/${record.id}/edit`}>
-          <Button size="small">{t('common:actions.edit')}</Button>
-        </Link>
-      ),
-    },
-  ];
+  // Getting-started tracker, from real data only; hidden once everything is done.
+  const setupSteps = [
+    { key: 'stepStoreCreated', done: true, to: undefined },
+    { key: 'stepFirstProduct', done: countsComplete ? totalCount > 0 : true, to: '/seller/products/new' },
+    { key: 'stepFirstOrder', done: !ordersPending && (recentOrdersPage?.items.length ?? 0) > 0, to: undefined },
+  ] as const;
+  const setupDone = setupSteps.filter((step) => step.done).length;
+  const showSetup = countsComplete && !ordersPending && setupDone < setupSteps.length;
+
+  const filterLabel = (filter: StatusFilter) =>
+    filter === 'ALL' ? t('catalog:productsList.statusAll') : t(`catalog:status.${filter}`);
 
   return (
-    <div style={{ maxWidth: 960, margin: '0 auto' }}>
-      {storeName && (
-        <Typography.Title level={4} style={{ marginBottom: 'var(--sp-4)' }}>
-          {t('catalog:dashboard.welcomeBack', { storeName })}
-        </Typography.Title>
-      )}
+    <div className="slHome">
+      <section className="slBand">
+        <div className="slBandText">
+          <h1 className="slGreeting">
+            {storeName ? t('catalog:dashboard.greeting', { storeName }) : t('catalog:productsList.title')}
+          </h1>
+          <p className="slGreetingSub">{t('catalog:dashboard.greetingSub')}</p>
 
-      {countsComplete && (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-            gap: 'var(--sp-3)',
-            marginBottom: 'var(--sp-4)',
-          }}
-        >
-          <MetricCard label={t('catalog:dashboard.totalProducts')} value={allProducts?.items.length ?? 0} />
-          <MetricCard label={t('catalog:dashboard.liveProducts')} value={liveCount} />
-          <MetricCard
-            label={t('catalog:dashboard.outOfStock')}
-            value={outOfStockCount}
-            tone={outOfStockCount > 0 ? 'warning' : 'neutral'}
-          />
-        </div>
-      )}
-
-      <Card style={{ marginBottom: 'var(--sp-6)' }}>
-        <Typography.Text strong>{t('catalog:dashboard.recentOrders')}</Typography.Text>
-        {recentOrders.length === 0 ? (
-          <Typography.Text type="secondary" style={{ display: 'block', marginTop: 'var(--sp-2)' }}>
-            {t('catalog:dashboard.noRecentOrders')}
-          </Typography.Text>
-        ) : (
-          recentOrders.map((order, index) => (
-            <div key={order.id}>
-              {index > 0 && <Divider style={{ margin: 'var(--sp-2) 0' }} />}
-              <Link
-                to={`/seller/orders/${order.id}`}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  gap: 'var(--sp-3)',
-                  color: 'inherit',
-                  textDecoration: 'none',
-                  paddingTop: 'var(--sp-2)',
-                }}
-              >
-                <div style={{ minWidth: 0 }}>
-                  <Typography.Text ellipsis style={{ display: 'block', fontSize: 'var(--fs-sm)' }}>
-                    {order.counterpartyName}
-                  </Typography.Text>
-                  <Typography.Text type="secondary" style={{ fontSize: 'var(--fs-xs)' }}>
-                    {new Date(order.placedAt).toLocaleDateString()}
-                  </Typography.Text>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)', flexShrink: 0 }}>
-                  <PriceDisplay amount={order.totalAmount} size="sm" />
-                  <OrderStatusTag status={order.status} />
-                </div>
-              </Link>
+          <dl className="slStats" aria-busy={!countsComplete || undefined}>
+            <div className="slStat">
+              <dt>{t('catalog:dashboard.totalProducts')}</dt>
+              <dd>{countsComplete ? totalCount : '–'}</dd>
             </div>
-          ))
-        )}
-        <Link to="/seller/orders" style={{ display: 'block', marginTop: 'var(--sp-3)', fontSize: 'var(--fs-sm)' }}>
-          {t('catalog:dashboard.viewAllOrders')}
+            <div className="slStat">
+              <dt>{t('catalog:dashboard.liveProducts')}</dt>
+              <dd>{countsComplete ? liveCount : '–'}</dd>
+            </div>
+            <div className="slStat" data-warn={outOfStockCount > 0 || undefined}>
+              <dt>{t('catalog:dashboard.outOfStock')}</dt>
+              <dd>{countsComplete ? outOfStockCount : '–'}</dd>
+            </div>
+          </dl>
+        </div>
+
+        <Link to="/seller/products/new" className="slAiCard">
+          <span className="slAiArt" aria-hidden="true">
+            <span className="slAiPhoto">
+              <img src="/demo/products/fashion-clothing.svg" alt="" />
+              <span className="slAiScan" />
+            </span>
+            <span className="slAiLines">
+              <span className="slAiChip">
+                <AiMark size={11} color="var(--ai-accent)" />
+                AI
+              </span>
+              <span className="slAiLine" />
+              <span className="slAiLine slAiLine--short" />
+              <span className="slAiLine slAiLine--ur" />
+            </span>
+          </span>
+          <span className="slAiTitle">{t('catalog:dashboard.aiCtaTitle')}</span>
+          <span className="slAiBody">{t('catalog:dashboard.aiCtaBody')}</span>
+          <span className="slAiAction">
+            <Plus size={16} aria-hidden="true" />
+            {t('catalog:dashboard.aiCtaAction')}
+          </span>
         </Link>
-      </Card>
+      </section>
 
-      <div style={{ display: 'flex', gap: 'var(--sp-2)', flexWrap: 'wrap', marginBottom: 'var(--sp-6)' }}>
-        <Link to="/seller/products/new">
-          <Button icon={<PackagePlus size={16} aria-hidden="true" />}>{t('catalog:productsList.addProduct')}</Button>
-        </Link>
-        <Link to="/seller/orders">
-          <Button icon={<ClipboardList size={16} aria-hidden="true" />}>{t('common:nav.orders')}</Button>
-        </Link>
-        <Link to="/seller/analytics">
-          <Button icon={<BarChart3 size={16} aria-hidden="true" />}>{t('catalog:dashboard.viewAnalytics')}</Button>
-        </Link>
-      </div>
-
-      <PageHeader
-        title={t('catalog:productsList.title')}
-        actions={
-          <Link to="/seller/products/new">
-            <Button type="primary">{t('catalog:productsList.addProduct')}</Button>
-          </Link>
-        }
-      />
-
-      <Segmented
-        style={{ marginBottom: 'var(--sp-4)' }}
-        value={statusFilter}
-        onChange={(value) => setStatusFilter(value as StatusFilter)}
-        options={[
-          { label: t('catalog:productsList.statusAll'), value: 'ALL' },
-          { label: t('catalog:status.DRAFT'), value: 'DRAFT' },
-          { label: t('catalog:status.LIVE'), value: 'LIVE' },
-          { label: t('catalog:status.OUT_OF_STOCK'), value: 'OUT_OF_STOCK' },
-          { label: t('catalog:status.REMOVED'), value: 'REMOVED' },
-        ]}
-      />
-
-      {isPending && <SkeletonLoader rows={4} />}
-
-      {isError && <Alert type="error" showIcon message={formatCatalogError(t, error)} />}
-
-      {!isPending && !isError && items.length === 0 && (
-        <EmptyState
-          title={t('catalog:productsList.empty')}
-          actionLabel={t('catalog:productsList.addProduct')}
-          onAction={() => navigate('/seller/products/new')}
-        />
+      {showSetup && (
+        <section className="slSetup" aria-labelledby="sl-setup-title">
+          <div className="slSetupHead">
+            <h2 id="sl-setup-title" className="slPanelTitle">
+              {t('catalog:dashboard.setupTitle')}
+            </h2>
+            <span className="slSetupCount">
+              {t('catalog:dashboard.setupProgress', { done: setupDone, total: setupSteps.length })}
+            </span>
+          </div>
+          <div className="slSetupBar" aria-hidden="true">
+            <span style={{ width: `${(setupDone / setupSteps.length) * 100}%` }} />
+          </div>
+          <ol className="slSetupSteps">
+            {setupSteps.map((step) => {
+              const body = (
+                <>
+                  <span className="slSetupMark" aria-hidden="true">
+                    {step.done && <Check size={14} strokeWidth={3} />}
+                  </span>
+                  <span>{t(`catalog:dashboard.${step.key}`)}</span>
+                </>
+              );
+              return (
+                <li key={step.key} className="slSetupStep" data-done={step.done || undefined}>
+                  {step.to && !step.done ? (
+                    <Link to={step.to} className="slSetupLink">
+                      {body}
+                    </Link>
+                  ) : (
+                    <span className="slSetupLink">{body}</span>
+                  )}
+                </li>
+              );
+            })}
+          </ol>
+        </section>
       )}
 
-      {!isPending && !isError && items.length > 0 && (
-        <>
-          <div className="karobarai-seller-products-table">
-            <Table rowKey="id" columns={columns} dataSource={items} pagination={false} size="middle" />
+      <div className="slGrid">
+        <section className="slPanel" aria-labelledby="sl-products-title">
+          <div className="slPanelHead">
+            <h2 id="sl-products-title" className="slPanelTitle">
+              {t('catalog:productsList.title')}
+            </h2>
+            <Link to="/seller/products/new" className="slGhostBtn">
+              <Plus size={16} aria-hidden="true" />
+              {t('catalog:productsList.addProduct')}
+            </Link>
           </div>
 
-          <div className="karobarai-seller-products-cards">
-            {items.map((product) => (
-              <Link
-                key={product.id}
-                to={`/seller/products/${product.id}/edit`}
-                style={{ display: 'block', color: 'inherit', textDecoration: 'none' }}
+          <div className="slFilters" role="group" aria-label={t('catalog:productsList.columnStatus')}>
+            {FILTERS.map((filter) => (
+              <button
+                key={filter}
+                type="button"
+                className="slFilter"
+                aria-pressed={statusFilter === filter}
+                onClick={() => setStatusFilter(filter)}
               >
-                <Card size="small" style={{ marginBottom: 'var(--sp-3)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)' }}>
-                    <ProductThumbnail src={product.primaryImageUrl} size={56} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <Typography.Text ellipsis style={{ display: 'block' }}>
-                        {product.titleEn}
-                      </Typography.Text>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)', marginTop: 'var(--sp-1)' }}>
-                        <PriceDisplay amount={product.price} size="sm" />
-                        <Typography.Text type="secondary" style={{ fontSize: 'var(--fs-xs)' }}>
-                          {t('catalog:productsList.columnStock')}: {product.stock}
-                        </Typography.Text>
-                      </div>
-                    </div>
-                    <ProductStatusTag status={product.status} />
-                  </div>
-                </Card>
-              </Link>
+                {filterLabel(filter)}
+              </button>
             ))}
           </div>
 
-          {hasNextPage && (
-            <div style={{ textAlign: 'center', marginTop: 'var(--sp-4)' }}>
-              <Button loading={isFetchingNextPage} onClick={() => fetchNextPage()}>
-                {t('catalog:productsList.loadMore')}
-              </Button>
+          {isPending && <SkeletonLoader rows={4} />}
+
+          {isError && <Alert type="error" showIcon message={formatCatalogError(t, error)} />}
+
+          {!isPending && !isError && items.length === 0 && (
+            <div className="slEmpty">
+              <span className="slEmptyIcon" aria-hidden="true">
+                <AiMark size={22} color="var(--brand-ink)" />
+              </span>
+              <p className="slEmptyTitle">{t('catalog:productsList.empty')}</p>
+              <p className="slEmptyBody">{t('catalog:dashboard.productsEmptyBody')}</p>
+              <Link to="/seller/products/new" className="slPrimaryBtn">
+                <Plus size={16} aria-hidden="true" />
+                {t('catalog:dashboard.aiCtaAction')}
+              </Link>
             </div>
           )}
-        </>
-      )}
+
+          {!isPending && !isError && items.length > 0 && (
+            <>
+              <ul className="slRows">
+                {items.map((product) => (
+                  <li key={product.id}>
+                    <Link to={`/seller/products/${product.id}/edit`} className="slRow">
+                      <span className="slRowThumb">
+                        <ProductThumbnail src={product.primaryImageUrl} size={52} />
+                      </span>
+                      <span className="slRowMain">
+                        <span className="slRowTitle">{product.titleEn}</span>
+                        <span className="slRowMeta">
+                          {t('catalog:productsList.columnStock')}: {product.stock}
+                        </span>
+                      </span>
+                      <span className="slRowPrice">
+                        <PriceDisplay amount={product.price} size="sm" />
+                      </span>
+                      <span className="slRowStatus">
+                        <ProductStatusTag status={product.status} />
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+
+              {hasNextPage && (
+                <div className="slMore">
+                  <Button shape="round" loading={isFetchingNextPage} onClick={() => fetchNextPage()}>
+                    {t('catalog:productsList.loadMore')}
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
+        </section>
+
+        <section className="slPanel slOrders" aria-labelledby="sl-orders-title">
+          <div className="slPanelHead">
+            <h2 id="sl-orders-title" className="slPanelTitle">
+              {t('catalog:dashboard.recentOrders')}
+            </h2>
+          </div>
+
+          {ordersPending ? (
+            <SkeletonLoader rows={3} />
+          ) : recentOrders.length === 0 ? (
+            <div className="slEmpty slEmpty--quiet">
+              <span className="slEmptyIcon" aria-hidden="true">
+                <ClipboardList size={20} />
+              </span>
+              <p className="slEmptyTitle">{t('catalog:dashboard.noRecentOrders')}</p>
+              <p className="slEmptyBody">{t('catalog:dashboard.ordersEmpty')}</p>
+            </div>
+          ) : (
+            <ul className="slOrderList">
+              {recentOrders.map((order) => (
+                <li key={order.id}>
+                  <Link to={`/seller/orders/${order.id}`} className="slOrder">
+                    <span className="slAvatar" aria-hidden="true">
+                      {order.counterpartyName.trim().slice(0, 1).toUpperCase() || '?'}
+                    </span>
+                    <span className="slOrderMain">
+                      <span className="slOrderName">{order.counterpartyName}</span>
+                      <span className="slRowMeta">{new Date(order.placedAt).toLocaleDateString()}</span>
+                    </span>
+                    <span className="slOrderEnd">
+                      <PriceDisplay amount={order.totalAmount} size="sm" />
+                      <OrderStatusTag status={order.status} />
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <div className="slOrderLinks">
+            <Link to="/seller/orders" className="slTextLink">
+              {t('catalog:dashboard.viewAllOrders')}
+            </Link>
+            <Link to="/seller/analytics" className="slTextLink">
+              {t('catalog:dashboard.viewAnalytics')}
+            </Link>
+          </div>
+        </section>
+      </div>
     </div>
   );
 }

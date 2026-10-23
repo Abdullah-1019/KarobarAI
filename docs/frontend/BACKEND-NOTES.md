@@ -150,6 +150,8 @@ The UI does **not** fake any of these. Each one is left out until the field exis
 | **Compare-at / sale price** | "-20%" badge, struck-through old price | Not in the schema. No sale UI. |
 | Seller **verified** flag | Trust badge on the store card | Not in the schema. "Verified sellers" was removed from the Home trust row for that reason. |
 | Real **product photos** in the dev seed | Every product card and the Home hero fan | The seed points at placeholder SVG illustrations (`public/demo/products/*.svg`). Not a blocker. |
+| Product **thumbnail on orders** (`thumbnailUrl` on `OrderListItemDTO` = first item, and on each `OrderItemDetailDTO`; ideally a snapshot taken at order time) | Orders list rows (buyer + seller), order detail items, tracking band | Not in the order DTOs. Detail/tracking fetch each product via `GET /products/:id` (works, but shows the product's *current* photo and fails for removed products). The list shows an initial avatar until the field exists; the row is built to swap in the photo. |
+| **Store slug on the seller profile** (`storeSlug` on `SellerProfileDTO` from `GET /profile/me`) | Seller profile header: a "View my store" button that opens the public `/store/:storeSlug` page | The seller profile has no slug, so the button is left out for now. Adding the field is enough; the page is ready to show the link. |
 
 ---
 

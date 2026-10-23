@@ -3,6 +3,7 @@ import type { ClipboardEvent, ReactNode } from 'react';
 
 import { FieldShell } from './FieldShell';
 import { fieldDescribedBy } from './fieldAria';
+import { PakistanFlag } from './PakistanFlag';
 
 export interface PhoneFieldProps {
   id?: string;
@@ -31,7 +32,7 @@ function normalizePasted(input: string): string {
   return digits.replace(/^0+/, '');
 }
 
-// One box: 🇵🇰 +92 badge | national number. The whole box is a single focus ring (:focus-within),
+// One box: flag +92 badge | national number. The whole box is a single focus ring (:focus-within),
 // and the digits always read left-to-right regardless of the page direction.
 export const PhoneField = forwardRef<HTMLInputElement, PhoneFieldProps>(function PhoneField(
   {
@@ -61,11 +62,9 @@ export const PhoneField = forwardRef<HTMLInputElement, PhoneFieldProps>(function
 
   return (
     <FieldShell id={id} label={label} labelAccessory={labelAccessory} error={error} hint={hint}>
-      <div className="kaPhone" data-invalid={error ? 'true' : undefined}>
+      <div className="kaPhone" data-invalid={error ? 'true' : undefined} data-disabled={disabled || undefined}>
         <span className="kaPhonePrefix">
-          <span className="kaPhoneFlag" aria-hidden="true">
-            🇵🇰
-          </span>
+          <PakistanFlag className="kaPhoneFlag" />
           <span className="kaPhoneCode" dir="ltr">
             +92
           </span>

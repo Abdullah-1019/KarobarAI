@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react';
+import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
@@ -11,21 +11,11 @@ import { SearchBar } from './SearchBar';
 interface HeroProps {
   /** Real categories from the home feed — rendered as quick-browse chips once loaded. */
   categories?: CategoryDTO[];
-  /** Real products from the home feed — they become the fanned cards once loaded. */
+  /** Real products from the home feed — they ride the curved ticker once loaded. */
   products?: ProductDetailDTO[];
 }
 
-// The fan's resting pose, outer → centre → outer (DESIGN-CONSULT §7 "Hero card fan"): rotation in
-// degrees and a drop in px. Rotations flip sign under RTL in CSS (--fan-dir), so the fan mirrors.
-const FAN = [
-  { r: -9, y: 34 },
-  { r: -4.5, y: 10 },
-  { r: 0, y: 0 },
-  { r: 4.5, y: 10 },
-  { r: 9, y: 34 },
-] as const;
-
-// Before the feed loads (or if it has fewer than five products with photos) the fan shows the
+// Before the feed loads (or if it has fewer than three products with photos) the ticker shows the
 // category illustrations on their tints — decorative, with no titles or prices to mistake for offers.
 const FALLBACK_ART = [
   CATEGORY_ART.electronics,
@@ -39,20 +29,19 @@ const FALLBACK_TINT = ['electronics', 'beauty-personal-care', 'fashion-clothing'
 // Home hero (SCR-B01), Studio Light — the sample Home design: a centred Outfit headline with its
 // other-language twin under it (Nastaliq beside English), one short promise, then the big white
 // search box (the page's one persimmon action) with real category chips, over two slow peach and
-// lilac blobs. Below it, five real products from the feed fan out like cards set down on a counter;
-// the centre one carries its real title and price and the two floating tags state platform facts
-// (AI-written bilingual listings, pay on delivery). The fan settling into place on load is the
-// page's single authored motion moment.
+// lilac blobs. Below it, real products from the feed glide along a curved ticker with their titles
+// and prices, and two floating tags state platform facts (AI-written bilingual listings, pay on
+// delivery). The ticker is the page's single authored motion moment.
 export function Hero({ categories = [], products = [] }: HeroProps) {
   const { t, i18n } = useTranslation('marketplace');
   const { language } = useLanguage();
   const isUr = language === 'UR';
   const twinTitle = i18n.getFixedT(isUr ? 'en' : 'ur', 'marketplace')('hero.title');
   const chips = categories.slice(0, 4);
-  const fanProducts = products
+  const tickerProducts = products
     .filter((p, i, all) => p.images[0]?.url && all.findIndex((q) => q.id === p.id) === i)
-    .slice(0, 5);
-  const live = fanProducts.length === 5;
+    .slice(0, 12);
+  const live = tickerProducts.length >= 3;
 
   return (
     <section className="hero" aria-labelledby="hero-title">
@@ -88,61 +77,13 @@ export function Hero({ categories = [], products = [] }: HeroProps) {
           )}
         </div>
 
-        <div
-          className="hero-fan"
-          {...(live ? { role: 'group', 'aria-label': t('hero.featuredFrom') } : { role: 'img', 'aria-label': t('hero.showcaseLabel') })}
-        >
-          {FAN.map((pose, index) => {
-            const style = { '--r': `${pose.r}deg`, '--y': `${pose.y}px`, '--i': index } as CSSProperties;
-            const centre = index === 2;
-            const product = live ? fanProducts[index] : undefined;
-
-            if (product) {
-              const title = isUr && product.titleUr ? product.titleUr : product.titleEn;
-              return (
-                <Link
-                  key={product.id}
-                  to={`/product/${product.id}`}
-                  className={`hero-fan__card${centre ? ' hero-fan__card--centre' : ''}`}
-                  style={style}
-                  aria-label={centre ? undefined : title}
-                >
-                  <span className="hero-fan__art" style={{ background: tintFor(product.category?.slug ?? '') }}>
-                    <img src={product.images[0]!.url} alt="" width={400} height={500} />
-                  </span>
-                  {centre && (
-                    <>
-                      <span className="hero-fan__title">{title}</span>
-                      <span className="hero-fan__price">
-                        <PriceDisplay amount={product.price} strong />
-                      </span>
-                    </>
-                  )}
-                  {centre && <FanTags />}
-                </Link>
-              );
-            }
-
-            return (
-              <span
-                key={index}
-                className={`hero-fan__card${centre ? ' hero-fan__card--centre' : ''}`}
-                style={style}
-              >
-                <span className="hero-fan__art" style={{ background: tintFor(FALLBACK_TINT[index] ?? '') }}>
-                  <img src={FALLBACK_ART[index]} alt="" width={400} height={500} />
-                </span>
-                {centre && <FanTags />}
-              </span>
-            );
-          })}
-        </div>
+        <HeroTicker live={live} products={tickerProducts} isUr={isUr} label={live ? t('hero.featuredFrom') : t('hero.showcaseLabel')} />
       </div>
     </section>
   );
 }
 
-// The two floating tags pinned to the centre card: platform facts, not claims about one product.
+// The two floating tags pinned to the middle of the ticker: platform facts, not claims about one product.
 function FanTags() {
   const { t } = useTranslation('marketplace');
   return (
@@ -153,5 +94,125 @@ function FanTags() {
       </span>
       <span className="hero-tag hero-tag--cod">{t('hero.codTag')}</span>
     </>
+  );
+}
+
+// Fixed card pitch and loop size: the strip is repeated until it is longer than any screen, so the
+// ticker never shows a gap while it wraps around.
+const MIN_LOOP_CARDS = 12;
+const SPEED_PX_PER_S = 38;
+
+interface TickerProps {
+  live: boolean;
+  products: ProductDetailDTO[];
+  isUr: boolean;
+  label: string;
+}
+
+// Products glide right-to-left along a shallow arch, like a news ticker on a curve. Every card has a
+// fixed size and its photo is cropped to fill a fixed square, so no image can stretch its card. Each
+// frame, a card's height on the arch and its tilt follow the curve's slope at its x position. Motion
+// pauses on hover/focus and is off under prefers-reduced-motion.
+function HeroTicker({ live, products, isUr, label }: TickerProps) {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const base = live ? products.length : FALLBACK_ART.length;
+  const copies = Math.max(1, Math.ceil(MIN_LOOP_CARDS / base));
+  const count = base * copies;
+
+  useEffect(() => {
+    const track = trackRef.current;
+    if (!track) return undefined;
+    const cards = Array.from(track.children) as HTMLElement[];
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let offset = 0;
+    let last = performance.now();
+    let paused = false;
+    let frame = 0;
+
+    const place = () => {
+      const width = track.clientWidth;
+      const card = cards[0]?.offsetWidth ?? 200;
+      const pitch = card + (width < 768 ? 16 : 26);
+      const loop = pitch * cards.length;
+      const half = width / 2;
+      const depth = width < 768 ? 34 : 64; // how far the ends of the arch drop, px
+      const dir = getComputedStyle(track).direction === 'rtl' ? -1 : 1;
+      cards.forEach((el, i) => {
+        const x = ((((i * pitch - offset) % loop) + loop) % loop) - pitch;
+        const d = (x + card / 2 - half) / half; // -1 at the left edge, 1 at the right edge
+        const y = depth * d * d;
+        const tilt = (Math.atan((2 * depth * d) / half) * 180) / Math.PI;
+        const scale = 1 - Math.min(Math.abs(d), 1.2) * 0.07;
+        el.style.transform = `translate3d(${x}px, ${y}px, 0) rotate(${tilt * dir}deg) scale(${scale})`;
+        el.style.zIndex = String(100 - Math.round(Math.abs(d) * 50));
+      });
+    };
+
+    const tick = (now: number) => {
+      const dt = Math.min(now - last, 64);
+      last = now;
+      if (!paused) offset += (SPEED_PX_PER_S * dt) / 1000;
+      place();
+      frame = requestAnimationFrame(tick);
+    };
+
+    const pause = () => { paused = true; };
+    const resume = () => { paused = false; };
+    track.addEventListener('pointerenter', pause);
+    track.addEventListener('pointerleave', resume);
+    track.addEventListener('focusin', pause);
+    track.addEventListener('focusout', resume);
+    window.addEventListener('resize', place);
+
+    place();
+    if (!reduce) frame = requestAnimationFrame(tick);
+    return () => {
+      cancelAnimationFrame(frame);
+      track.removeEventListener('pointerenter', pause);
+      track.removeEventListener('pointerleave', resume);
+      track.removeEventListener('focusin', pause);
+      track.removeEventListener('focusout', resume);
+      window.removeEventListener('resize', place);
+    };
+  }, [count, live]);
+
+  return (
+    <div className="hero-ticker" {...(live ? { role: 'group', 'aria-label': label } : { role: 'img', 'aria-label': label })}>
+      <FanTags />
+      <div className="hero-ticker__track" ref={trackRef}>
+        {Array.from({ length: count }, (_, index) => {
+          const copy = index >= base; // repeats exist only to fill the loop; hide them from AT
+          const slot = index % base;
+          const product = live ? products[slot] : undefined;
+          if (product) {
+            const title = isUr && product.titleUr ? product.titleUr : product.titleEn;
+            return (
+              <Link
+                key={index}
+                to={`/product/${product.id}`}
+                className="hero-ticker__card"
+                aria-hidden={copy || undefined}
+                tabIndex={copy ? -1 : undefined}
+              >
+                <span className="hero-ticker__art" style={{ background: tintFor(product.category?.slug ?? '') }}>
+                  <img src={product.images[0]!.url} alt="" width={400} height={400} loading="lazy" draggable={false} />
+                </span>
+                <span className="hero-ticker__title">{title}</span>
+                <span className="hero-ticker__price">
+                  <PriceDisplay amount={product.price} strong />
+                </span>
+              </Link>
+            );
+          }
+          return (
+            <span key={index} className="hero-ticker__card hero-ticker__card--art" aria-hidden="true">
+              <span className="hero-ticker__art" style={{ background: tintFor(FALLBACK_TINT[slot] ?? '') }}>
+                <img src={FALLBACK_ART[slot]} alt="" width={400} height={400} draggable={false} />
+              </span>
+            </span>
+          );
+        })}
+      </div>
+    </div>
   );
 }

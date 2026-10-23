@@ -13,12 +13,12 @@ export interface AuthResultProps {
 }
 
 // Full-state panel for terminal outcomes (reset link sent, password updated, expired token, ...):
-// a centered icon circle, a heading, supporting copy and one or more actions.
+// a centered icon medallion that pops in with a soft halo, a heading, supporting copy and one or more actions.
 export function AuthResult({ variant = 'success', icon: Icon, title, description, children }: AuthResultProps) {
   return (
     <div className="kaResult">
       <span className={`kaResultIcon kaResultIcon--${variant}`} aria-hidden="true">
-        <Icon size={28} />
+        <Icon size={30} strokeWidth={2.2} />
       </span>
       <h1 className="kaResultTitle">{title}</h1>
       {description ? <p className="kaResultDesc">{description}</p> : null}

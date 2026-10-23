@@ -1,0 +1,696 @@
+/* Seller returns (list + detail), Studio Light. Builds on orders.css (olPage/olRows/odGrid/odNext
+   …) and only adds what returns need: rows with a product photo and reason, a variable-length
+   journey, the AI similarity gauge and the evidence pairs. Logical properties throughout. */
+
+/* ── List ─────────────────────────────────────────────────────────────────────────────────── */
+.rtListHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px 20px;
+}
+.rtWaiting {
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  background: var(--wash-peach);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--accent-ink);
+}
+.rtRow {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 18px;
+  border-radius: inherit;
+  color: var(--text-primary);
+  text-decoration: none;
+}
+.rtRow:hover {
+  color: var(--text-primary);
+}
+.rtRow:focus-visible {
+  outline: 3px solid var(--brand-ring);
+  outline-offset: 2px;
+}
+.rtRowTitle {
+  overflow: hidden;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.rtReason {
+  justify-self: start;
+  max-width: 100%;
+  margin-block-start: 4px;
+  padding: 2px 10px;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--bg-sunken);
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.rtRowEnd {
+  display: grid;
+  justify-items: end;
+  gap: 6px;
+}
+.rtRowEnd .olCount {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.rtNeedsYou {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--brand-ink);
+  color: var(--text-on-dark);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+.rtChevron {
+  color: var(--text-tertiary);
+  transition: transform var(--dur-base) var(--ease-soft);
+}
+.olRowWrap:hover .rtChevron {
+  transform: translateX(3px);
+}
+[dir='rtl'] .rtChevron {
+  transform: scaleX(-1);
+}
+[dir='rtl'] .olRowWrap:hover .rtChevron {
+  transform: scaleX(-1) translateX(3px);
+}
+.rtEmptyBody {
+  max-width: 42ch;
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+}
+
+/* ── Detail: band + journey ───────────────────────────────────────────────────────────────── */
+.rtBand {
+  align-items: flex-start;
+}
+.rtBandMain {
+  display: grid;
+  flex: 1;
+  gap: 16px;
+  min-width: 0;
+}
+.rtBandTitle {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.rtJourney {
+  --dot: 26px;
+  position: relative;
+}
+.rtTrack {
+  position: absolute;
+  inset-inline: calc(50% / var(--rt-steps));
+  top: calc(var(--dot) / 2 - 2px);
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--bg-surface) 70%, transparent);
+}
+.rtTrackFill {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  inline-size: var(--rt-progress);
+  border-radius: inherit;
+  background: var(--success);
+  animation: rtFill 900ms 150ms var(--ease-soft) backwards;
+}
+.rtJourney[data-rejected] .rtTrackFill {
+  background: var(--text-tertiary);
+}
+@keyframes rtFill {
+  from {
+    inline-size: 0;
+  }
+}
+.rtStops {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--rt-steps), minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.rtStop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  text-align: center;
+}
+.rtDot {
+  display: grid;
+  place-items: center;
+  width: var(--dot);
+  height: var(--dot);
+  border: 2px solid color-mix(in srgb, var(--bg-surface) 70%, transparent);
+  border-radius: 50%;
+  background: var(--bg-surface);
+  color: var(--text-tertiary);
+}
+.rtStop[data-state='done'] .rtDot {
+  border-color: var(--success);
+  background: var(--success);
+  color: var(--text-on-brand);
+}
+.rtJourney[data-rejected] .rtStop[data-state='done']:last-child .rtDot {
+  border-color: var(--error);
+  background: var(--error);
+}
+.rtStop[data-state='current'] .rtDot {
+  border-color: var(--brand-ink);
+  color: var(--text-primary);
+  transform: scale(1.12);
+  animation: odPulse 2.2s var(--ease) infinite;
+}
+.rtStopText {
+  display: grid;
+  gap: 1px;
+  max-width: 100%;
+}
+.rtStopLabel {
+  font-size: 12.5px;
+  line-height: 1.3;
+  color: var(--text-secondary);
+}
+.rtStop[data-state='current'] .rtStopLabel {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.rtStopTime {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+/* ── Detail: evidence ─────────────────────────────────────────────────────────────────────── */
+.rtReasonCard {
+  display: flex;
+  gap: 14px;
+}
+.rtQuoteIcon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 13px;
+  background: var(--wash-peach);
+  color: var(--accent-ink);
+}
+.rtEyebrow {
+  margin: 0 0 4px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.rtReasonText {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.rtDecisionNote {
+  margin: 8px 0 0;
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+}
+.rtQuiet {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.rtAiCard {
+  background:
+    radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--wash-lilac) 80%, transparent), transparent 70%),
+    var(--bg-surface);
+}
+.rtAiHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.rtAiHead .odCardTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+.rtAutoChip {
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--success-soft);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--success);
+}
+
+/* The gauge */
+.rtGauge {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  padding-block: 10px 4px;
+}
+.rtGaugeDial {
+  position: relative;
+  inline-size: min(100%, 320px);
+}
+.rtGaugeDial svg {
+  display: block;
+  inline-size: 100%;
+  block-size: auto;
+  overflow: visible;
+}
+.rtZone {
+  fill: none;
+  stroke-width: 18;
+  stroke-linecap: round;
+  transition: stroke 300ms ease;
+}
+.rtZone--reject {
+  stroke: var(--error-soft);
+}
+.rtZone--review {
+  stroke: var(--warning-soft);
+}
+.rtZone--accept {
+  stroke: var(--success-soft);
+}
+.rtGauge[data-zone='reject'] .rtZone--reject {
+  stroke: var(--error);
+}
+.rtGauge[data-zone='review'] .rtZone--review {
+  stroke: var(--warning);
+}
+.rtGauge[data-zone='accept'] .rtZone--accept {
+  stroke: var(--success);
+}
+.rtNeedle {
+  transform-origin: 120px 120px;
+  transform: rotate(var(--rt-angle));
+  animation: rtSwing 1100ms 150ms cubic-bezier(0.34, 1.4, 0.64, 1) backwards;
+}
+.rtNeedle line {
+  stroke: var(--brand-ink);
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+.rtNeedle circle {
+  fill: var(--brand-ink);
+  stroke: var(--bg-surface);
+  stroke-width: 3;
+}
+@keyframes rtSwing {
+  from {
+    transform: rotate(0deg);
+  }
+}
+.rtGaugeRead {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: 34%;
+  display: grid;
+  justify-items: center;
+}
+.rtGaugeNum {
+  font-family: var(--font-heading);
+  font-size: clamp(30px, 4vw, 40px);
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.rtGaugeCap {
+  margin-block-start: 4px;
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+.rtGaugeVerdict {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+.rtGauge[data-zone='reject'] .rtGaugeVerdict {
+  background: var(--error-soft);
+  color: var(--error);
+}
+.rtGauge[data-zone='review'] .rtGaugeVerdict {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+.rtGauge[data-zone='accept'] .rtGaugeVerdict {
+  background: var(--success-soft);
+  color: var(--success);
+}
+.rtGaugeLegend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+.rtGaugeLegend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.rtGaugeLegend span {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+.rtGaugeLegend [data-zone='reject'] span {
+  background: var(--error);
+}
+.rtGaugeLegend [data-zone='review'] span {
+  background: var(--warning);
+}
+.rtGaugeLegend [data-zone='accept'] span {
+  background: var(--success);
+}
+.rtGaugeNone {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 16px;
+  background: var(--bg-sunken);
+}
+.rtGaugeNone p {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+}
+.rtGaugeNoneIcon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: var(--bg-surface);
+}
+.rtAdvisory {
+  margin: 14px 0 0;
+  font-size: var(--fs-xs);
+  line-height: 1.55;
+  color: var(--text-tertiary);
+  text-align: center;
+}
+.rtDetails {
+  margin-block-start: 12px;
+  border-block-start: 1px solid var(--border);
+}
+.rtDetails summary {
+  padding-block: 12px 4px;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+.rtDetails summary:focus-visible {
+  outline: 3px solid var(--brand-ring);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+.rtDetails dl {
+  display: grid;
+  gap: 8px;
+  margin: 8px 0 0;
+}
+.rtDetails dl > div {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: 12px;
+  font-size: var(--fs-xs);
+}
+.rtDetails dt {
+  color: var(--text-secondary);
+}
+.rtDetails dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Evidence pairs: listing photo beside the buyer's photo, per angle. */
+.rtPairs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.rtPair {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--bg-canvas);
+  animation: olRowIn 380ms var(--ease-soft) backwards;
+}
+.rtPairHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-block-end: 10px;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+.rtPairScore {
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--wash-lilac);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+}
+.rtPairImgs {
+  display: flex;
+  gap: 10px;
+}
+.rtPairImgs figure {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  margin: 0;
+}
+.rtPairImgs img {
+  width: 132px;
+  height: 132px;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  object-fit: contain;
+}
+.rtPairImgs figcaption {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+/* ── Detail: side column ──────────────────────────────────────────────────────────────────── */
+.rtAppeal {
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--warning) 25%, transparent);
+  border-radius: 12px;
+  background: var(--warning-soft);
+  font-size: var(--fs-sm);
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.rtAppealLabel {
+  display: block;
+  margin-block-end: 2px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--warning);
+}
+.rtActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.rtField {
+  display: grid;
+  gap: 8px;
+}
+.rtField--alt {
+  padding-block-start: 12px;
+  border-block-start: 1px dashed var(--border-strong);
+}
+.rtFieldLabel {
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+}
+.rtOrderItems {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--fs-sm);
+}
+.rtOrderItems li {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+.rtQty {
+  flex-shrink: 0;
+  color: var(--text-secondary);
+}
+.rtShipments {
+  display: grid;
+  gap: 8px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--fs-sm);
+}
+.rtShipments li {
+  display: flex;
+  gap: 8px;
+}
+.rtShipments svg {
+  flex-shrink: 0;
+  margin-block-start: 3px;
+}
+.rtTracking {
+  display: block;
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+.rtSim {
+  display: inline-block;
+  margin-block-start: 2px;
+  padding: 0 8px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-sunken);
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+/* ── Urdu ─────────────────────────────────────────────────────────────────────────────────── */
+[dir='rtl'] .rtReasonText,
+[dir='rtl'] .rtBandTitle {
+  font-family: var(--font-urdu);
+  line-height: 1.9;
+}
+[dir='rtl'] .rtStopLabel,
+[dir='rtl'] .rtReason,
+[dir='rtl'] .rtFieldLabel,
+[dir='rtl'] .rtEmptyBody {
+  font-family: var(--font-urdu-ui);
+}
+/* The gauge is a 0→100 scale; mirror the dial so it reads right-to-left with the text. */
+[dir='rtl'] .rtGaugeDial svg {
+  transform: scaleX(-1);
+}
+
+/* ── Responsive ───────────────────────────────────────────────────────────────────────────── */
+@media (max-width: 767px) {
+  .rtRow {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 12px;
+    padding: 14px;
+  }
+  .rtRowEnd {
+    grid-column: 2;
+    justify-items: start;
+  }
+  .rtRowEnd .olStatus {
+    justify-content: flex-start;
+  }
+  .rtChevron {
+    display: none;
+  }
+  .rtBand .odHero {
+    align-self: center;
+  }
+  /* Long journeys become a vertical list on phones. */
+  .rtTrack {
+    inset-inline: auto;
+    inset-inline-start: calc(var(--dot) / 2 - 2px);
+    inset-block: calc(var(--dot) / 2);
+    top: calc(var(--dot) / 2);
+    width: 4px;
+    height: auto;
+  }
+  .rtTrackFill {
+    inset-inline: 0;
+    inline-size: auto;
+    block-size: var(--rt-progress);
+    animation-name: rtFillY;
+  }
+  .rtStops {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  .rtStop {
+    flex-direction: row;
+    text-align: start;
+  }
+  .rtStopText {
+    grid-auto-flow: column;
+    justify-content: start;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .rtPairs {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .rtPairImgs img {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1;
+  }
+  .rtPairImgs figure {
+    flex: 1;
+    min-width: 0;
+  }
+}
+@keyframes rtFillY {
+  from {
+    block-size: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rtTrackFill,
+  .rtNeedle,
+  .rtPair,
+  .rtStop[data-state='current'] .rtDot {
+    animation: none;
+  }
+  .rtChevron {
+    transition: none;
+  }
+}

@@ -2030,91 +2030,66 @@ html[lang='ur'] .hero__title {
   color: var(--text-on-dark);
 }
 
-/* ── The card fan (the page's signature moment) ─────────────────────────────
-   Cards overlap by 14px, rotate and drop by their --r / --y pose; RTL flips the rotation through
-   --fan-dir. On load they settle from a tighter, lower fan (520ms, 40ms stagger) — transform only,
-   from an already-visible first frame. On fine pointers the fan opens a little on hover. */
-.hero-fan {
-  --fan-dir: 1;
+/* ── The curved product ticker (the page's signature moment) ─────────────────
+   Fixed-size cards glide along a shallow arch; Hero.tsx positions each card every frame (x, drop
+   and tilt from the curve's slope). Photos are cropped into a fixed square so no image can stretch
+   its card. The edges fade out so cards enter and leave softly. */
+.hero-ticker {
   position: relative;
-  display: flex;
-  justify-content: center;
-  align-items: flex-end;
-  width: 100%;
-  padding: 56px 0 var(--sp-12);
+  width: 100vw;
+  margin-inline: calc(50% - 50vw);
+  padding: 56px 0 var(--sp-8);
 }
-[dir='rtl'] .hero-fan {
-  --fan-dir: -1;
-}
-.hero-fan__card {
-  --r: 0deg;
-  --y: 0px;
-  --open: 1;
+.hero-ticker__track {
   position: relative;
-  z-index: 1;
+  height: 400px;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 12%, #000 88%, transparent);
+  mask-image: linear-gradient(to right, transparent, #000 12%, #000 88%, transparent);
+}
+.hero-ticker__card {
+  position: absolute;
+  top: 24px;
+  left: 0;
   display: flex;
   flex-direction: column;
-  flex: 0 0 196px;
-  margin-inline: -14px;
-  padding: 8px;
+  width: 200px;
+  padding: 8px 8px 12px;
   border-radius: 22px;
   background: var(--bg-surface);
   box-shadow: var(--shadow-lg);
   color: var(--text-primary);
   text-align: start;
   text-decoration: none;
-  transform: translateY(var(--y)) rotate(calc(var(--r) * var(--fan-dir) * var(--open)));
-  transform-origin: 50% 90%;
-  animation: fan-settle var(--dur-enter) var(--ease-soft) backwards;
-  animation-delay: calc(var(--i) * 40ms);
-  transition: transform var(--dur-slow) var(--ease-soft);
+  transform-origin: 50% 100%;
+  will-change: transform;
+  transition: box-shadow var(--dur-base) var(--ease-soft);
 }
-.hero-fan__card:nth-child(2),
-.hero-fan__card:nth-child(4) {
-  z-index: 2;
+.hero-ticker__card--art {
+  padding-block-end: 8px;
 }
-.hero-fan__card--centre {
-  z-index: 3;
-  flex-basis: 216px;
-  padding-block-end: 14px;
-  border-radius: var(--radius-xl);
+.hero-ticker__card:hover {
   box-shadow: var(--shadow-xl);
 }
-@keyframes fan-settle {
-  from {
-    transform: translateY(calc(var(--y) + 26px)) rotate(calc(var(--r) * var(--fan-dir) * 0.35)) scale(0.96);
-  }
-}
-@media (hover: hover) and (pointer: fine) {
-  .hero-fan:hover .hero-fan__card {
-    --open: 1.3;
-  }
-  .hero-fan:hover .hero-fan__card--centre {
-    transform: translateY(-8px);
-  }
-}
-a.hero-fan__card:focus-visible {
+a.hero-ticker__card:focus-visible {
   outline: none;
   box-shadow: var(--shadow-lg), 0 0 0 3px var(--brand-ring);
 }
-.hero-fan__art {
-  display: grid;
-  place-items: center;
+.hero-ticker__art {
+  display: block;
   overflow: hidden;
-  height: 200px;
+  width: 100%;
+  aspect-ratio: 1 / 1;
   border-radius: 16px;
 }
-.hero-fan__card--centre .hero-fan__art {
-  height: 220px;
-  border-radius: 18px;
-}
-.hero-fan__art img {
+.hero-ticker__art img {
   display: block;
+  width: 100%;
   height: 100%;
-  width: auto;
-  max-width: none;
+  object-fit: cover;
+  user-select: none;
 }
-.hero-fan__title {
+.hero-ticker__title {
   overflow: hidden;
   padding: 10px 6px 0;
   font-size: var(--fs-sm);
@@ -2122,15 +2097,15 @@ a.hero-fan__card:focus-visible {
   white-space: nowrap;
   text-overflow: ellipsis;
 }
-html[lang='ur'] .hero-fan__title {
+html[lang='ur'] .hero-ticker__title {
   font-family: var(--font-urdu-ui);
 }
-.hero-fan__price {
-  --price-fs: 17px;
+.hero-ticker__price {
+  --price-fs: 16px;
   padding: 2px 6px 0;
 }
 
-/* Floating tags pinned to the centre card — platform facts. */
+/* Floating tags pinned over the middle of the ticker — platform facts. */
 .hero-tag {
   position: absolute;
   z-index: 4;
@@ -2145,16 +2120,16 @@ html[lang='ur'] .hero-fan__title {
   white-space: nowrap;
 }
 .hero-tag--ai {
-  inset-block-start: -16px;
-  inset-inline-start: 58%;
+  inset-block-start: 40px;
+  inset-inline-start: 52%;
   background: var(--brand-ink);
   color: var(--text-on-dark);
   box-shadow: 0 12px 24px rgb(var(--shadow-ink) / 0.25);
   transform: rotate(calc(3deg * var(--fan-dir)));
 }
 .hero-tag--cod {
-  inset-block-end: -14px;
-  inset-inline-start: -56px;
+  inset-block-start: 40px;
+  inset-inline-end: 52%;
   border: 1px solid var(--border);
   background: var(--bg-surface);
   color: var(--text-primary);
@@ -2162,17 +2137,11 @@ html[lang='ur'] .hero-fan__title {
 }
 
 @media (max-width: 991px) {
-  .hero-fan__card {
-    flex-basis: 156px;
+  .hero-ticker__card {
+    width: 170px;
   }
-  .hero-fan__card--centre {
-    flex-basis: 176px;
-  }
-  .hero-fan__art {
-    height: 160px;
-  }
-  .hero-fan__card--centre .hero-fan__art {
-    height: 180px;
+  .hero-ticker__track {
+    height: 360px;
   }
 }
 @media (max-width: 767px) {
@@ -2223,43 +2192,26 @@ html[lang='ur'] .hero-fan__title {
     -webkit-mask-image: linear-gradient(to right, transparent, #000 28px);
     mask-image: linear-gradient(to right, transparent, #000 28px);
   }
-  /* Three cards on phones: the outer pair steps away. */
-  .hero-fan {
+  .hero-ticker {
     padding-block-start: var(--sp-10);
   }
-  .hero-fan__card:first-child,
-  .hero-fan__card:last-child {
-    display: none;
+  .hero-ticker__card {
+    width: 140px;
   }
-  .hero-fan__card {
-    flex-basis: 128px;
-    margin-inline: -10px;
-  }
-  .hero-fan__card--centre {
-    flex-basis: 150px;
-  }
-  .hero-fan__art {
-    height: 132px;
-  }
-  .hero-fan__card--centre .hero-fan__art {
-    height: 150px;
+  .hero-ticker__track {
+    height: 290px;
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 6%, #000 94%, transparent);
+    mask-image: linear-gradient(to right, transparent, #000 6%, #000 94%, transparent);
   }
   .hero-tag {
     padding: 6px 10px;
     font-size: 11.5px;
   }
-  .hero-tag--ai {
-    inset-inline-start: 46%;
-  }
 }
 @media (max-width: 420px) {
   /* Narrow phones: the sticker starts further in so its overhang never reaches the screen edge. */
   .hero-tag--ai {
-    inset-inline-start: 22%;
     font-size: 11px;
-  }
-  .hero-tag--cod {
-    inset-inline-start: -34px;
   }
 }
 

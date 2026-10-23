@@ -1,41 +1,93 @@
 import type { MenuProps } from 'antd';
-import { BarChart3, Bot, ClipboardList, MessageCircle, Package, Settings, Undo2, Wallet } from 'lucide-react';
+import { ConfigProvider } from 'antd';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import {
+  ArrowLeft,
+  ArrowRight,
+  BarChart3,
+  Bot,
+  ClipboardList,
+  House,
+  MessageCircle,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Plus,
+  Settings,
+  Undo2,
+  Wallet,
+  type LucideIcon,
+} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { Link, Outlet, useNavigate } from 'react-router-dom';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 
-import { AppHeader, AppShell, BottomTabBar, Sidebar, type NavItem } from '../../components';
+import { compactDensity } from '../../app/theme';
+import { AiMark, BrandLogo, LanguageToggle } from '../../components';
+import { isNavItemActive, type NavItem } from '../../components/navTypes';
+import { useLanguage, useMediaQuery } from '../../hooks';
 import { useAuthStore } from '../../lib/authStore';
 import { NotificationBell } from '../notifications';
-import { StorefrontLogo } from '../marketplace/StorefrontLogo';
 import { AccountMenu } from '../profile';
+import { PROFILE_QUERY_KEY, STORE_STATUS_QUERY_KEY, getProfile, getStoreStatus } from '../profile/profileApi';
 import { logout as logoutApi } from '../auth/authApi';
+import './seller.css';
 
-// Every /seller/* page renders through this layout (including /seller/setup, so a brand-new
-// Seller still gets consistent chrome). Phase C: rebuilt on the shared AppShell/AppHeader/Sidebar/
-// BottomTabBar — this file is now just the Seller "configuration" layer (nav items, account menu)
-// over those shared components, not a hand-rolled header. Primary navigation moved from inline
-// header buttons into the new Sidebar; the header keeps only branding, language, notifications,
-// and the account menu (same items it always had: Profile + Logout).
+const COLLAPSE_KEY = 'ka.sellerNavCollapsed';
+
+interface NavGroup {
+  key: 'groupStore' | 'groupGrow' | 'groupAccount';
+  items: NavItem[];
+}
+
+// The Seller workspace shell (Studio Light, calm + trustworthy): a quiet sidebar that is part of
+// the page (logo, the one persimmon "Add with AI" action, grouped nav, the store card at the
+// bottom), a slim top bar (current section, language, notifications, account), and on phones a
+// bottom bar with the AI add button in the middle. Seller-only on purpose — Admin keeps AppShell.
 //
-// "Products" doubles as the Seller's dashboard/landing item — there is no separate /seller
-// dashboard route in this app (SellerProductsPage IS what `/seller` renders), so unlike the UIUX
-// doc's Dashboard+Products as two sidebar entries, this app has one real route for both; adding a
-// second nav item pointing at the same URL would just be a confusing duplicate. "Wallet" has no
-// dedicated screen yet either — it resolves via the existing `/seller/*` placeholder route
-// (SellerPlaceholder's intended purpose) rather than a route this phase invents.
-const SIDEBAR_ITEMS_KEY = ['products', 'orders', 'returns', 'messages', 'analytics', 'assistant', 'wallet', 'settings'] as const;
-
+// `/seller` is the Seller's home (SellerProductsPage); "Wallet" resolves via the `/seller/*`
+// placeholder. While the store isn't set up yet (/seller/setup) the nav is hidden: every link
+// would just bounce back to setup.
 export function SellerLayout() {
-  const { t } = useTranslation(['common']);
+  const { t } = useTranslation(['common', 'profile']);
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const isWide = useMediaQuery('(min-width: 768px)');
   const clearSession = useAuthStore((s) => s.clearSession);
+  const { data: profile } = useQuery({ queryKey: PROFILE_QUERY_KEY, queryFn: getProfile });
+  const store = profile?.role === 'SELLER' && profile.hasStore ? profile : null;
+  const settingUp = !store;
+  const { data: storeStatus } = useQuery({
+    queryKey: STORE_STATUS_QUERY_KEY,
+    queryFn: getStoreStatus,
+    enabled: !!store,
+  });
+  const { dir } = useLanguage();
+  // Desktop-only choice to shrink the sidebar to its icon rail; remembered on this device.
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      return window.localStorage.getItem(COLLAPSE_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
+  const toggleCollapsed = () => {
+    setCollapsed((current) => {
+      try {
+        window.localStorage.setItem(COLLAPSE_KEY, current ? '0' : '1');
+      } catch {
+        /* per-device convenience only */
+      }
+      return !current;
+    });
+  };
+  // The panel icons point at the sidebar's edge, so they flip with the page direction.
+  const CollapseIcon = (collapsed ? dir === 'rtl' : dir !== 'rtl') ? PanelLeftClose : PanelLeftOpen;
 
   async function handleLogout() {
     try {
       await logoutApi();
     } catch {
-      // The local session is cleared regardless — a failed revoke call shouldn't trap the
-      // user in a header that still looks logged in.
+      // The local session is cleared regardless — a failed revoke call shouldn't trap the user.
     } finally {
       clearSession();
       navigate('/login');
@@ -48,40 +100,183 @@ export function SellerLayout() {
     { key: 'logout', label: t('actions.logout'), onClick: handleLogout },
   ];
 
-  const allItems: Record<(typeof SIDEBAR_ITEMS_KEY)[number], NavItem> = {
-    products: { key: 'products', to: '/seller', label: t('nav.products'), icon: Package, exact: true },
-    orders: { key: 'orders', to: '/seller/orders', label: t('nav.orders'), icon: ClipboardList },
-    returns: { key: 'returns', to: '/seller/returns', label: t('nav.returns'), icon: Undo2 },
-    messages: { key: 'messages', to: '/seller/messages', label: t('nav.messages'), icon: MessageCircle },
-    analytics: { key: 'analytics', to: '/seller/analytics', label: t('nav.analytics'), icon: BarChart3 },
-    assistant: { key: 'assistant', to: '/seller/assistant', label: 'Business assistant', icon: Bot },
-    wallet: { key: 'wallet', to: '/seller/wallet', label: t('nav.wallet'), icon: Wallet },
-    settings: { key: 'settings', to: '/seller/profile/settings', label: t('nav.adminConfig'), icon: Settings },
-  };
-  const sidebarItems = SIDEBAR_ITEMS_KEY.map((key) => allItems[key]);
-  // 5 max per §15 — mobile drops Wallet (still reachable from the desktop/tablet sidebar).
-  const bottomTabItems = sidebarItems.filter((item) => ['products', 'orders', 'returns', 'messages', 'analytics'].includes(item.key));
+  const item = (key: string, to: string, label: string, icon: LucideIcon, exact = false): NavItem => ({
+    key,
+    to,
+    label,
+    icon,
+    exact,
+  });
+  const home = item('home', '/seller', t('nav.sellerHome'), House, true);
+  const orders = item('orders', '/seller/orders', t('nav.orders'), ClipboardList);
+  const returns = item('returns', '/seller/returns', t('nav.returns'), Undo2);
+  const messages = item('messages', '/seller/messages', t('nav.messages'), MessageCircle);
+  const analytics = item('analytics', '/seller/analytics', t('nav.analytics'), BarChart3);
+  const assistant = item('assistant', '/seller/assistant', t('nav.assistant'), Bot);
+  const wallet = item('wallet', '/seller/wallet', t('nav.wallet'), Wallet);
+  const settings = item('settings', '/seller/profile/settings', t('nav.adminConfig'), Settings);
 
-  return (
-    <AppShell
-      density="compact"
-      header={
-        <AppHeader
-          brand={
-            <span className="app-brand">
-              <StorefrontLogo to="/seller" />
+  const groups: NavGroup[] = [
+    { key: 'groupStore', items: [home, orders, returns, messages] },
+    { key: 'groupGrow', items: [analytics, assistant] },
+    { key: 'groupAccount', items: [wallet, settings] },
+  ];
+  const allItems = groups.flatMap((group) => group.items);
+  // Product pages live under Home (the product list is the home page).
+  const current =
+    allItems.find((navItem) => navItem.key !== 'home' && isNavItemActive(pathname, navItem)) ??
+    (pathname.startsWith('/seller/products') || pathname === '/seller' ? home : undefined);
+  // Detail pages get a back link to their list in the top bar; top-level pages show the store's
+  // real status instead (green "Live" only when the account is ACTIVE).
+  const parent = pathname.startsWith('/seller/products/')
+    ? home
+    : /^\/seller\/(orders|returns)\/.+/.test(pathname)
+      ? pathname.startsWith('/seller/orders')
+        ? orders
+        : returns
+      : /^\/seller\/profile\/.+/.test(pathname)
+        ? item('profile', '/seller/profile', t('nav.profile'), House)
+        : undefined;
+  const BackIcon = dir === 'rtl' ? ArrowRight : ArrowLeft;
+  const live = storeStatus?.status === 'ACTIVE';
+
+  const navLink = (navItem: NavItem) => {
+    const active = current?.key === navItem.key;
+    const Icon = navItem.icon;
+    return (
+      <Link
+        key={navItem.key}
+        to={navItem.to}
+        className="slNavLink"
+        title={collapsed ? navItem.label : undefined}
+        aria-current={active ? 'page' : undefined}
+        data-active={active || undefined}
+      >
+        <span className="slNavIcon">
+          <Icon size={18} aria-hidden="true" />
+        </span>
+        <span className="slNavLabel">{navItem.label}</span>
+      </Link>
+    );
+  };
+
+  const shell = (
+    <div className="slShell" data-setup={settingUp || undefined} data-collapsed={collapsed || undefined}>
+      <a href="#main-content" className="skip-link">
+        {t('a11y.skipToContent')}
+      </a>
+
+      {!settingUp && (
+        <aside className="slSide">
+          <div className="slSideHead">
+            <Link to="/seller" className="slSideBrand" aria-label="KarobarAI">
+              <BrandLogo />
+            </Link>
+            <button
+              type="button"
+              className="slCollapse"
+              onClick={toggleCollapsed}
+              aria-label={collapsed ? t('nav.expandNav') : t('nav.collapseNav')}
+              aria-expanded={!collapsed}
+              title={collapsed ? t('nav.expandNav') : t('nav.collapseNav')}
+            >
+              <CollapseIcon size={18} aria-hidden="true" />
+            </button>
+          </div>
+
+          <Link to="/seller/products/new" className="slAddAi">
+            <AiMark size={14} color="currentColor" />
+            <span className="slAddAiLabel">{t('nav.addWithAi')}</span>
+          </Link>
+
+          <nav className="slNav" aria-label={t('landmarks.sellerNav')}>
+            {groups.map((group) => (
+              <div key={group.key} className="slNavGroup">
+                <span className="slNavGroupLabel">{t(`nav.${group.key}`)}</span>
+                {group.items.map(navLink)}
+              </div>
+            ))}
+          </nav>
+
+          {store && (
+            <Link to="/seller/profile" className="slStoreCard">
+              <span className="slStoreLogo" aria-hidden="true">
+                {store.logoUrl ? <img src={store.logoUrl} alt="" /> : store.storeName.slice(0, 1).toUpperCase()}
+              </span>
+              <span className="slStoreText">
+                <span className="slStoreName">{store.storeName}</span>
+                <span className="slStoreCity">{store.city ?? t('nav.viewStore')}</span>
+              </span>
+            </Link>
+          )}
+        </aside>
+      )}
+
+      <div className="slColumn">
+        <header className="slTopbar">
+          <Link to="/seller" className="slTopBrand" aria-label="KarobarAI">
+            <BrandLogo />
+          </Link>
+          {settingUp ? (
+            <span className="slSection">{t('nav.setupStore')}</span>
+          ) : parent ? (
+            <Link to={parent.to} className="slBack" aria-label={t('nav.backTo', { label: parent.label })}>
+              <BackIcon size={16} aria-hidden="true" />
+              <span>{parent.label}</span>
+            </Link>
+          ) : (
+            store && (
+              <Link to="/seller/profile" className="slStatus" data-live={live || undefined}>
+                <span className="slStatusDot" aria-hidden="true" />
+                <span className="slStatusName">{store.storeName}</span>
+                {storeStatus && (
+                  <span className="slStatusText">
+                    {live ? t('nav.storeLive') : t(`profile:status.${storeStatus.status}`)}
+                  </span>
+                )}
+              </Link>
+            )
+          )}
+          <div className="slTopActions">
+            {!settingUp && (
+              <>
+                <Link to="/seller/assistant" className="slIconBtn slIconBtn--ai" aria-label={t('nav.assistant')} title={t('nav.assistant')}>
+                  <AiMark size={16} color="currentColor" />
+                </Link>
+                <Link to="/seller/messages" className="slIconBtn" aria-label={t('nav.messages')} title={t('nav.messages')}>
+                  <MessageCircle size={18} aria-hidden="true" />
+                </Link>
+                <span className="slBell">
+                  <NotificationBell />
+                </span>
+              </>
+            )}
+            <LanguageToggle />
+            <span className="slTopDivider" aria-hidden="true" />
+            <AccountMenu items={menuItems} />
+          </div>
+        </header>
+
+        <main id="main-content" tabIndex={-1} className="slMain">
+          <Outlet />
+        </main>
+      </div>
+
+      {!settingUp && (
+        <nav className="slTabs" aria-label={t('landmarks.sellerNav')}>
+          {[home, orders].map(navLink)}
+          <Link to="/seller/products/new" className="slTabAdd" aria-label={t('nav.addWithAi')}>
+            <span className="slTabAddBtn">
+              <Plus size={24} strokeWidth={2.5} aria-hidden="true" />
             </span>
-          }
-          homeHref="/seller"
-          brandLabel="KarobarAI"
-          notificationSlot={<NotificationBell />}
-          accountSlot={<AccountMenu items={menuItems} />}
-        />
-      }
-      sidebar={<Sidebar items={sidebarItems} ariaLabel={t('landmarks.sellerNav')} />}
-      bottomTabs={<BottomTabBar items={bottomTabItems} ariaLabel={t('landmarks.sellerNav')} />}
-    >
-      <Outlet />
-    </AppShell>
+            <span className="slNavLabel">{t('nav.addShort')}</span>
+          </Link>
+          {[returns, messages].map(navLink)}
+        </nav>
+      )}
+    </div>
   );
+
+  // Compact (40px) AntD controls on tablet/desktop; phones keep the 48px touch default.
+  return isWide ? <ConfigProvider theme={compactDensity}>{shell}</ConfigProvider> : shell;
 }

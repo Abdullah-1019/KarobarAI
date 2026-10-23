@@ -1,0 +1,795 @@
+/* Orders (list + detail), shared by the Buyer and Seller sides. Studio Light; logical properties
+   throughout so everything mirrors under dir="rtl". Motion only where something changes: the tab
+   ink slides, rows settle in, the journey line runs to the new stage, the next-step card swaps. */
+
+/* ── Journey track (mini in list rows, full on the detail page) ──────────────────────────── */
+.odJourney {
+  --dot: 24px;
+  --track: 4px;
+  position: relative;
+  width: 100%;
+}
+.odJourney[data-variant='mini'] {
+  --dot: 9px;
+  --track: 2px;
+  width: 116px;
+}
+.odTrack {
+  position: absolute;
+  inset-inline: 10%;
+  top: calc(var(--dot) / 2 - var(--track) / 2);
+  height: var(--track);
+  border-radius: var(--radius-pill);
+  background: var(--bg-sunken);
+}
+.odTrackFill {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  border-radius: inherit;
+  background: var(--success);
+  transition: inline-size 700ms var(--ease-soft);
+  animation: odFillIn 900ms 120ms var(--ease-soft) backwards;
+}
+@keyframes odFillIn {
+  from {
+    inline-size: 0;
+  }
+}
+.odStops {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.odStop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.odDot {
+  display: grid;
+  place-items: center;
+  width: var(--dot);
+  height: var(--dot);
+  border: 2px solid var(--bg-sunken);
+  border-radius: 50%;
+  background: var(--bg-surface);
+  color: var(--text-on-brand);
+  transition:
+    background 300ms var(--ease) 400ms,
+    border-color 300ms var(--ease) 400ms,
+    transform var(--dur-slow) var(--ease-spring) 400ms;
+}
+.odJourney[data-variant='mini'] .odDot {
+  border-width: 0;
+  background: var(--bg-sunken);
+}
+.odStop[data-state='done'] .odDot {
+  border-color: var(--success);
+  background: var(--success);
+}
+.odStop[data-state='current'] .odDot {
+  border-color: var(--brand-ink);
+  background: var(--bg-surface);
+  transform: scale(1.12);
+  animation: odPulse 2.2s var(--ease) infinite;
+}
+.odJourney[data-variant='mini'] .odStop[data-state='current'] .odDot {
+  background: var(--brand-ink);
+}
+@keyframes odPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--brand-ink) 28%, transparent);
+  }
+  60% {
+    box-shadow: 0 0 0 7px transparent;
+  }
+}
+.odJourney[data-cancelled] .odDot {
+  background: var(--bg-sunken);
+}
+.odJourney[data-cancelled] .odStop:first-child .odDot {
+  border-color: var(--error);
+  background: var(--error);
+}
+.odStopLabel {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  text-align: center;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.odStop[data-state='current'] .odStopLabel {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* ── List ─────────────────────────────────────────────────────────────────────────────────── */
+.olPage {
+  display: grid;
+  gap: 18px;
+  max-width: 1040px;
+  margin-inline: auto;
+}
+.olTitle,
+.odTitle {
+  margin: 0;
+  font-size: clamp(26px, 2.6vw, 34px);
+  font-weight: var(--fw-display);
+  letter-spacing: var(--tracking-heading);
+  line-height: 1.15;
+}
+.olTabs {
+  position: relative;
+  display: flex;
+  gap: 2px;
+  width: fit-content;
+  max-width: 100%;
+  padding: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-sunken);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.olTabInk {
+  position: absolute;
+  inset-block: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--brand-ink);
+  box-shadow: var(--shadow-sm);
+  transition:
+    left 360ms var(--ease-soft),
+    width 360ms var(--ease-soft);
+}
+.olTab {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+  height: 36px;
+  padding-inline: 16px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 240ms var(--ease);
+}
+.olTab:hover {
+  color: var(--text-primary);
+}
+.olTab[aria-pressed='true'] {
+  color: var(--text-on-dark);
+  font-weight: 600;
+}
+.olTab:focus-visible {
+  outline: 3px solid var(--brand-ring);
+  outline-offset: 2px;
+}
+
+.olRows {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.olRowWrap {
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--bg-surface);
+  transition:
+    box-shadow var(--dur-base) var(--ease),
+    transform var(--dur-base) var(--ease);
+  animation: olRowIn 380ms var(--ease-soft) backwards;
+}
+@keyframes olRowIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+.olRowWrap:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+/* Waiting on the seller: a soft peach edge so the work queue reads at a glance. */
+.olRowWrap[data-attention] {
+  border-color: color-mix(in srgb, var(--brand-primary) 30%, var(--border));
+  background: linear-gradient(90deg, var(--wash-peach), var(--bg-surface) 45%);
+}
+[dir='rtl'] .olRowWrap[data-attention] {
+  background: linear-gradient(270deg, var(--wash-peach), var(--bg-surface) 45%);
+}
+.olRow {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1.3fr) auto minmax(90px, auto) minmax(120px, auto);
+  align-items: center;
+  gap: 18px;
+  padding: 14px 18px;
+  border-radius: inherit;
+  color: var(--text-primary);
+  text-decoration: none;
+}
+.olRow:hover {
+  color: var(--text-primary);
+}
+.olRow:focus-visible {
+  outline: 3px solid var(--brand-ring);
+  outline-offset: 2px;
+}
+.olAvatar {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 15px;
+  background: var(--wash-lilac);
+  font-family: var(--font-heading);
+  font-size: 18px;
+  font-weight: 600;
+}
+.olAvatarCount {
+  position: absolute;
+  inset-block-end: -6px;
+  inset-inline-end: -6px;
+  padding: 1px 6px;
+  border: 2px solid var(--bg-surface);
+  border-radius: var(--radius-pill);
+  background: var(--brand-ink);
+  color: var(--text-on-dark);
+  font-family: var(--font-body);
+  font-size: 10.5px;
+  font-weight: 700;
+}
+.olMain {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.olNumber {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.olMeta,
+.olCount {
+  overflow: hidden;
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.olEnd {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+}
+.olStatus {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.olReturn {
+  position: absolute;
+  inset-block-end: 10px;
+  inset-inline-end: 18px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--text-primary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.olMore {
+  text-align: center;
+}
+.olEmpty {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 48px 20px;
+  border: 1.5px dashed var(--border-strong);
+  border-radius: 24px;
+  text-align: center;
+}
+.olEmptyIcon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  background: var(--wash-lilac);
+}
+.olEmptyTitle {
+  margin: 0;
+  font-weight: 600;
+}
+.olEmptyLink {
+  font-weight: 600;
+  color: var(--text-primary);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+/* ── Detail ───────────────────────────────────────────────────────────────────────────────── */
+.odPage {
+  display: grid;
+  gap: 18px;
+  max-width: 1080px;
+  margin-inline: auto;
+}
+.odHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px 24px;
+}
+.odTitleRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.odSub {
+  margin: 6px 0 0;
+  color: var(--text-secondary);
+}
+.odHeadActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.odGhostLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 40px;
+  padding-inline: 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  color: var(--text-primary);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  text-decoration: none;
+  transition: background var(--dur-fast) var(--ease);
+}
+.odGhostLink:hover {
+  background: var(--bg-sunken);
+  color: var(--text-primary);
+}
+.odGhostLink:focus-visible {
+  outline: 3px solid var(--brand-ring);
+  outline-offset: 2px;
+}
+.odGhostLink--block {
+  width: 100%;
+}
+
+.odJourneyCard {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  padding: 20px 24px;
+  border-radius: 28px;
+  background: var(--wash-lilac);
+}
+.odHero {
+  flex-shrink: 0;
+  width: 72px;
+  height: 72px;
+  border: 3px solid var(--bg-surface);
+  border-radius: 20px;
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+  transform: rotate(-3deg);
+}
+[dir='rtl'] .odHero {
+  transform: rotate(3deg);
+}
+.odHero img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.odHeroBlank {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--bg-sunken);
+}
+
+.odGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 340px);
+  align-items: start;
+  gap: 18px;
+}
+.odMain {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.odSide {
+  position: sticky;
+  top: 96px;
+  display: grid;
+  gap: 12px;
+}
+.odCard {
+  padding: clamp(16px, 2vw, 22px);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  background: var(--bg-surface);
+}
+.odCardTitle {
+  margin: 0 0 12px;
+  font-size: 17px;
+  font-weight: 600;
+}
+.odItems {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.odItem {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-block: 8px;
+}
+.odItem + .odItem {
+  border-block-start: 1px solid var(--border);
+}
+.odItemImg {
+  flex-shrink: 0;
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  background: var(--bg-sunken);
+  overflow: hidden;
+}
+.odItemImg img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.odItemMain {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+  min-width: 0;
+}
+.odItemTitle {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.odItemMeta {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+.odTotals {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0 0;
+  padding-block-start: 12px;
+  border-block-start: 1px solid var(--border);
+}
+.odTotals > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.odTotals dt {
+  color: var(--text-secondary);
+}
+.odTotals dd {
+  margin: 0;
+}
+.odTotal {
+  margin-block-start: 4px;
+  padding-block-start: 10px;
+  border-block-start: 1px dashed var(--border-strong);
+}
+.odTotal dt {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.odReturnRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-block: 8px;
+}
+.odPair {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 16px;
+}
+.odStrong {
+  margin: 0 0 8px;
+  font-weight: 600;
+}
+.odLine {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 0 6px;
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+}
+.odLine svg {
+  flex-shrink: 0;
+  margin-block-start: 3px;
+}
+
+/* The seller's single next step (or the buyer's status) — swaps in when the status changes. */
+.odNext {
+  display: grid;
+  gap: 12px;
+  padding: 20px;
+  border-radius: 24px;
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-lg);
+  border-block-start: 4px solid var(--brand-primary);
+  animation: odNextIn 420ms var(--ease-soft) both;
+}
+.odNext[data-done] {
+  border-block-start-color: var(--success);
+}
+.odNext[data-cancelled] {
+  border-block-start-color: var(--text-tertiary);
+}
+@keyframes odNextIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+}
+.odNextLabel {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--brand-primary);
+}
+.odNextText {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.odCourier {
+  margin-block-start: 4px;
+}
+.odCancel.ant-btn {
+  justify-self: center;
+}
+.odRef {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--text-tertiary);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+/* Urdu */
+[dir='rtl'] .olTitle,
+[dir='rtl'] .odTitle {
+  font-family: var(--font-urdu);
+  line-height: 1.9;
+  letter-spacing: normal;
+}
+[dir='rtl'] .olTab,
+[dir='rtl'] .odStopLabel,
+[dir='rtl'] .odSub,
+[dir='rtl'] .odCardTitle,
+[dir='rtl'] .odLine,
+[dir='rtl'] .odNextLabel,
+[dir='rtl'] .olMeta,
+[dir='rtl'] .olCount {
+  font-family: var(--font-urdu-ui);
+}
+[dir='rtl'] .odNextText {
+  font-family: var(--font-urdu);
+  font-size: 17px;
+  line-height: 1.9;
+}
+
+/* Responsive */
+@media (max-width: 991px) {
+  .odGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  /* The next step comes right after the journey on smaller screens. */
+  .odSide {
+    position: static;
+    order: -1;
+  }
+  .olRow {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      'avatar main end'
+      'avatar journey status';
+    row-gap: 10px;
+  }
+  .olRow > .olAvatar {
+    grid-area: avatar;
+    align-self: start;
+  }
+  .olMain {
+    grid-area: main;
+  }
+  .olJourney {
+    grid-area: journey;
+  }
+  .olEnd {
+    grid-area: end;
+  }
+  .olStatus {
+    grid-area: status;
+  }
+}
+@media (max-width: 767px) {
+  .olTabs {
+    width: 100%;
+  }
+  .olRow {
+    gap: 12px;
+    padding: 14px;
+  }
+  .olReturn {
+    position: static;
+    display: block;
+    padding: 0 14px 12px;
+  }
+  .odJourneyCard {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 18px 14px;
+  }
+  .odHero {
+    width: 56px;
+    height: 56px;
+    align-self: center;
+  }
+  .odStopLabel {
+    font-size: 11px;
+    white-space: normal;
+    line-height: 1.25;
+  }
+  .odPair {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .odTrackFill,
+  .odDot,
+  .olTabInk,
+  .olRowWrap {
+    transition: none;
+    animation: none;
+  }
+  .odStop[data-state='current'] .odDot,
+  .odNext {
+    animation: none;
+  }
+}
+
+/* ── Tracking ─────────────────────────────────────────────────────────────────────────────── */
+.trBand {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 18px 22px;
+  padding: 22px 24px;
+  border-radius: 28px;
+  background: var(--wash-lilac);
+}
+.trBandText {
+  min-width: 0;
+}
+.trStage {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: clamp(22px, 2.4vw, 28px);
+  font-weight: 600;
+  line-height: 1.2;
+  animation: odNextIn 420ms var(--ease-soft) both;
+}
+.trMessage {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0 0;
+  color: var(--text-secondary);
+}
+.trSim.ant-tag {
+  margin: 0;
+  border-radius: var(--radius-pill);
+}
+.trBandJourney {
+  grid-column: 1 / -1;
+  padding: 16px 12px 4px;
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--bg-surface) 70%, transparent);
+}
+.trMap {
+  padding: 10px;
+  overflow: hidden;
+}
+.trMap .leaflet-container {
+  height: 420px !important;
+  border-radius: 16px !important;
+}
+.trNo {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* Timeline: events settle in one by one; a newly pushed event slides in; the current one glows. */
+.tlEvent {
+  animation: tlIn 420ms var(--ease-soft) backwards;
+}
+@keyframes tlIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+.tlEvent[data-current] .tlIcon {
+  animation: odPulse 2.2s var(--ease) infinite;
+}
+
+[dir='rtl'] .trStage {
+  font-family: var(--font-urdu);
+  line-height: 1.9;
+}
+[dir='rtl'] .trMessage {
+  font-family: var(--font-urdu-ui);
+}
+@media (max-width: 767px) {
+  .trBand {
+    padding: 18px 14px;
+    gap: 14px;
+  }
+  .trBand .odHero {
+    width: 56px;
+    height: 56px;
+  }
+  .trMap .leaflet-container {
+    height: 280px !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .trStage,
+  .tlEvent,
+  .tlEvent[data-current] .tlIcon {
+    animation: none;
+  }
+}

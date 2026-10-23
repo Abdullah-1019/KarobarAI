@@ -126,6 +126,7 @@ export function ResetPasswordPage() {
               autoComplete="new-password"
               showStrength
               showChecklist
+              disabled={submitting}
               autoFocus
             />
           )}
@@ -144,6 +145,7 @@ export function ResetPasswordPage() {
               onBlur={field.onBlur}
               error={errors.confirmPassword?.message}
               autoComplete="new-password"
+              disabled={submitting}
             />
           )}
         />
@@ -155,7 +157,7 @@ export function ResetPasswordPage() {
           </p>
         )}
 
-        <PrimaryButton type="submit" loading={submitting}>
+        <PrimaryButton type="submit" loading={submitting} loadingLabel={t('auth:resetPassword.saving')}>
           {t('auth:resetPassword.submit')}
         </PrimaryButton>
       </form>

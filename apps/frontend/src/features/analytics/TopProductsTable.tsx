@@ -1,73 +1,72 @@
-import { Alert, Avatar, Card, Table } from 'antd';
 import { useQuery } from '@tanstack/react-query';
+import { Trophy } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
-import type { TopProductItemDTO } from '@karobarai/shared';
-import { PriceDisplay } from '../../components';
+import { ProductThumbnail } from '../../components';
 import { useLanguage } from '../../hooks';
 import type { TopProductsParams } from './analyticsApi';
 import { getTopProducts, topProductsQueryKey } from './analyticsApi';
-import { formatAnalyticsError } from './analyticsErrors';
+import { AnalyticsError, Shimmer } from './AnalyticsCardState';
+import { formatRupees } from './analyticsFormat';
 
 // REQ-F-Analytics-003 — ranked by realized revenue (Task 6), soft-deleted products excluded.
 // App Flow's "click-through to product analytics" names a per-product analytics screen that was
 // never built (F11-analytics-backend.md's own unresolved doc gap) — this links to the existing
 // product-edit screen instead of a fabricated route, since that's the only per-product seller
-// screen that actually exists today.
+// screen that actually exists today. A ranked list rather than a table, so it fits a phone.
 export function TopProductsTable({ rangeParams }: { rangeParams: TopProductsParams }) {
   const { t } = useTranslation(['analytics']);
   const { language } = useLanguage();
-  const { data, isPending, isError, error } = useQuery({
-    queryKey: topProductsQueryKey(rangeParams),
-    queryFn: () => getTopProducts(rangeParams),
+  const params = { ...rangeParams, limit: 5 };
+  const { data, isPending, isError, error, refetch } = useQuery({
+    queryKey: topProductsQueryKey(params),
+    queryFn: () => getTopProducts(params),
   });
 
-  const columns = [
-    {
-      title: t('topProducts.columnProduct'),
-      dataIndex: 'titleEn',
-      key: 'product',
-      render: (_: string, record: TopProductItemDTO) => {
-        const title = language === 'UR' && record.titleUr ? record.titleUr : record.titleEn;
-        return (
-          <Link to={`/seller/products/${record.productId}/edit`} style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
-            <Avatar shape="square" src={record.thumbnailUrl ?? undefined}>
-              {!record.thumbnailUrl && title.charAt(0)}
-            </Avatar>
-            {title}
-          </Link>
-        );
-      },
-    },
-    { title: t('topProducts.columnUnitsSold'), dataIndex: 'unitsSold', key: 'unitsSold' },
-    {
-      title: t('topProducts.columnRevenue'),
-      dataIndex: 'revenue',
-      key: 'revenue',
-      render: (revenue: string) => <PriceDisplay amount={revenue} size="sm" />,
-    },
-  ];
-
   return (
-    <Card title={t('topProducts.title')}>
-      {isError && <Alert type="error" showIcon message={formatAnalyticsError(t, error)} />}
-      {!isError && (
-        <Table
-          rowKey="productId"
-          columns={columns}
-          dataSource={data?.items ?? []}
-          loading={isPending}
-          pagination={false}
-          size="middle"
-          // Contained horizontal scroll (UIUX §31/§17) rather than letting the table push the
-          // page itself wider than the viewport on a narrow phone — this table doesn't warrant a
-          // full card-list rewrite (it's a secondary summary, not a primary seller workflow like
-          // Products/Orders), but it still needed the "no horizontal overflow" floor.
-          scroll={{ x: true }}
-          locale={{ emptyText: t('topProducts.empty') }}
-        />
+    <section className="anCard" aria-labelledby="an-top-title">
+      <header className="anCardHead">
+        <span className="anIcon anIcon--rose" aria-hidden="true">
+          <Trophy size={18} />
+        </span>
+        <div>
+          <h2 className="anCardTitle" id="an-top-title">
+            {t('topProducts.title')}
+          </h2>
+          <p className="anCardSub">{t('topProducts.subtitle')}</p>
+        </div>
+      </header>
+
+      {isPending && (
+        <div className="anRanks">
+          {[0, 1, 2].map((i) => (
+            <Shimmer key={i} height={52} />
+          ))}
+        </div>
       )}
-    </Card>
+      {isError && <AnalyticsError error={error} onRetry={() => void refetch()} />}
+      {data && data.items.length === 0 && <p className="anQuiet">{t('topProducts.empty')}</p>}
+      {data && data.items.length > 0 && (
+        <ol className="anRanks">
+          {data.items.map((item, i) => {
+            const title = language === 'UR' && item.titleUr ? item.titleUr : item.titleEn;
+            return (
+              <li key={item.productId} className={i === 0 ? 'anRank is-first' : 'anRank'} style={{ animationDelay: `${i * 60}ms` }}>
+                <span className="anRankNo">{i + 1}</span>
+                <ProductThumbnail src={item.thumbnailUrl} alt="" size={44} radius="md" />
+                <span className="anRankBody">
+                  <Link to={`/seller/products/${item.productId}/edit`} className="anRankTitle">
+                    {title}
+                  </Link>
+                  <span className="anRankMeta">{t('topProducts.unitsSold', { count: item.unitsSold })}</span>
+                </span>
+                <span className="anRankVal">{formatRupees(Number(item.revenue)).whole}</span>
+              </li>
+            );
+          })}
+        </ol>
+      )}
+    </section>
   );
 }

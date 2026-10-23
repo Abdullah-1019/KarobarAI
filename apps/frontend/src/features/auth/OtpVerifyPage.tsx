@@ -10,6 +10,8 @@ import { formatAuthError } from './authErrors';
 const OTP_VALIDITY_SECONDS = 10 * 60;
 const RESEND_COOLDOWN_SECONDS = 60;
 const RESEND_MAX_PER_HOUR = 5;
+// How long the green "verified" moment shows before handing over to /login.
+const SUCCESS_HOLD_MS = 1100;
 
 // Keeps the first 3 and last 2 digits visible: "03001234567" -> "030••••••67".
 function maskPhone(phone: string): string {
@@ -27,7 +29,9 @@ export function OtpVerifyPage() {
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [verifying, setVerifying] = useState(false);
+  const [verified, setVerified] = useState(false);
   const [resending, setResending] = useState(false);
+  const [resent, setResent] = useState(false);
   const [expirySeconds, setExpirySeconds] = useState(OTP_VALIDITY_SECONDS);
   const [resendCooldown, setResendCooldown] = useState(RESEND_COOLDOWN_SECONDS);
   const [resendCount, setResendCount] = useState(0);
@@ -44,38 +48,43 @@ export function OtpVerifyPage() {
   const handleVerify = useCallback(
     async (codeToVerify?: string) => {
       const targetCode = codeToVerify ?? code;
-      if (targetCode.length !== 6 || inFlight.current) return;
+      if (targetCode.length !== 6 || inFlight.current || verified) return;
 
       inFlight.current = true;
       setError(null);
       setVerifying(true);
       try {
         await otpVerify({ phone: phone!, code: targetCode });
-        navigate('/login');
+        setVerified(true);
+        window.setTimeout(() => navigate('/login', { state: { verified: true } }), SUCCESS_HOLD_MS);
       } catch (err) {
         setError(formatAuthError(t, err));
+        setCode('');
       } finally {
         setVerifying(false);
         inFlight.current = false;
       }
     },
-    [code, phone, navigate, t],
+    [code, phone, navigate, t, verified],
   );
 
   const handleCodeChange = (value: string) => {
     setCode(value);
     if (error) setError(null);
+    if (resent) setResent(false);
   };
 
   async function handleResend() {
     if (resendCooldown > 0 || resending || resendCount >= RESEND_MAX_PER_HOUR) return;
     setError(null);
+    setResent(false);
     setResending(true);
     try {
       const result = await otpResend({ phone: phone! });
       setExpirySeconds(result.expiresInSeconds);
       setResendCooldown(RESEND_COOLDOWN_SECONDS);
       setResendCount((count) => count + 1);
+      setResent(true);
     } catch (err) {
       setError(formatAuthError(t, err));
     } finally {
@@ -114,13 +123,16 @@ export function OtpVerifyPage() {
       }
     >
       {error && <FormAlert variant="error">{error}</FormAlert>}
+      {verified && <FormAlert variant="success">{t('auth:otp.verified')}</FormAlert>}
+      {resent && !error && !verified && <FormAlert variant="info">{t('auth:otp.resent')}</FormAlert>}
 
       <OtpInput
         value={code}
         onChange={handleCodeChange}
         onComplete={handleVerify}
         invalid={!!error}
-        disabled={verifying}
+        state={verified ? 'success' : verifying ? 'verifying' : undefined}
+        disabled={verifying || verified}
         autoFocus
       />
 
@@ -129,18 +141,24 @@ export function OtpVerifyPage() {
         <span>{t('auth:otp.expiresIn', { minutes, seconds })}</span>
       </div>
 
-      <PrimaryButton loading={verifying} disabled={code.length !== 6} onClick={() => handleVerify()}>
+      <PrimaryButton
+        loading={verifying}
+        loadingLabel={t('auth:otp.verifying')}
+        success={verified}
+        disabled={code.length !== 6}
+        onClick={() => handleVerify()}
+      >
         {t('auth:otp.verify')}
       </PrimaryButton>
 
-      <div className="kaResendRow">
-        {resendLimitReached ? (
+      <div className="kaResendRow" aria-live="polite">
+        {verified ? null : resendLimitReached ? (
           <span>{t('auth:otp.resendLimitReached')}</span>
         ) : resendCooldown > 0 ? (
           <span>{t('auth:otp.resendIn', { seconds: resendCooldown })}</span>
         ) : (
           <button type="button" className="kaTextButton" onClick={handleResend} disabled={resending}>
-            {t('auth:otp.resend')}
+            {resending ? t('auth:otp.resending') : t('auth:otp.resend')}
           </button>
         )}
       </div>

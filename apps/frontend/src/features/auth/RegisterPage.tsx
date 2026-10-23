@@ -15,6 +15,8 @@ import {
   PrimaryButton,
   RoleSelector,
   TextField,
+  readAuthRole,
+  writeAuthRole,
 } from '../../components';
 import { useLanguage } from '../../hooks';
 import { register as registerAccount } from './authApi';
@@ -35,7 +37,12 @@ export function RegisterPage() {
   const navigate = useNavigate();
   const { language } = useLanguage();
 
-  const [role, setRole] = useState<Role>('BUYER');
+  const [role, setRole] = useState<Role>(readAuthRole);
+  // The role cards and the brand panel story stay in step (and remember the choice).
+  const chooseRole = (next: Role) => {
+    setRole(next);
+    writeAuthRole(next);
+  };
   const [method, setMethod] = useState<Method>('mobile');
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -96,6 +103,8 @@ export function RegisterPage() {
       title={t('auth:register.title')}
       subtitle={t('auth:register.subtitle')}
       icon={UserPlus}
+      role={role}
+      onRoleChange={chooseRole}
       footer={
         <>
           {t('auth:register.haveAccount')}{' '}
@@ -107,7 +116,7 @@ export function RegisterPage() {
         name="role"
         ariaLabel={t('auth:register.roleLegend')}
         value={role}
-        onChange={setRole}
+        onChange={chooseRole}
         options={[
           {
             value: 'BUYER',
@@ -153,6 +162,7 @@ export function RegisterPage() {
                 error={errors.phone?.message}
                 placeholder={t('auth:register.phonePlaceholder')}
                 autoComplete="tel"
+                disabled={submitting}
                 autoFocus
               />
             )}
@@ -174,6 +184,7 @@ export function RegisterPage() {
                 error={errors.email?.message}
                 placeholder={t('auth:register.emailPlaceholder')}
                 autoComplete="email"
+                disabled={submitting}
               />
             )}
           />
@@ -192,6 +203,7 @@ export function RegisterPage() {
               onBlur={field.onBlur}
               error={errors.password?.message}
               autoComplete="new-password"
+              disabled={submitting}
               showStrength
               showChecklist
             />
@@ -214,7 +226,11 @@ export function RegisterPage() {
           )}
         />
 
-        <PrimaryButton type="submit" loading={submitting}>
+        <PrimaryButton
+          type="submit"
+          loading={submitting}
+          loadingLabel={method === 'mobile' ? t('auth:register.sendingOtp') : t('auth:register.submitting')}
+        >
           {method === 'mobile' ? t('auth:register.submitOtp') : t('auth:register.submit')}
         </PrimaryButton>
       </form>

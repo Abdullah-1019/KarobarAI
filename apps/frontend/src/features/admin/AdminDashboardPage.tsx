@@ -7,7 +7,8 @@ import { Link } from 'react-router-dom';
 
 import type { AdminAlertFeedDTO } from '@karobarai/shared';
 import { MetricCard, PageHeader, SkeletonLoader } from '../../components';
-import { DateRangeFilter, toRangeParams, type RangePreset } from '../analytics/DateRangeFilter';
+import { DateRangeFilter } from '../analytics/DateRangeFilter';
+import { toRangeParams, type RangePreset } from '../analytics/rangePresets';
 import { adminAlertsQueryKey, adminKpisQueryKey, getAdminAlerts, getAdminKpis } from './adminApi';
 import { formatAdminError } from './adminErrors';
 

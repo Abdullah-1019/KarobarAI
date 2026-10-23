@@ -10,7 +10,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "5433:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U karobarai -d karobarai"]
       interval: 5s
@@ -80,6 +80,11 @@ services:
       AI_SERVICE_IMAGE_BASE_URL: http://minio:9000
       MINIO_ENDPOINT: http://minio:9000
       S3_PUBLIC_BASE_URL: http://localhost:9000
+    command: >
+      sh -c "cd /workspace/apps/backend &&
+             pnpm exec prisma generate &&
+             pnpm exec prisma migrate deploy &&
+             pnpm exec ts-node-dev --respawn --transpile-only src/server.ts"
     volumes:
       - ../apps/backend:/workspace/apps/backend
       - ../packages/shared:/workspace/packages/shared

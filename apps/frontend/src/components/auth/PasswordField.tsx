@@ -29,7 +29,7 @@ export interface PasswordFieldProps {
 }
 
 // Password input: lock leading icon, an eye reveal toggle at the end, and optional strength meter +
-// rule checklist. The eye is a real button with an aria-label and aria-pressed, and the input stays
+// rule checklist (both always laid out, so nothing shifts while typing). The eye is a real button with an aria-label and aria-pressed, and the input stays
 // `type="password"` until revealed.
 export const PasswordField = forwardRef<HTMLInputElement, PasswordFieldProps>(function PasswordField(
   {
@@ -54,7 +54,6 @@ export const PasswordField = forwardRef<HTMLInputElement, PasswordFieldProps>(fu
 ) {
   const { t } = useTranslation(['auth']);
   const [revealed, setRevealed] = useState(false);
-  const [focused, setFocused] = useState(false);
 
   return (
     <FieldShell id={id} label={label} labelAccessory={labelAccessory} error={error} hint={hint}>
@@ -68,11 +67,7 @@ export const PasswordField = forwardRef<HTMLInputElement, PasswordFieldProps>(fu
           type={revealed ? 'text' : 'password'}
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          onFocus={() => setFocused(true)}
-          onBlur={() => {
-            setFocused(false);
-            onBlur?.();
-          }}
+          onBlur={onBlur}
           placeholder={placeholder}
           autoComplete={autoComplete}
           maxLength={maxLength}
@@ -94,8 +89,8 @@ export const PasswordField = forwardRef<HTMLInputElement, PasswordFieldProps>(fu
           </button>
         </span>
       </div>
-      {showStrength && value ? <PasswordStrength password={value} /> : null}
-      {showChecklist ? <PasswordChecklist password={value} visible={focused} /> : null}
+      {showStrength ? <PasswordStrength password={value} /> : null}
+      {showChecklist ? <PasswordChecklist password={value} /> : null}
     </FieldShell>
   );
 });

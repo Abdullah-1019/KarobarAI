@@ -1,0 +1,1960 @@
+/* Seller workspace (Studio Light). Loaded by SellerLayout, so every /seller page can use it.
+   The seller side is keyed to the lilac wash (the auth panel's seller story uses the same), and
+   persimmon stays reserved for the one primary action: adding a product with AI. All spacing is
+   logical, so everything mirrors under dir="rtl". */
+
+/* ── Shell: floating glass sidebar + centred glass top pill + phone tab bar ─────────────────
+   Glass only works with something behind it, so the page carries two fixed Studio washes
+   (lilac + peach blobs) that the sidebar and the top pill frost over. */
+.slShell {
+  --side-w: 248px;
+  --side-gap: 14px;
+  --glass-bg: color-mix(in srgb, var(--bg-surface) 62%, transparent);
+  --glass-edge: color-mix(in srgb, var(--bg-surface) 80%, transparent);
+  --glass-blur: saturate(1.6) blur(18px);
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
+  background: var(--bg-canvas);
+}
+.slShell::before,
+.slShell::after {
+  content: '';
+  position: fixed;
+  z-index: -1;
+  border-radius: 50%;
+  pointer-events: none;
+}
+.slShell::before {
+  width: 620px;
+  height: 620px;
+  inset-block-start: -220px;
+  inset-inline-start: -160px;
+  background: radial-gradient(circle, var(--wash-lilac-blob) 0%, transparent 68%);
+}
+.slShell::after {
+  width: 560px;
+  height: 560px;
+  inset-block-end: -240px;
+  inset-inline-end: -140px;
+  background: radial-gradient(circle, var(--wash-peach-blob) 0%, transparent 68%);
+}
+.slShell[data-collapsed] {
+  --side-w: 84px;
+}
+
+.slSide {
+  position: fixed;
+  inset-block: var(--side-gap);
+  inset-inline-start: var(--side-gap);
+  z-index: var(--z-sticky, 100);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: var(--side-w);
+  padding: 16px 14px 14px;
+  border: 1px solid var(--glass-edge);
+  border-radius: 28px;
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  box-shadow: var(--shadow-lg);
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: none;
+  transition:
+    width var(--dur-slow) var(--ease-soft),
+    padding var(--dur-slow) var(--ease-soft);
+}
+.slSideHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 40px;
+}
+.slSideBrand {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  padding-inline: 6px;
+  text-decoration: none;
+}
+.slCollapse,
+.slIconBtn,
+.slBell .icon-btn {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-decoration: none;
+  transition:
+    background var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease),
+    transform var(--dur-slow) var(--ease-spring);
+}
+.slCollapse:hover,
+.slIconBtn:hover,
+.slBell .icon-btn:hover {
+  background: color-mix(in srgb, var(--bg-surface) 85%, transparent);
+  color: var(--text-primary);
+}
+.slCollapse:active,
+.slIconBtn:active,
+.slBell .icon-btn:active {
+  transform: scale(0.94);
+  transition-duration: var(--dur-instant);
+}
+.slCollapse:focus-visible,
+.slIconBtn:focus-visible,
+.slBell .icon-btn:focus-visible {
+  outline: 3px solid var(--brand-ring);
+  outline-offset: 2px;
+}
+/* The AI assistant gets its own soft persimmon tint so it reads as the AI entry point. */
+.slIconBtn--ai {
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary);
+}
+.slIconBtn--ai:hover {
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary-hover);
+}
+
+.slAddAi {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 40px;
+  padding-inline: 16px;
+  border-radius: var(--radius-pill);
+  background: var(--brand-primary);
+  color: var(--text-on-brand);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  text-decoration: none;
+  box-shadow: var(--shadow-cta);
+  transition:
+    background var(--dur-fast) var(--ease),
+    transform var(--dur-slow) var(--ease-spring);
+}
+.slAddAi:hover {
+  background: var(--brand-primary-hover);
+  color: var(--text-on-brand);
+}
+.slAddAi:active {
+  transform: scale(0.97);
+  transition-duration: var(--dur-instant);
+}
+
+.slNav {
+  display: grid;
+  gap: 16px;
+}
+.slNavGroup {
+  display: grid;
+  gap: 2px;
+}
+.slNavGroupLabel {
+  padding: 0 12px 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+.slNavLink {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding-inline: 6px 12px;
+  border-radius: 16px;
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  white-space: nowrap;
+  text-decoration: none;
+  transition:
+    background var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
+}
+.slNavIcon {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 11px;
+  transition:
+    background var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
+}
+.slNavLink:hover {
+  background: color-mix(in srgb, var(--bg-surface) 70%, transparent);
+  color: var(--text-primary);
+}
+/* Active: a lilac pill with a white icon tile — weight + fill, never only colour
+   (aria-current carries it to assistive tech). */
+.slNavLink[data-active] {
+  background: var(--wash-lilac);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.slNavLink[data-active] .slNavIcon {
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-xs);
+}
+.slNavLink:focus-visible,
+.slAddAi:focus-visible,
+.slStoreCard:focus-visible,
+.slTabAdd:focus-visible {
+  outline: 3px solid var(--brand-ring);
+  outline-offset: 2px;
+}
+
+.slStoreCard {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 10px;
+  margin-block-start: auto;
+  padding: 8px;
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--bg-surface) 80%, transparent);
+  color: var(--text-primary);
+  text-decoration: none;
+  transition: box-shadow var(--dur-fast) var(--ease);
+}
+.slStoreCard:hover {
+  color: var(--text-primary);
+  box-shadow: var(--shadow-sm);
+}
+.slStoreLogo {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 13px;
+  overflow: hidden;
+  background: var(--wash-lilac);
+  font-family: var(--font-heading);
+  font-size: 18px;
+  font-weight: 600;
+}
+.slStoreLogo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.slStoreText {
+  display: grid;
+  min-width: 0;
+}
+.slStoreName {
+  overflow: hidden;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.slStoreCity {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+/* Icon rail — the collapsed desktop sidebar and the tablet default share these rules. */
+.slShell[data-collapsed] .slSide {
+  align-items: center;
+  padding-inline: 12px;
+}
+.slShell[data-collapsed] .slSideHead {
+  flex-direction: column;
+}
+.slShell[data-collapsed] .storefront-logo__word,
+.slShell[data-collapsed] .slAddAiLabel,
+.slShell[data-collapsed] .slSide .slNavLabel,
+.slShell[data-collapsed] .slNavGroupLabel,
+.slShell[data-collapsed] .slStoreText {
+  display: none;
+}
+.slShell[data-collapsed] .slAddAi {
+  width: 48px;
+  height: 48px;
+  padding: 0;
+}
+.slShell[data-collapsed] .slSide .slNavLink {
+  justify-content: center;
+  width: 52px;
+  padding: 0;
+}
+.slShell[data-collapsed] .slNavGroup + .slNavGroup {
+  padding-block-start: 12px;
+  border-block-start: 1px solid var(--border);
+}
+.slShell[data-collapsed] .slStoreCard {
+  padding: 4px;
+  background: transparent;
+}
+
+.slColumn {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  margin-inline-start: calc(var(--side-w) + var(--side-gap));
+  transition: margin var(--dur-slow) var(--ease-soft);
+}
+.slShell[data-setup] .slColumn {
+  margin-inline-start: 0;
+}
+
+/* Centred floating glass pill */
+.slTopbar {
+  position: sticky;
+  top: var(--side-gap);
+  z-index: calc(var(--z-sticky, 100) - 1);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: min(calc(100% - 2 * clamp(16px, 3vw, 32px)), 960px);
+  height: 60px;
+  margin: var(--side-gap) auto 0;
+  padding-inline: 20px 8px;
+  border: 1px solid var(--glass-edge);
+  border-radius: var(--radius-pill);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  box-shadow: var(--shadow-md);
+}
+.slTopBrand {
+  display: none;
+  text-decoration: none;
+}
+.slShell[data-setup] .slTopBrand {
+  display: inline-flex;
+}
+.slSection {
+  overflow: hidden;
+  font-family: var(--font-heading);
+  font-size: 17px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--text-primary);
+}
+.slTopActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-inline-start: auto;
+}
+.slTopActions > .slIconBtn--ai {
+  margin-inline-end: 2px;
+}
+.slTopDivider {
+  width: 1px;
+  height: 24px;
+  margin-inline: 6px;
+  background: var(--border);
+}
+.slMain {
+  flex: 1;
+  width: 100%;
+  max-width: 1200px;
+  margin-inline: auto;
+  padding: clamp(20px, 3vw, 32px);
+}
+.slMain:focus {
+  outline: none;
+}
+
+.slTabs {
+  display: none;
+}
+
+/* Tablet: always the icon rail (the collapse toggle is a desktop choice). */
+@media (min-width: 768px) and (max-width: 1099px) {
+  .slShell,
+  .slShell[data-collapsed] {
+    --side-w: 84px;
+  }
+  .slCollapse {
+    display: none;
+  }
+  .slShell .slSide {
+    align-items: center;
+    padding-inline: 12px;
+  }
+  .slShell .storefront-logo__word,
+  .slShell .slAddAiLabel,
+  .slShell .slSide .slNavLabel,
+  .slShell .slNavGroupLabel,
+  .slShell .slStoreText {
+    display: none;
+  }
+  .slShell .slAddAi {
+    width: 48px;
+    height: 48px;
+    padding: 0;
+  }
+  .slShell .slSide .slNavLink {
+    justify-content: center;
+    width: 52px;
+    padding: 0;
+  }
+  .slShell .slStoreCard {
+    padding: 4px;
+    background: transparent;
+  }
+}
+
+@media (max-width: 767px) {
+  .slShell {
+    --side-gap: 10px;
+  }
+  .slSide {
+    display: none;
+  }
+  .slColumn {
+    margin-inline-start: 0;
+  }
+  .slTopBrand {
+    display: inline-flex;
+  }
+  .slSection,
+  .slTopActions > .slIconBtn:not(.slIconBtn--ai),
+  .slTopDivider {
+    display: none;
+  }
+  .slTopbar {
+    width: calc(100% - 20px);
+    height: 56px;
+    padding-inline: 14px 6px;
+  }
+  .slMain {
+    padding: 16px 16px calc(100px + env(safe-area-inset-bottom, 0px));
+  }
+  .slTabs {
+    position: fixed;
+    inset-inline: 12px;
+    bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    z-index: var(--z-sticky, 100);
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    align-items: end;
+    padding: 6px;
+    border: 1px solid var(--glass-edge);
+    border-radius: 26px;
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    box-shadow: var(--shadow-lg);
+  }
+  .slTabs .slNavLink {
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+    min-height: 56px;
+    padding: 4px 0;
+    font-size: 11px;
+    background: transparent;
+  }
+  .slTabs .slNavLink[data-active] {
+    background: transparent;
+  }
+  .slTabs .slNavLink[data-active] .slNavIcon {
+    background: var(--wash-lilac);
+    box-shadow: none;
+  }
+  .slTabs .slNavIcon {
+    width: 44px;
+    height: 28px;
+    border-radius: var(--radius-pill);
+  }
+  .slTabAdd {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    color: var(--text-primary);
+    font-size: 11px;
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .slTabAddBtn {
+    display: grid;
+    place-items: center;
+    width: 52px;
+    height: 52px;
+    margin-block-start: -22px;
+    border: 4px solid var(--bg-canvas);
+    border-radius: 50%;
+    background: var(--brand-primary);
+    color: var(--text-on-brand);
+    box-shadow: var(--shadow-cta);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .slSide,
+  .slColumn {
+    transition: none;
+  }
+}
+[dir='rtl'] .slNavLink,
+[dir='rtl'] .slNavGroupLabel,
+[dir='rtl'] .slTabAdd {
+  font-family: var(--font-urdu-ui);
+}
+[dir='rtl'] .slSection {
+  font-family: var(--font-urdu);
+  line-height: 2;
+}
+
+/* Shared seller buttons + empty states */
+.slPrimaryBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 40px;
+  padding-inline: 20px;
+  border-radius: var(--radius-pill);
+  background: var(--brand-primary);
+  color: var(--text-on-brand);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: var(--shadow-cta);
+  transition: background var(--dur-fast) var(--ease);
+}
+.slPrimaryBtn:hover {
+  background: var(--brand-primary-hover);
+  color: var(--text-on-brand);
+}
+.slPrimaryBtn:focus-visible {
+  outline: 3px solid var(--brand-ring);
+  outline-offset: 2px;
+}
+.slEmpty {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 32px 20px;
+  border: 1.5px dashed var(--border-strong);
+  border-radius: 20px;
+  text-align: center;
+}
+.slEmpty--quiet {
+  padding: 24px 12px;
+  border: 0;
+  background: var(--bg-canvas);
+}
+.slEmptyIcon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  margin-block-end: 6px;
+  border-radius: 16px;
+  background: var(--wash-lilac);
+  color: var(--text-primary);
+}
+.slEmptyTitle {
+  margin: 0;
+  font-weight: 600;
+}
+.slEmptyBody {
+  max-width: 40ch;
+  margin: 0 0 10px;
+  font-size: var(--fs-sm);
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+.slEmpty--quiet .slEmptyBody {
+  margin-block-end: 0;
+}
+
+/* Getting-started tracker */
+.slSetup {
+  padding: 20px 24px;
+  border-radius: 24px;
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-xs);
+}
+.slSetupHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.slSetupCount {
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+}
+.slSetupBar {
+  height: 6px;
+  margin: 12px 0 14px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-sunken);
+  overflow: hidden;
+}
+.slSetupBar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--success);
+  transition: width var(--dur-slow) var(--ease-soft);
+}
+.slSetupSteps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.slSetupLink {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 8px 12px;
+  border-radius: 14px;
+  background: var(--bg-canvas);
+  color: var(--text-primary);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  text-decoration: none;
+}
+a.slSetupLink:hover {
+  background: var(--wash-lilac);
+  color: var(--text-primary);
+}
+a.slSetupLink:focus-visible {
+  outline: 3px solid var(--brand-ring);
+  outline-offset: 2px;
+}
+.slSetupStep[data-done] .slSetupLink {
+  color: var(--text-secondary);
+  text-decoration: line-through;
+  text-decoration-color: var(--border-strong);
+}
+.slSetupMark {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 50%;
+}
+.slSetupStep[data-done] .slSetupMark {
+  border-color: var(--success);
+  background: var(--success);
+  color: var(--text-on-brand);
+}
+@media (max-width: 767px) {
+  .slSetup {
+    padding: 18px;
+  }
+  .slSetupSteps {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Wizard reassurance line */
+.slTrust {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 18px;
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+}
+[dir='rtl'] .slTrust,
+[dir='rtl'] .slSetupLink,
+[dir='rtl'] .slEmptyBody,
+[dir='rtl'] .slSetupCount {
+  font-family: var(--font-urdu-ui);
+}
+
+/* ── Seller home ─────────────────────────────────────────────────────────────────────────── */
+.slHome {
+  display: grid;
+  gap: var(--sp-6);
+  max-width: 1120px;
+  margin-inline: auto;
+}
+
+.slBand {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 340px);
+  align-items: center;
+  gap: clamp(20px, 3vw, 40px);
+  padding: clamp(22px, 3vw, 36px);
+  border-radius: 32px;
+  background: var(--wash-lilac);
+  overflow: hidden;
+}
+.slBand::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  width: 420px;
+  height: 420px;
+  inset-inline-end: -120px;
+  inset-block-start: -180px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--wash-peach-blob) 0%, transparent 70%);
+}
+.slGreeting {
+  margin: 0;
+  font-size: clamp(30px, 3.4vw, 46px);
+  font-weight: var(--fw-display);
+  line-height: 1.05;
+  letter-spacing: var(--tracking-display);
+  text-wrap: balance;
+}
+.slGreetingSub {
+  margin: 10px 0 0;
+  font-size: var(--fs-md, 16px);
+  color: var(--text-secondary);
+}
+.slStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 36px;
+  margin: 28px 0 0;
+}
+.slStat {
+  display: flex;
+  flex-direction: column-reverse;
+}
+.slStat dt {
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+}
+.slStat dd {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: clamp(32px, 3vw, 44px);
+  font-weight: 600;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.slStat[data-warn] dd {
+  color: var(--warning);
+}
+
+/* The one bold moment: a tilted white card that leads into the AI Store Builder. */
+.slAiCard {
+  display: grid;
+  gap: 8px;
+  padding: 18px;
+  border-radius: 26px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  text-decoration: none;
+  box-shadow: var(--shadow-xl);
+  transform: rotate(1deg);
+  transition:
+    transform var(--dur-slow) var(--ease-spring),
+    box-shadow var(--dur-base) var(--ease);
+}
+[dir='rtl'] .slAiCard {
+  transform: rotate(-1deg);
+}
+.slAiCard:hover,
+[dir='rtl'] .slAiCard:hover {
+  color: var(--text-primary);
+  transform: rotate(0deg) translateY(-3px);
+}
+.slAiCard:focus-visible {
+  outline: 3px solid var(--brand-ring);
+  outline-offset: 4px;
+}
+.slAiArt {
+  display: flex;
+  gap: 14px;
+  margin-block-end: 6px;
+}
+.slAiPhoto {
+  position: relative;
+  flex-shrink: 0;
+  width: 76px;
+  height: 88px;
+  border-radius: 16px;
+  overflow: hidden;
+  background: var(--cat-fashion-bg);
+}
+.slAiPhoto img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.slAiScan {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 3px;
+  background: var(--ai-accent);
+  box-shadow: 0 0 12px 3px color-mix(in srgb, var(--ai-accent) 45%, transparent);
+  animation: slScan 2.4s var(--ease) infinite alternate;
+}
+@keyframes slScan {
+  to {
+    top: calc(100% - 3px);
+  }
+}
+.slAiLines {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+}
+.slAiChip {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--brand-ink);
+  color: var(--text-on-dark);
+  font-size: 11px;
+  font-weight: 700;
+}
+.slAiLine {
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-sunken);
+}
+.slAiLine--short {
+  width: 64%;
+}
+.slAiLine--ur {
+  width: 78%;
+  align-self: flex-end;
+  background: var(--wash-lilac);
+}
+.slAiTitle {
+  font-family: var(--font-heading);
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+.slAiBody {
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+.slAiAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 40px;
+  margin-block-start: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--brand-primary);
+  color: var(--text-on-brand);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  box-shadow: var(--shadow-cta);
+}
+.slAiCard:hover .slAiAction {
+  background: var(--brand-primary-hover);
+}
+
+/* Products + recent orders */
+.slGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 340px);
+  align-items: start;
+  gap: var(--sp-6);
+}
+.slPanel {
+  min-width: 0;
+  padding: clamp(16px, 2vw, 24px);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  background: var(--bg-surface);
+}
+.slPanelHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-block-end: 14px;
+}
+.slPanelTitle {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: var(--tracking-heading);
+}
+.slGhostBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding-inline: 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  color: var(--text-primary);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  text-decoration: none;
+  transition: background var(--dur-fast) var(--ease);
+}
+.slGhostBtn:hover {
+  background: var(--bg-sunken);
+  color: var(--text-primary);
+}
+
+.slFilters {
+  display: flex;
+  gap: 6px;
+  margin-block-end: 12px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.slFilter {
+  flex-shrink: 0;
+  min-height: 36px;
+  padding-inline: 14px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--bg-sunken);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
+}
+.slFilter:hover {
+  color: var(--text-primary);
+}
+.slFilter[aria-pressed='true'] {
+  background: var(--brand-ink);
+  color: var(--text-on-dark);
+  font-weight: 600;
+}
+.slFilter:focus-visible {
+  outline: 3px solid var(--brand-ring);
+  outline-offset: 2px;
+}
+
+.slRows,
+.slOrderList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.slRow {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 14px;
+  padding: 10px;
+  margin-inline: -10px;
+  border-radius: 16px;
+  color: var(--text-primary);
+  text-decoration: none;
+  transition: background var(--dur-fast) var(--ease);
+}
+.slRow:hover {
+  background: var(--bg-sunken);
+  color: var(--text-primary);
+}
+.slRow:focus-visible,
+.slOrder:focus-visible {
+  outline: 3px solid var(--brand-ring);
+  outline-offset: -2px;
+}
+.slRows li + li .slRow {
+  position: relative;
+}
+.slRowThumb {
+  display: flex;
+  border-radius: 14px;
+  overflow: hidden;
+}
+.slRowMain,
+.slOrderMain {
+  display: grid;
+  min-width: 0;
+}
+.slRowTitle,
+.slOrderName {
+  overflow: hidden;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.slRowMeta {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+.slMore {
+  margin-block-start: 14px;
+  text-align: center;
+}
+
+.slOrder {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  margin-inline: -10px;
+  border-radius: 16px;
+  color: var(--text-primary);
+  text-decoration: none;
+  transition: background var(--dur-fast) var(--ease);
+}
+.slOrder:hover {
+  background: var(--bg-sunken);
+  color: var(--text-primary);
+}
+.slAvatar {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--wash-lilac);
+  font-weight: 600;
+}
+.slOrderMain {
+  flex: 1;
+}
+.slOrderEnd {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+.slMuted {
+  margin: 0;
+  color: var(--text-secondary);
+}
+.slOrderLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin-block-start: 14px;
+  padding-block-start: 14px;
+  border-block-start: 1px solid var(--border);
+}
+.slTextLink {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+  text-decoration: underline;
+  text-decoration-color: var(--border-strong);
+  text-underline-offset: 4px;
+}
+.slTextLink:hover {
+  color: var(--text-primary);
+  text-decoration-color: currentColor;
+}
+
+@media (max-width: 991px) {
+  .slBand,
+  .slGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .slAiCard,
+  [dir='rtl'] .slAiCard {
+    transform: none;
+  }
+}
+@media (max-width: 767px) {
+  .slHome {
+    gap: var(--sp-4);
+  }
+  .slBand {
+    border-radius: 26px;
+  }
+  .slStats {
+    gap: 8px 24px;
+    margin-block-start: 18px;
+  }
+  /* Phones: the row keeps thumb + title, price drops under the title, status stays at the end. */
+  .slRow {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      'thumb main status'
+      'thumb price status';
+    row-gap: 2px;
+  }
+  .slRowThumb {
+    grid-area: thumb;
+  }
+  .slRowMain {
+    grid-area: main;
+  }
+  .slRowPrice {
+    grid-area: price;
+  }
+  .slRowStatus {
+    grid-area: status;
+  }
+  .slPanelHead .slGhostBtn {
+    display: none;
+  }
+}
+
+/* Urdu: Nastaliq for display, Naskh for running UI text */
+[dir='rtl'] .slGreeting,
+[dir='rtl'] .slWizardTitle {
+  font-family: var(--font-urdu);
+  line-height: 1.8;
+  letter-spacing: normal;
+}
+[dir='rtl'] .slAiTitle,
+[dir='rtl'] .slPanelTitle {
+  font-family: var(--font-urdu);
+  line-height: 1.9;
+  letter-spacing: normal;
+}
+[dir='rtl'] .slGreetingSub,
+[dir='rtl'] .slAiBody,
+[dir='rtl'] .slStat dt,
+[dir='rtl'] .slFilter,
+[dir='rtl'] .slAiAction,
+[dir='rtl'] .slGhostBtn,
+[dir='rtl'] .slTextLink,
+[dir='rtl'] .slStepLabel,
+[dir='rtl'] .slStepHelp,
+[dir='rtl'] .slWizardSub,
+[dir='rtl'] .slPreviewLabel,
+[dir='rtl'] .slAddAi {
+  font-family: var(--font-urdu-ui);
+}
+
+/* ── Store setup wizard ──────────────────────────────────────────────────────────────────── */
+.slWizard {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 340px);
+  align-items: start;
+  gap: clamp(24px, 4vw, 56px);
+  max-width: 1040px;
+  margin-inline: auto;
+  padding-block: var(--sp-4);
+}
+.slWizard--narrow {
+  display: block;
+  max-width: 480px;
+}
+.slWizardTitle {
+  margin: 0;
+  font-size: clamp(28px, 3vw, 40px);
+  font-weight: var(--fw-display);
+  line-height: 1.1;
+  letter-spacing: var(--tracking-heading);
+}
+.slWizardSub {
+  margin: 10px 0 24px;
+  max-width: 52ch;
+  color: var(--text-secondary);
+}
+
+.slSteps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 0 24px;
+  padding: 0;
+  list-style: none;
+}
+.slStep {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding-block-start: 10px;
+  border-block-start: 3px solid var(--border);
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+  transition:
+    border-color var(--dur-base) var(--ease),
+    color var(--dur-base) var(--ease);
+}
+.slStep[data-state='current'] {
+  border-color: var(--brand-ink);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.slStep[data-state='done'] {
+  border-color: var(--success);
+  color: var(--text-primary);
+}
+.slStepDot {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--bg-sunken);
+  font-size: 12px;
+  font-weight: 700;
+}
+.slStep[data-state='current'] .slStepDot {
+  background: var(--brand-ink);
+  color: var(--text-on-dark);
+}
+.slStep[data-state='done'] .slStepDot {
+  background: var(--success);
+  color: var(--text-on-brand);
+  animation: slPop 360ms var(--ease-spring);
+}
+@keyframes slPop {
+  from {
+    transform: scale(0.5);
+  }
+}
+.slStepLabel {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.slStepBody {
+  animation: slStepIn 260ms var(--ease-soft) both;
+}
+@keyframes slStepIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+.slField {
+  display: grid;
+  gap: 6px;
+  margin-block-end: 18px;
+}
+.slField label,
+.slWallet label {
+  font-size: var(--fs-sm);
+  font-weight: 500;
+}
+.slFieldRow {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 16px;
+}
+.slFieldError {
+  margin: 0;
+  font-size: 13px;
+  color: var(--error);
+}
+.slStepHelp {
+  margin: 0 0 16px;
+  color: var(--text-secondary);
+}
+.slWallets {
+  display: grid;
+  gap: 14px;
+  margin-block-end: 18px;
+}
+.slWallet {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  border-radius: 20px;
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-xs);
+  border-inline-start: 4px solid var(--wallet, var(--border));
+}
+.slWallet[data-wallet='jazzcash'] {
+  --wallet: #c8102e;
+}
+.slWallet[data-wallet='easypaisa'] {
+  --wallet: #2fb34a;
+}
+.slSocialGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 16px;
+}
+.slWizardActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-block-start: 8px;
+}
+.slWizardActions .ant-btn {
+  min-width: 112px;
+}
+
+/* Live preview of the store as buyers will see it */
+.slPreview {
+  position: sticky;
+  top: calc(var(--header-h, 64px) + 24px);
+  display: grid;
+  gap: 10px;
+}
+.slPreviewLabel {
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+}
+.slPreviewCard {
+  position: relative;
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  padding: 0 20px 20px;
+  border-radius: 28px;
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+.slPreviewBanner {
+  justify-self: stretch;
+  height: 96px;
+  margin-inline: -20px;
+  background: var(--wash-lilac);
+  background-image: radial-gradient(circle at 80% 20%, var(--wash-peach-blob) 0%, transparent 60%);
+}
+.slPreviewLogo {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  margin-block-start: -36px;
+  border: 4px solid var(--bg-surface);
+  border-radius: 20px;
+  background: var(--brand-ink);
+  color: var(--text-on-dark);
+  font-family: var(--font-heading);
+  font-size: 26px;
+  font-weight: 600;
+}
+.slPreviewName {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  font-family: var(--font-heading);
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+.slPreviewName[data-empty],
+.slPreviewDesc[data-empty] {
+  color: var(--text-tertiary);
+}
+.slPreviewMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+}
+.slPreviewPill {
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-sunken);
+  color: var(--text-primary);
+}
+.slPreviewCity {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.slPreviewDesc {
+  margin: 0;
+  font-size: var(--fs-sm);
+  line-height: 1.55;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+.slPreviewTiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  justify-self: stretch;
+  margin-block-start: 6px;
+}
+.slPreviewTiles span {
+  aspect-ratio: 1;
+  border-radius: 14px;
+  background: var(--bg-sunken);
+}
+
+@media (max-width: 991px) {
+  /* Tablets and phones: the form owns the page; the preview steps aside. */
+  .slWizard {
+    grid-template-columns: minmax(0, 1fr);
+    max-width: 600px;
+  }
+  .slPreview {
+    display: none;
+  }
+}
+@media (max-width: 767px) {
+  .slWizard {
+    padding-block: 0;
+  }
+  .slFieldRow,
+  .slSocialGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .slStepLabel {
+    font-size: var(--fs-xs);
+  }
+  .slWizardActions .ant-btn {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slAiScan,
+  .slStepBody,
+  .slStep[data-state='done'] .slStepDot {
+    animation: none;
+  }
+}
+
+/* Small phones: the top pill keeps the logo mark only, so all actions fit without wrapping. */
+@media (max-width: 400px) {
+  .slTopBrand .storefront-logo__word {
+    display: none;
+  }
+}
+
+/* Top pill, inline-start: the store's status on top-level pages, a back link on detail pages. */
+.slStatus,
+.slBack {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 40px;
+  padding-inline: 4px 14px;
+  border-radius: var(--radius-pill);
+  color: var(--text-primary);
+  font-size: var(--fs-sm);
+  text-decoration: none;
+  transition: background var(--dur-fast) var(--ease);
+}
+.slStatus:hover,
+.slBack:hover {
+  background: color-mix(in srgb, var(--bg-surface) 85%, transparent);
+  color: var(--text-primary);
+}
+.slStatus:focus-visible,
+.slBack:focus-visible {
+  outline: 3px solid var(--brand-ring);
+  outline-offset: 2px;
+}
+.slStatusDot {
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  margin-inline-start: 8px;
+  border-radius: 50%;
+  background: var(--warning);
+  box-shadow: 0 0 0 4px var(--warning-soft, rgb(0 0 0 / 0.06));
+}
+.slStatus[data-live] .slStatusDot {
+  background: var(--success);
+  box-shadow: 0 0 0 4px var(--success-soft);
+  animation: slLive 2.4s var(--ease) infinite;
+}
+@keyframes slLive {
+  50% {
+    box-shadow: 0 0 0 7px transparent;
+  }
+}
+.slStatusName {
+  overflow: hidden;
+  font-family: var(--font-heading);
+  font-size: 16px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.slStatusText {
+  flex-shrink: 0;
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--warning-soft, var(--bg-sunken));
+  color: var(--warning);
+  font-size: 12px;
+  font-weight: 600;
+}
+.slStatus[data-live] .slStatusText {
+  background: var(--success-soft);
+  color: var(--success);
+}
+.slBack {
+  padding-inline: 12px 16px;
+  background: color-mix(in srgb, var(--bg-surface) 70%, transparent);
+  font-weight: 600;
+}
+[dir='rtl'] .slBack,
+[dir='rtl'] .slStatusText {
+  font-family: var(--font-urdu-ui);
+}
+@media (max-width: 767px) {
+  /* Phones: the logo owns the pill's start; a back link still shows on detail pages. */
+  .slStatus {
+    display: none;
+  }
+  .slShell:has(.slBack) .slTopBrand {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .slStatus[data-live] .slStatusDot {
+    animation: none;
+  }
+}
+
+/* ── AI Store Builder (/seller/products/new) + Edit product ──────────────────────────────── */
+.slBuilder {
+  display: grid;
+  gap: 24px;
+  max-width: 1120px;
+  margin-inline: auto;
+}
+.slBuilderHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px 32px;
+}
+.slBuilderHead .slWizardSub {
+  margin-block-end: 0;
+}
+.slSteps--compact {
+  flex: 0 1 420px;
+  margin: 0;
+}
+.slBuilderAlert {
+  margin-block-end: 16px;
+}
+
+/* One big, calm drop zone on the lilac wash */
+.slDrop {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: clamp(32px, 6vw, 64px) 20px;
+  border: 2px dashed color-mix(in srgb, var(--brand-ink) 18%, transparent);
+  border-radius: 32px;
+  background: var(--wash-lilac);
+  text-align: center;
+  transition:
+    border-color var(--dur-fast) var(--ease),
+    background var(--dur-fast) var(--ease),
+    transform var(--dur-slow) var(--ease-spring);
+}
+.slDrop[data-over] {
+  border-color: var(--brand-primary);
+  background: var(--wash-peach);
+  transform: scale(1.01);
+}
+.slDropArt {
+  position: relative;
+  width: 132px;
+  height: 116px;
+  margin-block-end: 12px;
+}
+.slDropCard {
+  position: absolute;
+  inset: 8px 18px 0;
+  display: grid;
+  place-items: center;
+  border-radius: 24px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-lg);
+  transform: rotate(-4deg);
+  transition: transform var(--dur-slow) var(--ease-spring);
+}
+.slDropCard--back {
+  background: var(--cat-fashion-bg);
+  box-shadow: var(--shadow-sm);
+  transform: rotate(7deg) translate(10px, -4px);
+}
+.slDrop[data-over] .slDropCard:not(.slDropCard--back) {
+  transform: rotate(0deg) translateY(-4px);
+}
+.slDropChip {
+  position: absolute;
+  inset-inline-end: 0;
+  inset-block-start: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--brand-ink);
+  color: var(--text-on-dark);
+  font-size: 11px;
+  font-weight: 700;
+}
+.slDropTitle {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: clamp(22px, 2.4vw, 28px);
+  font-weight: 600;
+  letter-spacing: var(--tracking-heading);
+}
+.slDropHelp {
+  max-width: 46ch;
+  margin: 0;
+  color: var(--text-secondary);
+}
+.slDropActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-block: 14px 4px;
+}
+.slDropActions .ant-btn {
+  min-width: 0;
+}
+.slDropNote {
+  max-width: 52ch;
+  margin: 0;
+  font-size: var(--fs-xs);
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+.slSpin {
+  animation: slSpin 0.9s linear infinite;
+}
+@keyframes slSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+/* The camera button only where a camera is to hand (touch devices). */
+@media (hover: hover) and (pointer: fine) {
+  .slOnlyTouch {
+    display: none;
+  }
+}
+
+/* Two-column workspace */
+.slWork {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 340px);
+  align-items: start;
+  gap: 24px;
+}
+.slWorkMain {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.slWorkSide {
+  position: sticky;
+  top: 96px;
+  display: grid;
+  gap: 16px;
+}
+.slFieldset {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.slFieldset:disabled {
+  opacity: 0.7;
+}
+.slFormCard {
+  padding: clamp(16px, 2vw, 24px);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  background: var(--bg-surface);
+}
+.slFormCard[data-ai] {
+  border-color: color-mix(in srgb, var(--ai-accent) 35%, var(--border));
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--ai-accent) 8%, transparent);
+}
+.slFormCardHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  margin-block-end: 16px;
+}
+.slFieldHint {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.slFieldRow--3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.slField > label {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Sticky action bar (glass) */
+.slActionBar {
+  position: sticky;
+  bottom: 16px;
+  z-index: 5;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--bg-surface) 80%, transparent);
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--bg-surface) 70%, transparent);
+  backdrop-filter: saturate(1.5) blur(16px);
+  -webkit-backdrop-filter: saturate(1.5) blur(16px);
+  box-shadow: var(--shadow-lg);
+}
+.slActionBar .ant-btn {
+  min-width: 112px;
+}
+
+/* Photos */
+.slPhotos {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+}
+.slPhotoMain {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 18px;
+  background: var(--bg-sunken);
+  overflow: hidden;
+}
+.slPhotoMain img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.slPhotoBadge {
+  position: absolute;
+  inset-block-start: 10px;
+  inset-inline-start: 10px;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--brand-ink);
+  color: var(--text-on-dark);
+  font-size: 11px;
+  font-weight: 600;
+}
+.slPhotoScan {
+  position: absolute;
+  z-index: 1;
+  inset-inline: 0;
+  top: 0;
+  height: 3px;
+  background: var(--ai-accent);
+  box-shadow: 0 0 18px 6px color-mix(in srgb, var(--ai-accent) 40%, transparent);
+  animation: slScan 1.8s var(--ease) infinite alternate;
+}
+.slPhotoMain[data-scanning]::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ai-accent) 10%, transparent), transparent 60%);
+}
+.slThumbs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
+  gap: 8px;
+}
+.slThumb {
+  aspect-ratio: 1;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  background: var(--bg-sunken);
+  overflow: hidden;
+  cursor: pointer;
+}
+.slThumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.slThumb[aria-pressed='true'] {
+  border-color: var(--brand-ink);
+}
+.slThumb:focus-visible {
+  outline: 3px solid var(--brand-ring);
+  outline-offset: 2px;
+}
+
+/* Buyer preview: the product card as a buyer will see it */
+.slBuyerPreview {
+  display: grid;
+  gap: 10px;
+}
+.slBuyerCard {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border-radius: 22px;
+  background: var(--bg-canvas);
+}
+.slBuyerImg {
+  display: block;
+  aspect-ratio: 4 / 3;
+  margin-block-end: 6px;
+  border-radius: 16px;
+  background: var(--bg-sunken);
+  overflow: hidden;
+}
+.slBuyerImg img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.slBuyerTitle {
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.slBuyerTitle[data-empty] {
+  color: var(--text-tertiary);
+}
+.slBuyerTitleUr {
+  font-family: var(--font-urdu);
+  line-height: 2;
+  color: var(--text-secondary);
+}
+.slBuyerFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-block-start: 4px;
+}
+.slBuyerDash {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  color: var(--text-tertiary);
+}
+.slBuyerCond {
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+[dir='rtl'] .slDropTitle {
+  font-family: var(--font-urdu);
+  line-height: 1.9;
+  letter-spacing: normal;
+}
+[dir='rtl'] .slDropHelp,
+[dir='rtl'] .slDropNote,
+[dir='rtl'] .slFieldHint,
+[dir='rtl'] .slBuyerCond {
+  font-family: var(--font-urdu-ui);
+}
+
+@media (max-width: 991px) {
+  .slWork {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  /* Phones/tablets: photos first (what the AI reads), then the form. */
+  .slWorkSide {
+    position: static;
+    order: -1;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .slSteps--compact {
+    flex-basis: 100%;
+  }
+}
+@media (max-width: 767px) {
+  .slWorkSide {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .slBuyerPreview {
+    display: none;
+  }
+  .slPhotoMain {
+    aspect-ratio: 4 / 3;
+  }
+  .slFieldRow--3 {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .slFieldRow--3 > :last-child {
+    grid-column: 1 / -1;
+  }
+  .slActionBar {
+    bottom: calc(92px + env(safe-area-inset-bottom, 0px));
+    border-radius: 22px;
+  }
+  .slActionBar .ant-btn {
+    flex: 1;
+    min-width: 0;
+  }
+  .slDropActions .ant-btn {
+    flex: 1 1 100%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .slPhotoScan,
+  .slSpin {
+    animation: none;
+  }
+  .slDrop,
+  .slDropCard {
+    transition: none;
+  }
+}
+
+/* Edit product header */
+.slEditTitle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.slEditActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.slEditActions .ant-btn {
+  min-width: 0;
+}
+.slDangerLink.ant-btn {
+  justify-self: center;
+}

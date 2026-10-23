@@ -1,0 +1,467 @@
+/* Seller AI assistant, Studio Light. The AiMark on an ink orb (the peach star is for ink grounds)
+   breathing inside a lilac/peach halo; suggested questions as pills; user questions as ink
+   bubbles, answers as plain text beside the mark; a pill composer. Logical properties. */
+
+.saPage {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 14px;
+  max-width: 920px;
+  margin-inline: auto;
+  min-width: 0;
+}
+.saHead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.saHeadMark,
+.saBotMark {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  background: var(--studio-ink);
+  box-shadow: var(--shadow-sm);
+}
+.saHeadText {
+  flex: 1;
+  min-width: 0;
+}
+.saHeadText h1 {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: clamp(24px, 2.4vw, 30px);
+  font-weight: 600;
+  line-height: 1.2;
+}
+.saHeadText p {
+  margin: 2px 0 0;
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+}
+.saGhost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 38px;
+  padding-inline: 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface);
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.saGhost:hover {
+  background: var(--bg-sunken);
+}
+
+.saChat {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: clamp(500px, calc(100dvh - 210px), 860px);
+  border: 1px solid var(--border);
+  border-radius: 28px;
+  background:
+    radial-gradient(80% 50% at 50% 0%, color-mix(in srgb, var(--wash-lilac) 70%, transparent), transparent 70%),
+    var(--bg-surface);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+.saScroll {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  padding: 24px clamp(14px, 4vw, 40px) 12px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* Welcome */
+.saWelcome {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 10px;
+  flex: 1;
+  text-align: center;
+  isolation: isolate; /* the orb's halo (z-index -1) sits above the card, below the orb */
+  animation: saRise 520ms var(--ease-soft) both;
+}
+.saOrb {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 84px;
+  height: 84px;
+  margin-block-end: 10px;
+  border-radius: 28px;
+  background: var(--studio-ink);
+  box-shadow: var(--shadow-lg);
+}
+.saOrb::before,
+.saOrb::after {
+  content: '';
+  position: absolute;
+  inset: -14px;
+  z-index: -1;
+  border-radius: 38px;
+  background: radial-gradient(circle, var(--wash-peach-blob), transparent 70%);
+  animation: saBreathe 3.6s ease-in-out infinite;
+}
+.saOrb::after {
+  inset: -30px;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--wash-lilac-blob) 90%, transparent), transparent 70%);
+  animation-delay: 1.2s;
+}
+.saOrb svg {
+  animation: saSpin 14s linear infinite;
+}
+.saWelcome h2 {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: clamp(22px, 2.2vw, 28px);
+  font-weight: 600;
+}
+.saWelcome > p {
+  max-width: 46ch;
+  margin: 0 0 10px;
+  font-size: var(--fs-sm);
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+.saPrompts {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  max-width: 640px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.saPrompts li {
+  animation: saRise 420ms var(--ease-soft) both;
+}
+.saPrompt {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 8px 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface);
+  font: inherit;
+  font-size: var(--fs-sm);
+  color: var(--text-primary);
+  text-align: start;
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease),
+    transform var(--dur-base) var(--ease-soft);
+}
+.saPrompt svg {
+  flex-shrink: 0;
+  color: var(--info);
+}
+.saPrompt:hover:not(:disabled) {
+  border-color: var(--brand-ink);
+  background: var(--wash-lilac);
+  transform: translateY(-2px);
+}
+.saPrompt:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Thread */
+.saThread {
+  display: grid;
+  gap: 18px;
+  margin: auto 0 0;
+  padding: 0;
+  list-style: none;
+}
+.saUser {
+  justify-self: end;
+  max-width: min(78%, 560px);
+  padding: 10px 16px;
+  border-radius: 22px 22px 6px 22px;
+  background: var(--pill-ink-bg);
+  font-size: var(--fs-sm);
+  line-height: 1.55;
+  color: var(--pill-ink-fg);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  animation: saArrive 260ms var(--ease-soft);
+}
+[dir='rtl'] .saUser {
+  border-radius: 22px 22px 22px 6px;
+}
+.saBot {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  animation: saArrive 320ms var(--ease-soft);
+}
+.saBotMark {
+  width: 32px;
+  height: 32px;
+  border-radius: 11px;
+}
+.saBotBody {
+  flex: 1;
+  min-width: 0;
+  padding-block-start: 5px;
+  font-size: var(--fs-sm);
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+.saThinking {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+}
+.saDots {
+  display: inline-flex;
+  gap: 4px;
+}
+.saDots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--info);
+  animation: saDot 1.3s ease-in-out infinite;
+}
+.saDots i:nth-child(2) {
+  animation-delay: 160ms;
+}
+.saDots i:nth-child(3) {
+  animation-delay: 320ms;
+}
+
+.saStop {
+  position: absolute;
+  inset-block-end: 104px;
+  inset-inline-start: 50%;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding-inline: 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-md);
+  font: inherit;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+  transform: translateX(-50%);
+  animation: saRise 240ms var(--ease-soft);
+}
+[dir='rtl'] .saStop {
+  transform: translateX(50%);
+}
+.saError {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 clamp(14px, 4vw, 40px) 8px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: var(--error-soft);
+  font-size: var(--fs-sm);
+  color: var(--error);
+}
+
+/* Composer */
+.saCompose {
+  display: grid;
+  gap: 6px;
+  padding: 10px clamp(12px, 4vw, 40px) 14px;
+}
+.saComposeBar {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  padding: 5px 5px 5px 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: 28px;
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-sm);
+  transition:
+    border-color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
+}
+[dir='rtl'] .saComposeBar {
+  padding: 5px 16px 5px 5px;
+}
+.saComposeBar:focus-within {
+  border-color: var(--brand-ink);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-ink) 12%, transparent), var(--shadow-sm);
+}
+.saComposeBar textarea {
+  flex: 1;
+  min-width: 0;
+  max-height: 140px;
+  padding: 9px 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: var(--fs-sm);
+  line-height: 1.45;
+  color: var(--text-primary);
+  resize: none;
+  outline: none;
+}
+.saComposeBar textarea::placeholder {
+  color: var(--text-tertiary);
+  opacity: 1;
+}
+.saSend {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--brand-primary);
+  color: var(--text-on-brand);
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--ease),
+    transform var(--dur-base) var(--ease-soft);
+}
+.saSend:hover:not(:disabled) {
+  background: var(--brand-primary-hover);
+  transform: scale(1.05);
+}
+.saSend:disabled {
+  background: var(--bg-sunken);
+  color: var(--text-tertiary);
+  cursor: not-allowed;
+}
+[dir='rtl'] .saSend svg {
+  transform: scaleX(-1);
+}
+.saNote {
+  margin: 0;
+  text-align: center;
+  font-size: 11.5px;
+  color: var(--text-tertiary);
+}
+.saPage button:focus-visible,
+.saComposeBar textarea:focus-visible {
+  outline: 3px solid var(--brand-ring);
+  outline-offset: 2px;
+}
+
+/* Motion */
+@keyframes saRise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+@keyframes saArrive {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@keyframes saBreathe {
+  0%,
+  100% {
+    opacity: 0.7;
+    transform: scale(0.94);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+}
+@keyframes saSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes saDot {
+  0%,
+  80%,
+  100% {
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+/* Urdu */
+[dir='rtl'] .saHeadText h1,
+[dir='rtl'] .saWelcome h2 {
+  font-family: var(--font-urdu);
+  line-height: 1.8;
+}
+[dir='rtl'] .saPage {
+  font-family: var(--font-urdu-ui);
+}
+
+@media (max-width: 767px) {
+  .saChat {
+    height: calc(100dvh - 230px);
+    min-height: 440px;
+    border-radius: 22px;
+  }
+  .saHeadMark {
+    width: 38px;
+    height: 38px;
+  }
+  .saPrompts {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .saPrompt {
+    width: 100%;
+  }
+  .saUser {
+    max-width: 88%;
+  }
+  .saStop {
+    inset-block-end: 116px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .saWelcome,
+  .saPrompts li,
+  .saUser,
+  .saBot,
+  .saStop,
+  .saOrb::before,
+  .saOrb::after,
+  .saOrb svg,
+  .saDots i {
+    animation: none;
+  }
+  .saPrompt,
+  .saSend {
+    transition: none;
+  }
+}

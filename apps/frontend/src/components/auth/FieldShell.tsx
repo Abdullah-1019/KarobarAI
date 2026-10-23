@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { AlertCircle } from 'lucide-react';
 
 export interface FieldShellProps {
   id?: string;
@@ -32,6 +33,7 @@ export function FieldShell({ id, label, labelAccessory, error, hint, children }:
       {children}
       {error ? (
         <p className="kaFieldError" id={errorId}>
+          <AlertCircle size={14} aria-hidden="true" />
           {error}
         </p>
       ) : hint ? (

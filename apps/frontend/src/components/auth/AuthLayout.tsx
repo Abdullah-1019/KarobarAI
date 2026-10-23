@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { ArrowLeft, ArrowRight, type LucideIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -7,8 +7,9 @@ import { useTranslation } from 'react-i18next';
 import { useLanguage } from '../../hooks';
 import { LanguageToggle } from '../LanguageToggle/LanguageToggle';
 import './auth.css';
-import { AiMark } from '../AiMark';
 import { BrandLogo } from '../BrandLogo';
+import { AuthStage } from './AuthStage';
+import { readAuthRole, writeAuthRole, type AuthRole } from './authRole';
 
 interface AuthLayoutProps {
   /** Kept so existing screens compile; no longer drawn. An icon tile stacked above the title is a
@@ -18,47 +19,50 @@ interface AuthLayoutProps {
   subtitle?: ReactNode;
   /** Centered line under the form (e.g. "Already have an account? Log in"). */
   footer?: ReactNode;
+  /** Controlled panel story (Register ties it to its role cards); otherwise the last choice. */
+  role?: AuthRole;
+  onRoleChange?: (role: AuthRole) => void;
   children: ReactNode;
 }
 
-const CAPTION_KEYS = ['slide1', 'slide2', 'slide3'] as const;
-const ROTATE_MS = 5000;
+const SCENES = ['s1', 's2', 's3'] as const;
+// Each scene lasts as long as its progress bar takes to fill (--scene-ms in auth.css); the bar's
+// animationend advances the story, so hover-pause and the bar can never drift apart, and with
+// reduced motion (no fill animation) the story simply waits for a tap.
 
 /**
- * Shared chrome for every public auth screen (Studio Light): a peach wash brand panel (logo, back
- * pill, headline, a real AI listing card, caption carousel) beside the form, which sits straight
- * on the warm-white page (top row with the language toggle, vertically-centred 440px column). All
- * layout is logical CSS, so the whole thing mirrors under dir="rtl" with no RTL-specific code.
+ * Shared chrome for every public auth screen (Studio Light): a wash brand panel (logo, back pill,
+ * a Buyer/Seller story switch, the role's headline, a three-scene animated story with story-style
+ * progress bars) beside the form, which sits straight on the warm-white page. All layout is
+ * logical CSS, so the whole thing mirrors under dir="rtl" with no RTL-specific code.
  */
-export function AuthLayout({ title, subtitle, footer, children }: AuthLayoutProps) {
+export function AuthLayout({ title, subtitle, footer, role: roleProp, onRoleChange, children }: AuthLayoutProps) {
   const { t } = useTranslation(['auth']);
   const { dir } = useLanguage();
   const BackIcon = dir === 'rtl' ? ArrowRight : ArrowLeft;
 
-  const prefersReducedMotion = useMemo(
-    () =>
-      typeof window !== 'undefined' &&
-      typeof window.matchMedia === 'function' &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches,
-    [],
-  );
-
-  const [slide, setSlide] = useState(0);
+  const [ownRole, setOwnRole] = useState<AuthRole>(readAuthRole);
+  const role = roleProp ?? ownRole;
+  const [scene, setScene] = useState(0);
   const [paused, setPaused] = useState(false);
+  const next = () => setScene((current) => (current + 1) % SCENES.length);
 
-  useEffect(() => {
-    if (paused || prefersReducedMotion) return;
-    const id = window.setInterval(
-      () => setSlide((current) => (current + 1) % CAPTION_KEYS.length),
-      ROTATE_MS,
-    );
-    return () => window.clearInterval(id);
-  }, [paused, prefersReducedMotion]);
+  // A role change (from either the switch or Register's cards) restarts the story.
+  useEffect(() => setScene(0), [role]);
+
+
+  const chooseRole = (next: AuthRole) => {
+    writeAuthRole(next);
+    if (onRoleChange) onRoleChange(next);
+    else setOwnRole(next);
+  };
+
+  const story = role === 'SELLER' ? 'seller' : 'buyer';
 
   return (
     <div className="kaAuth">
       <div className="kaContainer">
-        <aside className="kaPanel">
+        <aside className="kaPanel" data-role={story}>
           <div className="kaPanelPattern" aria-hidden="true" />
 
           <div className="kaPanelTop">
@@ -71,76 +75,54 @@ export function AuthLayout({ title, subtitle, footer, children }: AuthLayoutProp
             </Link>
           </div>
 
-          <div className="kaPanelMid">
-            <h2 className="kaPanelHeadline">{t('auth:slidePanel.buyerHeadline')}</h2>
-
-            <div className="kaMock">
-              <span className="kaMockChip">
-                <AiMark size={12} color="var(--ai-accent)" />
-                {t('auth:mockup.chip')}
-              </span>
-
-              <div className="kaMockRow">
-                <div className="kaMockPhoto" aria-hidden="true">
-                  <img src="/demo/products/fashion-clothing.svg" alt="" />
-                </div>
-                <div className="kaMockText">
-                  <div className="kaMockTitleEn" lang="en">
-                    {t('auth:mockup.titleEn')}
-                  </div>
-                  <div className="kaMockTitleUr" lang="ur">
-                    {t('auth:mockup.titleUr')}
-                  </div>
-                </div>
-              </div>
-
-              <div className="kaMockTags">
-                <span className="kaMockTag">{t('auth:mockup.tag1')}</span>
-                <span className="kaMockTag">{t('auth:mockup.tag2')}</span>
-                <span className="kaMockTag" lang="ur">
-                  {t('auth:mockup.tag3')}
-                </span>
-              </div>
-
-              <div className="kaMockFooter">
-                <span className="kaMockPrice">{t('auth:mockup.price')}</span>
-                <span className="kaLive">
-                  <span className="kaLiveDot" aria-hidden="true" />
-                  {t('auth:mockup.live')}
-                </span>
-              </div>
-            </div>
-          </div>
-
           <div
-            className="kaPanelBottom"
+            className="kaPanelMid"
+            data-paused={paused || undefined}
             onMouseEnter={() => setPaused(true)}
             onMouseLeave={() => setPaused(false)}
-            onFocus={() => setPaused(true)}
-            onBlur={() => setPaused(false)}
           >
-            <div className="kaCaptions">
-              {CAPTION_KEYS.map((key, index) => (
-                <p
-                  key={key}
-                  className="kaCaption"
-                  data-active={index === slide}
-                  aria-hidden={index !== slide}
+            <div className="kaRoleSwitch" role="group" aria-label={t('auth:stage.switchLabel')}>
+              {(['BUYER', 'SELLER'] as const).map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  className="kaRoleSwitchBtn"
+                  aria-pressed={role === value}
+                  onClick={() => chooseRole(value)}
                 >
-                  {t(`auth:captions.${key}`)}
-                </p>
+                  {value === 'BUYER' ? t('auth:register.roleBuyer') : t('auth:register.roleSeller')}
+                </button>
               ))}
             </div>
-            <div className="kaDots">
-              {CAPTION_KEYS.map((key, index) => (
+
+            <h2 key={story} className="kaPanelHeadline">
+              {t(`auth:slidePanel.${story}Headline`)}
+            </h2>
+
+            <div className="kaStage" aria-hidden="true">
+              <AuthStage key={`${story}-${scene}`} role={role} scene={scene} />
+            </div>
+            <p className="kaSrOnly" aria-live="polite">
+              {t(`auth:stage.${story}.${SCENES[scene]}`)}
+            </p>
+
+            <div className="kaBars">
+              {SCENES.map((key, index) => (
                 <button
-                  key={key}
+                  key={`${story}-${key}`}
                   type="button"
-                  className="kaDot"
-                  data-active={index === slide}
+                  className="kaBar"
+                  data-state={index < scene ? 'done' : index === scene ? 'active' : undefined}
                   aria-label={t('auth:captions.goToSlide', { n: index + 1 })}
-                  onClick={() => setSlide(index)}
-                />
+                  aria-current={index === scene || undefined}
+                  onClick={() => setScene(index)}
+                >
+                  <span
+                    key={index === scene ? `${role}-${scene}` : undefined}
+                    className="kaBarFill"
+                    onAnimationEnd={index === scene ? next : undefined}
+                  />
+                </button>
               ))}
             </div>
           </div>

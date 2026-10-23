@@ -1,0 +1,74 @@
+/* Date-range pill tabs, shared by seller analytics and the admin dashboard/reports. */
+/* Range pill tabs with a sliding ink (same pattern as the orders list). */
+.anRange {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.anTabs {
+  position: relative;
+  display: flex;
+  gap: 2px;
+  max-width: 100%;
+  padding: 4px;
+  border: 1px solid color-mix(in srgb, var(--bg-surface) 85%, transparent);
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--bg-surface) 70%, transparent);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.anTabInk {
+  position: absolute;
+  inset-block: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--brand-ink);
+  box-shadow: var(--shadow-sm);
+  transition:
+    left 360ms var(--ease-soft),
+    width 360ms var(--ease-soft);
+}
+.anTab {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+  height: 34px;
+  padding-inline: 14px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  font: inherit;
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color 200ms ease;
+}
+.anTab:hover {
+  color: var(--text-primary);
+}
+.anTab[aria-pressed='true'] {
+  color: var(--text-on-dark);
+  font-weight: 600;
+}
+.anTab:focus-visible {
+  outline: 3px solid var(--brand-ring);
+  outline-offset: 2px;
+}
+
+@media (max-width: 767px) {
+  .anRange,
+  .anTabs {
+    width: 100%;
+  }
+  .anTab {
+    flex: 1 0 auto;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .anTabInk {
+    transition: none;
+  }
+}
+[dir='rtl'] .anTab {
+  font-family: var(--font-urdu-ui);
+}

@@ -1,14 +1,19 @@
 import { useState } from 'react';
-import { Alert, Button, Card, Input, Typography } from 'antd';
+import { Alert, Button } from 'antd';
+import { Check, KeyRound, LogOut, ShieldCheck, X } from 'lucide-react';
 import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 
 import { changePasswordSchema } from '@karobarai/shared';
-import { PasswordStrengthMeter } from '../../components';
+import { PasswordField } from '../../components';
 import { ApiError } from '../../api';
 import { useAuthStore } from '../../lib/authStore';
 import { changePassword } from './profileApi';
 import { formatProfileError } from './profileErrors';
+import '../../components/auth/auth.css';
+import './profile.css';
+import './settings.css';
 
 interface FormValues {
   currentPassword: string;
@@ -19,10 +24,13 @@ interface FormValues {
 // F2-profiles-backend.md: on success every *other* session/device is revoked, but this device
 // gets a fresh token pair and stays logged in — must show the "signed out elsewhere" messaging
 // (same requirement as auth's reset-password) without actually logging this session out.
+// Uses the auth screens' PasswordField (reveal toggle, strength meter, rule checklist).
 export function ChangePasswordPage() {
   const { t } = useTranslation(['profile', 'common']);
+  const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const setSession = useAuthStore((state) => state.setSession);
+  const profilePath = user?.role === 'SELLER' ? '/seller/profile' : '/buyer/profile';
 
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -39,6 +47,7 @@ export function ChangePasswordPage() {
   });
 
   const newPassword = watch('newPassword');
+  const confirm = watch('confirmNewPassword');
 
   const onSubmit = handleSubmit(async (values) => {
     setSubmitError(null);
@@ -71,99 +80,102 @@ export function ChangePasswordPage() {
 
   if (done) {
     return (
-      <div style={{ maxWidth: 420, margin: '0 auto' }}>
-        <Alert
-          type="success"
-          showIcon
-          message={t('profile:changePassword.successTitle')}
-          description={t('profile:changePassword.successSignedOutEverywhere')}
-        />
+      <div className="pfPage stPage">
+        <section className="stCard cpDone" role="status">
+          <span className="cpDoneMark" aria-hidden="true"><Check size={30} strokeWidth={3} /></span>
+          <h1 className="stTitle">{t('profile:changePassword.successTitle')}</h1>
+          <p className="stSub">{t('profile:changePassword.successSignedOutEverywhere')}</p>
+          <Button type="primary" onClick={() => navigate(profilePath)}>{t('profile:changePasswordUi.backToProfile')}</Button>
+        </section>
       </div>
     );
   }
 
+  const confirmState = confirm ? (confirm === newPassword ? 'match' : 'mismatch') : null;
+
   return (
-    <div style={{ maxWidth: 420, margin: '0 auto' }}>
-      <Typography.Title level={3} style={{ marginBottom: 'var(--sp-5)' }}>
-        {t('profile:changePassword.title')}
-      </Typography.Title>
+    <div className="pfPage stPage">
+      <header className="stHead">
+        <h1 className="stTitle">{t('profile:changePassword.title')}</h1>
+        <p className="stSub">{t('profile:changePasswordUi.subtitle')}</p>
+      </header>
 
-      <Card>
-        {submitError && <Alert type="error" message={submitError} showIcon style={{ marginBottom: 'var(--sp-4)' }} />}
+      <div className="cpLayout">
+        <aside className="cpAside">
+          <span className="cpAsideIcon" aria-hidden="true"><ShieldCheck size={26} /></span>
+          <h2 className="stCardTitle">{t('profile:changePasswordUi.tipsTitle')}</h2>
+          <ul className="cpTips">
+            <li><KeyRound size={16} aria-hidden="true" />{t('profile:changePasswordUi.tipStrong')}</li>
+            <li><X size={16} aria-hidden="true" />{t('profile:changePasswordUi.tipReuse')}</li>
+            <li><LogOut size={16} aria-hidden="true" />{t('profile:changePasswordUi.tipDevices')}</li>
+          </ul>
+        </aside>
 
-        <form onSubmit={onSubmit}>
-          <div style={{ marginBottom: 'var(--sp-4)' }}>
-            <label htmlFor="change-password-current">{t('profile:changePassword.currentPasswordLabel')}</label>
+        <section className="stCard cpForm">
+          {submitError && <Alert type="error" message={submitError} showIcon />}
+          <form onSubmit={onSubmit} className="cpFields" noValidate>
             <Controller
               name="currentPassword"
               control={control}
               render={({ field }) => (
-                <Input.Password
-                  {...field}
+                <PasswordField
                   id="change-password-current"
-                  size="large"
-                  aria-invalid={!!errors.currentPassword}
-                  aria-describedby={errors.currentPassword ? 'change-password-current-error' : undefined}
+                  label={t('profile:changePassword.currentPasswordLabel')}
+                  value={field.value}
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                  autoComplete="current-password"
+                  error={errors.currentPassword?.message}
                 />
               )}
             />
-            {errors.currentPassword && (
-              <Typography.Text id="change-password-current-error" type="danger">
-                {errors.currentPassword.message}
-              </Typography.Text>
-            )}
-          </div>
-
-          <div style={{ marginBottom: 'var(--sp-4)' }}>
-            <label htmlFor="change-password-new">{t('profile:changePassword.newPasswordLabel')}</label>
             <Controller
               name="newPassword"
               control={control}
               render={({ field }) => (
-                <Input.Password
-                  {...field}
+                <PasswordField
                   id="change-password-new"
-                  size="large"
-                  aria-invalid={!!errors.newPassword}
-                  aria-describedby={errors.newPassword ? 'change-password-new-error' : undefined}
+                  label={t('profile:changePassword.newPasswordLabel')}
+                  value={field.value}
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                  autoComplete="new-password"
+                  error={errors.newPassword?.message}
+                  showStrength
+                  showChecklist
                 />
               )}
             />
-            <PasswordStrengthMeter password={newPassword ?? ''} />
-            {errors.newPassword && (
-              <Typography.Text id="change-password-new-error" type="danger">
-                {errors.newPassword.message}
-              </Typography.Text>
-            )}
-          </div>
-
-          <div style={{ marginBottom: 'var(--sp-4)' }}>
-            <label htmlFor="change-password-confirm">{t('profile:changePassword.confirmNewPasswordLabel')}</label>
             <Controller
               name="confirmNewPassword"
               control={control}
               render={({ field }) => (
-                <Input.Password
-                  {...field}
+                <PasswordField
                   id="change-password-confirm"
-                  size="large"
-                  aria-invalid={!!errors.confirmNewPassword}
-                  aria-describedby={errors.confirmNewPassword ? 'change-password-confirm-error' : undefined}
+                  label={t('profile:changePassword.confirmNewPasswordLabel')}
+                  value={field.value}
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                  autoComplete="new-password"
+                  error={errors.confirmNewPassword?.message}
                 />
               )}
             />
-            {errors.confirmNewPassword && (
-              <Typography.Text id="change-password-confirm-error" type="danger">
-                {errors.confirmNewPassword.message}
-              </Typography.Text>
+            {confirmState && !errors.confirmNewPassword && (
+              <p className="cpMatch" data-state={confirmState} aria-live="polite">
+                {confirmState === 'match' ? <Check size={14} aria-hidden="true" /> : <X size={14} aria-hidden="true" />}
+                {t(confirmState === 'match' ? 'profile:changePasswordUi.match' : 'profile:changePasswordUi.noMatch')}
+              </p>
             )}
-          </div>
-
-          <Button type="primary" htmlType="submit" size="large" block loading={submitting}>
-            {t('profile:changePassword.submit')}
-          </Button>
-        </form>
-      </Card>
+            <div className="cpActions">
+              <Button htmlType="button" onClick={() => navigate(profilePath)}>{t('common:actions.cancel')}</Button>
+              <Button type="primary" htmlType="submit" loading={submitting}>
+                {t('profile:changePassword.submit')}
+              </Button>
+            </div>
+          </form>
+        </section>
+      </div>
     </div>
   );
 }

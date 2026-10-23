@@ -83,7 +83,6 @@ services:
     command: >
       sh -c "cd /workspace/apps/backend &&
              pnpm exec prisma generate &&
-             pnpm exec prisma migrate deploy &&
              pnpm exec ts-node-dev --respawn --transpile-only src/server.ts"
     volumes:
       - ../apps/backend:/workspace/apps/backend

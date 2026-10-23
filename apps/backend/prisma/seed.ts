@@ -166,6 +166,9 @@ async function seedDemoCatalogue() {
 }
 
 async function main() {
+  // Shared databases can be initialized with reference data alone. In this
+  // mode, existing configuration and category values are never overwritten.
+  const referenceOnly = process.env.SEED_REFERENCE_ONLY === 'true';
   for (const config of platformConfig) {
     await prisma.platformConfig.upsert({
       where: { configKey: config.configKey },
@@ -177,7 +180,7 @@ async function main() {
   for (const category of categories) {
     await prisma.category.upsert({
       where: { slug: category.slug },
-      update: { nameEn: category.nameEn, nameUr: category.nameUr },
+      update: referenceOnly ? {} : { nameEn: category.nameEn, nameUr: category.nameUr },
       create: category,
     });
   }
@@ -187,13 +190,13 @@ async function main() {
   const fashion = await prisma.category.findUniqueOrThrow({ where: { slug: 'fashion-clothing' } });
   await prisma.category.upsert({
     where: { slug: 'clothing' },
-    update: { nameEn: 'Clothing', nameUr: 'ملبوسات', parentId: fashion.categoryId },
+    update: referenceOnly ? {} : { nameEn: 'Clothing', nameUr: 'ملبوسات', parentId: fashion.categoryId },
     create: { slug: 'clothing', nameEn: 'Clothing', nameUr: 'ملبوسات', parentId: fashion.categoryId },
   });
 
   console.log(`Seeded ${platformConfig.length} platform_config keys and ${categories.length + 1} categories.`);
 
-  if (process.env.NODE_ENV !== 'production') {
+  if (!referenceOnly && process.env.NODE_ENV !== 'production') {
     await seedDemoCatalogue();
   }
 }

@@ -1,0 +1,10 @@
+# Opt-in shared-database API mode. Use with docker-compose.yml and the root .env.
+# Keep migrations as a separate, reviewed operation; normal API startup must not
+# apply schema changes to a shared database.
+services:
+  api:
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in the root .env file}
+      # Separate local queues from jobs created for the Docker development database.
+      REDIS_URL: redis://redis:6379/15
+    command: ["sh", "-c", "pnpm exec prisma generate && exec pnpm dev"]

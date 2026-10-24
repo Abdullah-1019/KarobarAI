@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Alert, Button } from 'antd';
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
@@ -12,8 +12,9 @@ import type { NotificationDTO } from '@karobarai/shared';
 import { useLanguage } from '../../hooks';
 import { useAuthStore } from '../../lib/authStore';
 import { NotificationIcon } from './NotificationIcon';
-import { listNotifications, markAsRead, notificationsQueryKey, unreadCountQueryKey } from './notificationsApi';
+import { listNotifications, markAsRead, markManyAsRead, notificationsQueryKey, unreadSummaryQueryKey } from './notificationsApi';
 import { formatNotificationsError } from './notificationsErrors';
+import { useUnreadSummary } from './useUnreadCount';
 import './notifications.css';
 
 dayjs.extend(relativeTime);
@@ -36,8 +37,10 @@ function groupOf(createdAt: string): GroupKey {
 // Notification Center, Studio Light. Rendered inside the signed-in role's own layout (RoleShell).
 // A title with the unread count and "Mark all as read", All / Unread pills, then the list grouped
 // by day as white cards: a toned event icon, the server-written message, relative time and, when
-// the notification is about an order, a "View order" cue. Unread rows carry a peach wash and a
-// persimmon dot. There is no bulk read endpoint, so "Mark all" marks the loaded unread items.
+// the notification is about an order or a return, a "View order" / "View return" cue that opens
+// it. Unread rows carry a peach wash and a persimmon dot. "Mark all" clears every unread one.
+const isReturnEvent = (eventType: string) => eventType.startsWith('RETURN_') || eventType.startsWith('REFUND_');
+
 export function NotificationCenterPage() {
   const { t } = useTranslation(['notifications', 'common']);
   const { language } = useLanguage();
@@ -45,6 +48,7 @@ export function NotificationCenterPage() {
   const queryClient = useQueryClient();
   const user = useAuthStore((s) => s.user);
   const [filter, setFilter] = useState<Filter>('all');
+  const unreadTotal = useUnreadSummary()?.count;
 
   dayjs.locale(language.toLowerCase() === 'ur' ? 'ur' : 'en');
 
@@ -67,8 +71,18 @@ export function NotificationCenterPage() {
           }
         : old,
     );
-    void queryClient.invalidateQueries({ queryKey: unreadCountQueryKey });
+    void queryClient.invalidateQueries({ queryKey: unreadSummaryQueryKey });
   }
+
+  // A new notification arriving while the page is open (the shared summary polls) shows up here
+  // without a manual refresh.
+  const lastTotal = useRef(unreadTotal);
+  useEffect(() => {
+    if (unreadTotal !== undefined && lastTotal.current !== undefined && unreadTotal > lastTotal.current) {
+      void queryClient.invalidateQueries({ queryKey: notificationsQueryKey });
+    }
+    lastTotal.current = unreadTotal;
+  }, [unreadTotal, queryClient]);
 
   const readMutation = useMutation({
     mutationFn: (id: string) => markAsRead(id),
@@ -76,11 +90,8 @@ export function NotificationCenterPage() {
   });
 
   const readAllMutation = useMutation({
-    mutationFn: async (ids: string[]) => {
-      const results = await Promise.allSettled(ids.map((id) => markAsRead(id)));
-      return ids.filter((_, index) => results[index]?.status === 'fulfilled');
-    },
-    onSuccess: (doneIds) => markLocallyRead(new Set(doneIds)),
+    mutationFn: () => markManyAsRead(),
+    onSuccess: () => markLocallyRead(new Set(unreadItems.map((item) => item.id))),
   });
 
   const items = data?.pages.flatMap((page) => page.items) ?? [];
@@ -90,22 +101,33 @@ export function NotificationCenterPage() {
     (group) => group.items.length > 0,
   );
 
-  function orderHref(item: NotificationDTO): string | null {
+  // Where a notification leads: return/refund events open that return, everything else about an
+  // order opens the order — each on the signed-in role's own page.
+  function targetHref(item: NotificationDTO): string | null {
     if (!item.orderId) return null;
-    if (user?.role === 'BUYER') return `/orders/${item.orderId}`;
-    if (user?.role === 'SELLER') return `/seller/orders/${item.orderId}`;
+    const role = user?.role;
+    if (isReturnEvent(item.eventType)) {
+      if (role === 'BUYER') {
+        return item.returnId ? `/orders/${item.orderId}/return/${item.returnId}/status` : `/orders/${item.orderId}/return/status`;
+      }
+      if (role === 'SELLER') return item.returnId ? `/seller/returns/${item.returnId}` : '/seller/returns';
+      if (role === 'ADMIN' || role === 'SUPPORT') return item.returnId ? `/admin/returns/${item.returnId}` : '/admin/returns';
+      return null;
+    }
+    if (role === 'BUYER') return `/orders/${item.orderId}`;
+    if (role === 'SELLER') return `/seller/orders/${item.orderId}`;
     return null;
   }
 
   function handleItemClick(item: NotificationDTO) {
     if (item.status !== 'READ') readMutation.mutate(item.id);
-    const href = orderHref(item);
+    const href = targetHref(item);
     if (href) navigate(href);
   }
 
   function renderItem(item: NotificationDTO, index: number) {
     const unread = item.status !== 'READ';
-    const href = orderHref(item);
+    const href = targetHref(item);
     return (
       <li key={item.id} style={{ animationDelay: `${Math.min(index, 8) * 35}ms` }}>
         <button type="button" className="ncItem" data-unread={unread || undefined} onClick={() => handleItemClick(item)}>
@@ -121,7 +143,7 @@ export function NotificationCenterPage() {
               {href && (
                 <>
                   <span aria-hidden="true">·</span>
-                  <span className="ncCue">{t('center.viewOrder')}</span>
+                  <span className="ncCue">{t(isReturnEvent(item.eventType) ? 'center.viewReturn' : 'center.viewOrder')}</span>
                 </>
               )}
             </span>
@@ -139,6 +161,8 @@ export function NotificationCenterPage() {
 
   const homeHref = user ? (ROLE_HOME[user.role] ?? '/') : '/';
   const showEmpty = !isPending && !isError && visible.length === 0;
+  // The server's count covers pages not loaded yet; the loaded list is the fallback.
+  const unreadShown = Math.max(unreadTotal ?? 0, unreadItems.length);
 
   return (
     <div className="ncPage">
@@ -146,17 +170,12 @@ export function NotificationCenterPage() {
         <div className="ncHeadText">
           <h1 className="ncTitle">
             {t('center.title')}
-            {unreadItems.length > 0 && <span className="ncCount">{t('center.unreadCount', { count: unreadItems.length })}</span>}
+            {unreadShown > 0 && <span className="ncCount">{t('center.unreadCount', { count: unreadShown })}</span>}
           </h1>
           <p className="ncSub">{t('center.subtitle')}</p>
         </div>
-        {unreadItems.length > 0 && (
-          <button
-            type="button"
-            className="ncGhost"
-            disabled={readAllMutation.isPending}
-            onClick={() => readAllMutation.mutate(unreadItems.map((item) => item.id))}
-          >
+        {unreadShown > 0 && (
+          <button type="button" className="ncGhost" disabled={readAllMutation.isPending} onClick={() => readAllMutation.mutate()}>
             <CheckCheck size={16} aria-hidden="true" />
             {t('center.markAllRead')}
           </button>

@@ -1,5 +1,6 @@
 import type { ApiEnvelope } from '../../api';
 import { apiClient, unwrap } from '../../api';
+import type { ChatMode } from '../ai-chat/chatMode';
 import { StreamRouteUnavailableError, streamChat } from '../ai-chat/streamChat';
 
 export interface SellerAssistantMessage {
@@ -12,13 +13,14 @@ export interface SellerAssistantResponse {
   sessionId: string;
   reply: string;
   toolCalls: number;
+  mode?: ChatMode;
 }
 
 export function sendSellerAssistantMessage(input: { message: string; sessionId?: string; locale: 'en' | 'ur' }, signal?: AbortSignal): Promise<SellerAssistantResponse> {
   return unwrap(apiClient.post<ApiEnvelope<SellerAssistantResponse>>('/seller/chat', input, { signal }));
 }
 
-export async function streamSellerAssistantMessage(input: { message: string; sessionId?: string; locale: 'en' | 'ur'; requestId?: string }, onDelta: (text: string) => void, signal: AbortSignal): Promise<SellerAssistantResponse> {
+export async function streamSellerAssistantMessage(input: { message: string; sessionId?: string; locale: 'en' | 'ur'; requestId?: string; mode?: ChatMode }, onDelta: (text: string) => void, signal: AbortSignal): Promise<SellerAssistantResponse> {
   try {
     return await streamChat<SellerAssistantResponse>('/seller/chat/stream', input, onDelta, signal);
   } catch (error) {

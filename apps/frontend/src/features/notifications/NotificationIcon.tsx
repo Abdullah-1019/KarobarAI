@@ -7,7 +7,9 @@ import {
   MapPin,
   Package,
   PackageCheck,
+  PackagePlus,
   RotateCcw,
+  ShoppingBag,
   Truck,
   Wallet,
   XCircle,
@@ -28,6 +30,8 @@ interface EventMeta {
 // genuinely exceptional events (cancellation, manual-logistics fallback) get a warning/error tint.
 const EVENT_META: Record<string, EventMeta> = {
   ORDER_PLACED: { icon: Package, fg: 'var(--info)', bg: 'var(--info-soft)' },
+  // A new sale is the seller's best news — the one brand-tinted event.
+  SELLER_NEW_ORDER: { icon: ShoppingBag, fg: 'var(--brand-primary-active)', bg: 'var(--brand-primary-soft)' },
   ORDER_PAYMENT_CONFIRMED: { icon: PackageCheck, fg: 'var(--success)', bg: 'var(--success-soft)' },
   ORDER_CANCELLED: { icon: XCircle, fg: 'var(--error)', bg: 'var(--error-soft)' },
   ORDER_PICKED_UP: { icon: Truck, fg: 'var(--info)', bg: 'var(--info-soft)' },
@@ -39,7 +43,16 @@ const EVENT_META: Record<string, EventMeta> = {
   OTP_REQUESTED: { icon: KeyRound, fg: 'var(--text-secondary)', bg: 'var(--bg-sunken)' },
   RETURN_DECISION: { icon: RotateCcw, fg: 'var(--info)', bg: 'var(--info-soft)' },
   REFUND_ISSUED: { icon: Wallet, fg: 'var(--success)', bg: 'var(--success-soft)' },
+  RETURN_SELLER_REVIEW: { icon: RotateCcw, fg: 'var(--warning)', bg: 'var(--warning-soft)' },
+  RETURN_APPEAL_SUBMITTED: { icon: AlertTriangle, fg: 'var(--warning)', bg: 'var(--warning-soft)' },
+  RETURN_ADMIN_REVIEW: { icon: AlertTriangle, fg: 'var(--warning)', bg: 'var(--warning-soft)' },
+  RETURN_REFUND_PROPOSED: { icon: Wallet, fg: 'var(--warning)', bg: 'var(--warning-soft)' },
+  RETURN_REPLACEMENT_RESERVED: { icon: PackagePlus, fg: 'var(--info)', bg: 'var(--info-soft)' },
+  RETURN_REPLACEMENT_DELIVERED: { icon: CheckCircle2, fg: 'var(--success)', bg: 'var(--success-soft)' },
+  RETURN_EXCHANGE_COMPLETED: { icon: CheckCircle2, fg: 'var(--success)', bg: 'var(--success-soft)' },
 };
+// Any other return step (booked, in transit, received…) shares the calm return look.
+const RETURN_META: EventMeta = { icon: RotateCcw, fg: 'var(--info)', bg: 'var(--info-soft)' };
 const DEFAULT_META: EventMeta = { icon: Bell, fg: 'var(--text-secondary)', bg: 'var(--bg-sunken)' };
 
 interface NotificationIconProps {
@@ -48,7 +61,7 @@ interface NotificationIconProps {
 }
 
 export function NotificationIcon({ eventType, size = 36 }: NotificationIconProps) {
-  const { icon: Icon, fg, bg } = EVENT_META[eventType] ?? DEFAULT_META;
+  const { icon: Icon, fg, bg } = EVENT_META[eventType] ?? (eventType.startsWith('RETURN_') ? RETURN_META : DEFAULT_META);
   return (
     <span
       aria-hidden="true"

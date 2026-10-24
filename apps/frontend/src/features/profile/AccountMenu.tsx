@@ -6,19 +6,22 @@ import { User } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
+import { CountBadge } from '../../components';
 import { useAuthStore } from '../../lib/authStore';
 import { PROFILE_QUERY_KEY, getProfile } from './profileApi';
 
 interface AccountMenuProps {
   /** Menu shown on click for a signed-in user (role-specific links + logout). */
   items: MenuProps['items'];
+  /** Something inside the menu is new (orders, returns, messages): a dot on the avatar. */
+  hasNew?: boolean;
 }
 
 // The account avatar shared by every header (Buyer storefront, Seller, Admin). Shows the user's
 // real photo (or a Seller's store logo) when one exists, otherwise a person glyph on sand — never
 // invented initials, since the profile has no name field. Reads the same cached profile query the
 // Profile screens use, so an avatar upload updates the header immediately.
-export function AccountMenu({ items }: AccountMenuProps) {
+export function AccountMenu({ items, hasNew = false }: AccountMenuProps) {
   const { t } = useTranslation('common');
   const user = useAuthStore((s) => s.user);
   const [imageFailed, setImageFailed] = useState(false);
@@ -34,16 +37,20 @@ export function AccountMenu({ items }: AccountMenuProps) {
   const photo = profile?.avatarUrl ?? (profile?.role === 'SELLER' ? profile.logoUrl : null);
   const showPhoto = !!photo && !imageFailed;
 
+  // The dot sits outside the avatar: the avatar clips its photo to the circle.
   return (
-    <Dropdown menu={{ items }} trigger={['click']} placement="bottomRight">
-      <button type="button" className="account-avatar" aria-label={t('nav.account')}>
-        {showPhoto ? (
-          <img src={photo} alt="" className="account-avatar__img" onError={() => setImageFailed(true)} />
-        ) : (
-          <User size={20} aria-hidden="true" />
-        )}
-      </button>
-    </Dropdown>
+    <span className="count-anchor">
+      <Dropdown menu={{ items }} trigger={['click']} placement="bottomRight">
+        <button type="button" className="account-avatar" aria-label={t('nav.account')}>
+          {showPhoto ? (
+            <img src={photo} alt="" className="account-avatar__img" onError={() => setImageFailed(true)} />
+          ) : (
+            <User size={20} aria-hidden="true" />
+          )}
+        </button>
+      </Dropdown>
+      <CountBadge dot={hasNew} />
+    </span>
   );
 }
 

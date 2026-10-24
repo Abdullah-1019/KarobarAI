@@ -489,6 +489,7 @@ model Product {
   embedding  ProductEmbedding?
   replacementFulfillments ReturnFulfillment[]
   humanConversations HumanConversation[]
+  variants   ProductVariant[]
 
   @@index([sellerId], map: "idx_products_seller")
   @@index([categoryId], map: "idx_products_category")
@@ -512,6 +513,32 @@ model ProductImage {
 
   @@unique([productId, position], map: "uq_product_images_product_position")
   @@map("product_images")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Feature 23 product_variants — optional size/colour options with their own stock. A product with
+// active variants keeps products.stock equal to their total, so listings, search and analytics
+// that read products.stock stay correct. Variants share the product price. Retired variants are
+// deactivated (is_active = false), never deleted, so carts and order history keep their links.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model ProductVariant {
+  variantId BigInt   @id @default(autoincrement()) @map("variant_id")
+  productId BigInt   @map("product_id")
+  product   Product  @relation(fields: [productId], references: [productId], onDelete: Cascade)
+  size      String?  @db.VarChar(40)
+  color     String?  @db.VarChar(40)
+  stock     Int      @default(0)
+  isActive  Boolean  @default(true) @map("is_active")
+  position  Int      @default(0) @db.SmallInt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+
+  @@index([productId], map: "idx_product_variants_product")
+  @@map("product_variants")
 }
 
 model ProductEmbedding {
@@ -667,11 +694,16 @@ model CartItem {
   cart       Cart     @relation(fields: [cartId], references: [cartId], onDelete: Cascade)
   productId  BigInt   @map("product_id")
   product    Product  @relation(fields: [productId], references: [productId], onDelete: Cascade)
+  // Feature 23 — null for products without variants. One line per (product, variant); the
+  // migration creates this unique index with NULLS NOT DISTINCT so a variant-less product still
+  // has a single line per cart, exactly as before.
+  variantId  BigInt?  @map("variant_id")
+  variant    ProductVariant? @relation(fields: [variantId], references: [variantId], onDelete: Cascade)
   quantity   Int      @default(1)
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 
-  @@unique([cartId, productId], map: "uq_cart_items_cart_product")
+  @@unique([cartId, productId, variantId], map: "uq_cart_items_cart_product_variant")
   @@map("cart_items")
 }
 
@@ -746,6 +778,10 @@ model OrderItem {
     categorySlugSnapshot String? @map("category_slug_snapshot") @db.VarChar(80)
   unitPrice     Decimal  @map("unit_price") @db.Decimal(12, 2)
   quantity      Int
+  // Feature 23 — the purchased variant and its label at order time ("M / Black").
+  variantId     BigInt?  @map("variant_id")
+  variant       ProductVariant? @relation(fields: [variantId], references: [variantId], onDelete: Restrict)
+  variantLabel  String?  @map("variant_label") @db.VarChar(90)
   createdAt     DateTime @default(now()) @map("created_at")
   returnCases   Return[]
   dispatchEvidence DispatchEvidence[]

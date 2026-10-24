@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router-dom';
 
 import { EmptyState, Modal, PageHeader, SkeletonLoader, toast } from '../../components';
+import { useOrderSeen } from '../notifications';
 import { getOrder, orderQueryKey } from '../orders/ordersApi';
 import { ReturnProgressTimeline } from './ReturnProgressTimeline';
 import { ReturnStatusTag } from './ReturnStatusTag';
@@ -22,6 +23,7 @@ import { formatReturnsError } from './returnsErrors';
 export function ReturnStatusPage() {
   const { t } = useTranslation(['returns', 'orders']);
   const { id: orderId = '', returnId } = useParams<{ id: string; returnId?: string }>();
+  useOrderSeen('returns', orderId);
   const queryClient = useQueryClient();
   const [appealModalOpen, setAppealModalOpen] = useState(false);
   const [appealReason, setAppealReason] = useState('');
@@ -124,14 +126,8 @@ export function ReturnStatusPage() {
     <div style={{ maxWidth: 640, margin: '0 auto' }}>
       <PageHeader
         title={t('statusPage.title')}
-        backTo={`/orders/${orderId}`}
-        backLabel={t('orders:detail.title', { id: orderId })}
         actions={<ReturnStatusTag status={visibleStatus} />}
       />
-
-      <Link to="/returns" style={{ display: 'inline-block', marginBottom: 'var(--sp-4)', fontSize: 'var(--fs-sm)' }}>
-        {t('statusPage.viewAllReturns')}
-      </Link>
 
       <Card style={{ marginBottom: 'var(--sp-4)' }}>
         <Typography.Title level={4} style={{ marginTop: 0 }}>{currentStatus ?? <ReturnStatusTag status={visibleStatus} />}</Typography.Title>

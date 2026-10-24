@@ -74,6 +74,7 @@ function toCreatedOrder(payment: CheckoutAttemptPayment): CreatedOrderDTO {
     items: order.items.map((item) => ({
       productId: item.product.publicId,
       titleSnapshot: item.titleSnapshot,
+      variantLabel: item.variantLabel,
       unitPrice: item.unitPrice.toFixed(2),
       quantity: item.quantity,
     })),
@@ -200,11 +201,31 @@ async function resumeCheckoutAttempt(
   await removeCartItems(consumedCartItemIds);
 
   const result: CheckoutResultDTO = { orders };
-  await Promise.allSettled(orders.map((order) => enqueueNotification({
-    userId: buyerId.toString(), type: 'ORDER_PLACED', orderId: order.id, vars: { orderId: order.id },
-  }, `order-placed-${order.id}`)));
+  await notifyOrdersPlaced(buyerId, orders);
   if (input.paymentMethod !== 'STRIPE') await cacheCheckoutResult(cacheKey, result);
   return result;
+}
+
+// One ORDER_PLACED to the buyer and one SELLER_NEW_ORDER to each order's seller, after the
+// transaction commits. Enqueue failures never fail the checkout, and each job is independent;
+// the job ids keep a retried checkout from notifying anyone twice.
+async function notifyOrdersPlaced(buyerId: bigint, orders: CreatedOrderDTO[]): Promise<void> {
+  const sellers = await prisma.order.findMany({
+    where: { publicId: { in: orders.map((order) => order.id) } },
+    select: { publicId: true, sellerId: true, orderNumber: true },
+  }).catch((err) => {
+    logger.error({ err }, 'Failed to resolve sellers for new-order notifications');
+    return [];
+  });
+  await Promise.allSettled([
+    ...orders.map((order) => enqueueNotification({
+      userId: buyerId.toString(), type: 'ORDER_PLACED', orderId: order.id, vars: { orderId: order.id },
+    }, `order-placed-${order.id}`)),
+    ...sellers.map((order) => enqueueNotification({
+      userId: order.sellerId.toString(), type: 'SELLER_NEW_ORDER', orderId: order.publicId,
+      vars: { orderId: order.publicId, orderNumber: order.orderNumber.toString() },
+    }, `seller-new-order-${order.publicId}`)),
+  ]);
 }
 
 async function cancelAndFailCheckoutAttempt(payments: CheckoutAttemptPayment[]): Promise<void> {
@@ -379,12 +400,13 @@ export async function processCheckout(
     const expectedItems = eligibleGroups.flatMap((group) => group.items);
     const persistedItems = await tx.cartItem.findMany({
       where: { cartItemId: { in: expectedItems.map((item) => item.cartItemId) }, cart: { buyerId } },
-      select: { cartItemId: true, productId: true, quantity: true,
+      select: { cartItemId: true, productId: true, variantId: true, quantity: true,
         product: { select: { category: { select: { slug: true } } } } },
     });
     if (persistedItems.length !== expectedItems.length || expectedItems.some((item) => {
       const current = persistedItems.find((row) => row.cartItemId === item.cartItemId);
-      return !current || current.productId !== item.productId || current.quantity !== item.quantity;
+      return !current || current.productId !== item.productId || current.quantity !== item.quantity
+        || (current.variantId ?? null) !== item.variantId;
     })) {
       throw new ConflictError('The cart changed while placing the order. Review it and try again.', undefined, 'CHECKOUT_CART_CHANGED');
     }
@@ -393,7 +415,7 @@ export async function processCheckout(
       // cart" (moments earlier, outside this transaction) and "clicked place order."
       for (const item of group.items) {
         // eslint-disable-next-line no-await-in-loop -- stock decrements must serialize per product within this transaction
-        await decrementStock(item.productId, item.quantity, tx);
+        await decrementStock(item.productId, item.quantity, tx, item.variantId);
       }
 
       const seller = await tx.sellerProfile.findUniqueOrThrow({ where: { userId: group.sellerId } });
@@ -430,6 +452,8 @@ export async function processCheckout(
           categorySlugSnapshot: persistedItems.find((row) => row.cartItemId === item.cartItemId)?.product.category?.slug ?? null,
           unitPrice: item.unitPrice,
           quantity: item.quantity,
+          variantId: item.variantId,
+          variantLabel: item.variantLabel,
         })),
       });
 
@@ -458,6 +482,7 @@ export async function processCheckout(
         items: group.items.map((item) => ({
           productId: item.productPublicId,
           titleSnapshot: item.titleEn,
+          variantLabel: item.variantLabel,
           unitPrice: item.unitPrice.toFixed(2),
           quantity: item.quantity,
         })),
@@ -564,16 +589,7 @@ export async function processCheckout(
   // Finding #2): this feature previously enqueued zero notification jobs. One ORDER_PLACED per
   // created order, to the buyer, after the transaction commits — a failure to enqueue must never
   // fail the checkout itself, and each order's notification is independent of the others'.
-  await Promise.allSettled(
-    createdOrders.map((order) =>
-      enqueueNotification({
-        userId: buyerId.toString(),
-        type: 'ORDER_PLACED',
-        orderId: order.id,
-        vars: { orderId: order.id },
-      }, `order-placed-${order.id}`),
-    ),
-  );
+  await notifyOrdersPlaced(buyerId, createdOrders);
 
   const result: CheckoutResultDTO = { orders: createdOrders };
 
@@ -591,7 +607,7 @@ async function confirmCancellationAfterPaymentFailure(orderId: bigint): Promise<
       const items = await tx.orderItem.findMany({ where: { orderId } });
       for (const item of items) {
         // eslint-disable-next-line no-await-in-loop -- restore each item within this transaction
-        await restoreStock(item.productId, item.quantity, tx);
+        await restoreStock(item.productId, item.quantity, tx, item.variantId);
       }
     }
     await tx.payment.updateMany({ where: { orderId, status: 'PENDING' }, data: { status: 'FAILED' } });

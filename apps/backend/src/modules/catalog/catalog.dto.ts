@@ -7,6 +7,7 @@ export {
   listSellerProductsQuerySchema,
   reorderImagesSchema,
   searchQuerySchema,
+  setProductVariantsSchema,
   updateProductSchema,
 } from '@karobarai/shared';
 export type {
@@ -15,5 +16,6 @@ export type {
   ListSellerProductsQueryInput,
   ReorderImagesInput,
   SearchQueryInput,
+  SetProductVariantsInput,
   UpdateProductInput,
 } from '@karobarai/shared';

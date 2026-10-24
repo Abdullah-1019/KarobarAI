@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
-export { listNotificationsQuerySchema } from '@karobarai/shared';
-export type { ListNotificationsQueryInput } from '@karobarai/shared';
+export { listNotificationsQuerySchema, markNotificationsReadSchema } from '@karobarai/shared';
+export type { ListNotificationsQueryInput, MarkNotificationsReadInput } from '@karobarai/shared';
 
 // Task 2.2 — payload validation at the consumer boundary. This is a backend-internal BullMQ job
 // envelope, never a client-facing HTTP contract, so it lives here rather than in

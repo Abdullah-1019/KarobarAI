@@ -669,13 +669,6 @@
 .odCancel.ant-btn {
   justify-self: center;
 }
-.odRef {
-  margin: 0;
-  font-size: var(--fs-xs);
-  color: var(--text-tertiary);
-  text-align: center;
-  overflow-wrap: anywhere;
-}
 
 /* Urdu */
 [dir='rtl'] .olTitle,
@@ -875,4 +868,28 @@
   .tlEvent[data-current] .tlIcon {
     animation: none;
   }
+}
+
+/* Feature 23 — size/colour bought, as a small stone pill before the price. */
+.odItemVariant {
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-sunken);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Unread return updates on the buyer's "My Returns" pill. */
+.olReturnCount {
+  min-width: 18px;
+  height: 18px;
+  padding-inline: 5px;
+  border-radius: var(--radius-pill);
+  background: var(--brand-primary);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
 }

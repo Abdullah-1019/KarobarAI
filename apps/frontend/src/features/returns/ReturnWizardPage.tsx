@@ -63,7 +63,7 @@ export function ReturnWizardPage() {
 
   return (
     <div style={{ maxWidth: 640, margin: '0 auto' }}>
-      <PageHeader title={t('wizard.title')} backTo={`/orders/${orderId}`} backLabel={t('orders:detail.title', { id: orderId })} />
+      <PageHeader title={t('wizard.title')} />
 
       {order && (
         <Card style={{ marginBottom: 'var(--sp-4)' }} styles={{ body: { padding: 'var(--sp-3) var(--sp-4)' } }}>

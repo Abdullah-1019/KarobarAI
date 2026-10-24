@@ -23,6 +23,15 @@ export interface CategorySummaryDTO {
   nameUr: string;
 }
 
+// Feature 23 — an active size/colour option with its own stock. Variants share the product price.
+export interface ProductVariantDTO {
+  id: string; // variantId as a numeric string
+  size: string | null;
+  color: string | null;
+  label: string; // "M / Black"
+  stock: number;
+}
+
 // Public product detail (GET /products/:publicId) and the owner-preview case (Task 3.6).
 export interface ProductDetailDTO {
   id: string; // publicId (UUID) — never the internal sequential product_id
@@ -37,6 +46,8 @@ export interface ProductDetailDTO {
   aiGenerated: boolean;
   category: CategorySummaryDTO | null;
   images: ProductImageDTO[];
+  /** Active variants; empty when the product has none (then `stock` is the only stock). */
+  variants: ProductVariantDTO[];
   createdAt: string;
 }
 

@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom';
 
 import { ORDER_STATUS_TABS, type OrderListItemDTO, type OrderStatusTab } from '@karobarai/shared';
 import { PriceDisplay, SkeletonLoader, StatusTag } from '../../components';
+import { NewMarker, useSectionSeen, useUnreadSummary } from '../notifications';
 import { buyerOrdersQueryKey, listBuyerOrders, listSellerOrders, sellerOrdersQueryKey } from './ordersApi';
 import { formatOrdersError } from './ordersErrors';
 import { OrderJourney } from './OrderJourney';
@@ -43,6 +44,10 @@ export function OrderListPage({ scope }: OrderListPageProps) {
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
   });
 
+  // Opening the list clears the Orders dot; orders that had news stay marked "New" for this visit.
+  const fresh = useSectionSeen('orders', queryKey);
+  const returnsUnread = useUnreadSummary()?.returns.count ?? 0;
+
   const items = data?.pages.flatMap((page) => page.items) ?? [];
   const detailBase = scope === 'buyer' ? '/orders' : '/seller/orders';
 
@@ -64,9 +69,14 @@ export function OrderListPage({ scope }: OrderListPageProps) {
       <header className="olHead">
         <h1 className="olTitle">{t(scope === 'buyer' ? 'list.titleBuyer' : 'list.titleSeller')}</h1>
         {scope === 'buyer' && (
-          <Link to="/returns" className="olReturn">
+          <Link
+            to="/returns"
+            className="olReturn"
+            aria-label={returnsUnread > 0 ? t('common:nav.withUnread', { label: t('common:nav.myReturns'), count: returnsUnread }) : undefined}
+          >
             <Undo2 size={15} aria-hidden="true" />
             {t('common:nav.myReturns')}
+            {returnsUnread > 0 && <span className="olReturnCount">{returnsUnread > 9 ? '9+' : returnsUnread}</span>}
           </Link>
         )}
       </header>
@@ -117,7 +127,7 @@ export function OrderListPage({ scope }: OrderListPageProps) {
                 key={item.id}
                 className="olRowWrap"
                 style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
-                data-attention={(scope === 'seller' && NEEDS_SELLER.has(item.status)) || undefined}
+                data-attention={(scope === 'seller' && NEEDS_SELLER.has(item.status)) || fresh.has(item.id) || undefined}
               >
                 <Link to={`${detailBase}/${item.id}`} className="olRow">
                   <span className="olAvatar" aria-hidden="true">
@@ -142,6 +152,7 @@ export function OrderListPage({ scope }: OrderListPageProps) {
                   </span>
 
                   <span className="olStatus">
+                    {fresh.has(item.id) && <NewMarker />}
                     <OrderStatusTag status={item.status} />
                     {item.status === 'PENDING_MANUAL_LOGISTICS' && (
                       <StatusTag variant="warning" label={t('list.pendingLogistics')} />

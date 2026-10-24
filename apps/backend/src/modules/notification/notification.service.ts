@@ -1,5 +1,12 @@
 import { CRITICAL_EVENT_TYPES } from '@karobarai/shared';
-import type { NotificationDTO, NotificationEventType, NotificationListDTO, UnreadCountDTO } from '@karobarai/shared';
+import type {
+  MarkNotificationsReadInput,
+  NotificationDTO,
+  NotificationEventType,
+  NotificationListDTO,
+  UnreadCountDTO,
+  UnreadSummaryDTO,
+} from '@karobarai/shared';
 import type { Language } from '@prisma/client';
 
 import { getEmailAdapter } from '../../adapters/email';
@@ -223,6 +230,7 @@ function toDTO(row: NotificationRow): NotificationDTO {
   return {
     id: row.notificationId.toString(),
     orderId: row.order?.publicId ?? null,
+    returnId: repo.categoryOf(row.eventType) === 'returns' ? (row.order?.returns[0]?.returnId.toString() ?? null) : null,
     channel: row.channel,
     eventType: row.eventType,
     message: row.message,
@@ -249,6 +257,30 @@ export async function listNotificationsForUser(
 export async function getUnreadCountForUser(userId: bigint): Promise<UnreadCountDTO> {
   const count = await repo.getUnreadCount(userId);
   return { count };
+}
+
+export async function getUnreadSummaryForUser(userId: bigint): Promise<UnreadSummaryDTO> {
+  const rows = await repo.findUnreadForSummary(userId);
+  const summary: UnreadSummaryDTO = { count: rows.length, orders: { count: 0, orderIds: [] }, returns: { count: 0, orderIds: [] } };
+  for (const row of rows) {
+    const category = repo.categoryOf(row.eventType);
+    if (!category) continue;
+    const section = summary[category];
+    section.count += 1;
+    const orderId = row.order?.publicId;
+    if (orderId && !section.orderIds.includes(orderId)) section.orderIds.push(orderId);
+  }
+  return summary;
+}
+
+export async function markNotificationsRead(userId: bigint, input: MarkNotificationsReadInput): Promise<number> {
+  let orderInternalId: bigint | undefined;
+  if (input.orderId) {
+    const id = await resolveOrderInternalId(input.orderId);
+    if (id === null) return 0; // unknown order: nothing of the caller's can match it
+    orderInternalId = id;
+  }
+  return repo.markManyAsRead(userId, { category: input.category, orderInternalId });
 }
 
 export async function markNotificationRead(notificationId: bigint, userId: bigint): Promise<void> {

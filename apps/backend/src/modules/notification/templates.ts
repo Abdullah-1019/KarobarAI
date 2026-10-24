@@ -23,6 +23,12 @@ const TEMPLATES: Record<string, TemplatePair> = {
     en: 'Your order #{{orderId}} has been placed.',
     ur: 'آپ کا آرڈر #{{orderId}} موصول ہو گیا ہے۔',
   },
+  // Sent to the seller alongside the buyer's ORDER_PLACED, so a new sale shows up in the
+  // seller's bell and on their Orders nav.
+  SELLER_NEW_ORDER: {
+    en: 'New order #{{orderNumber}} received. Open it to start preparing.',
+    ur: 'نیا آرڈر #{{orderNumber}} موصول ہوا ہے۔ تیاری شروع کرنے کے لیے اسے کھولیں۔',
+  },
   ORDER_PAYMENT_CONFIRMED: {
     en: 'Payment confirmed for order #{{orderId}}.',
     ur: 'آرڈر #{{orderId}} کی ادائیگی کی تصدیق ہو گئی ہے۔',

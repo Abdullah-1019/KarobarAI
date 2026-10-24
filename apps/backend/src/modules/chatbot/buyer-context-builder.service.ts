@@ -2,6 +2,14 @@ import { NotFoundError } from '../../core/errors/AppError';
 import { prisma } from '../../core/prisma';
 import * as cartService from '../cart/cart.service';
 import { publicSocialLinks } from '../profile/store-social-links';
+import { variantLabel } from '../catalog/variant-label';
+
+// Upper bound for one storefront payload; stores here list well under this.
+const STOREFRONT_PRODUCT_LIMIT = 200;
+
+function toVariantDTO(variant: { variantId: bigint; size: string | null; color: string | null; stock: number }) {
+  return { id: variant.variantId.toString(), size: variant.size, color: variant.color, label: variantLabel(variant), stock: variant.stock };
+}
 
 export interface BuyerStoreContext {
   storeId: bigint;
@@ -85,10 +93,12 @@ export async function getPublicStorefront(storeSlug: string) {
   const products = await prisma.product.findMany({
     where: { sellerId: seller.userId, status: 'LIVE', deletedAt: null },
     orderBy: [{ createdAt: 'desc' }, { productId: 'desc' }],
-    take: 24,
+    // Every live listing of the store (a store page showing only the newest 24 hid older ones).
+    take: STOREFRONT_PRODUCT_LIMIT,
     include: {
       category: { select: { slug: true, nameEn: true, nameUr: true } },
       images: { where: { position: 0 }, take: 1, select: { cdnUrl: true } },
+      variants: { where: { isActive: true }, orderBy: [{ position: 'asc' }, { variantId: 'asc' }], select: { variantId: true, size: true, color: true, stock: true } },
     },
   });
   return {
@@ -103,6 +113,8 @@ export async function getPublicStorefront(storeSlug: string) {
       stock: product.stock,
       imageUrl: product.images[0]?.cdnUrl ?? null,
       category: product.category,
+      // Feature 23 — lets the store page send buyers to choose a size/colour before adding.
+      variants: (product.variants ?? []).map(toVariantDTO),
     })),
   };
 }

@@ -26,7 +26,9 @@ export function useGuestCartMerge() {
     (async () => {
       // allSettled — one already-out-of-stock guest item shouldn't block merging the rest;
       // the buyer's persisted cart becomes the source of truth going forward either way.
-      await Promise.allSettled(items.map((i) => addCartItem({ productId: i.productId, quantity: i.quantity })));
+      await Promise.allSettled(items.map((i) => addCartItem({
+        productId: i.productId, quantity: i.quantity, ...(i.variantId ? { variantId: i.variantId } : {}),
+      })));
       useGuestCartStore.getState().clear();
       await queryClient.invalidateQueries({ queryKey: CART_QUERY_KEY });
     })();

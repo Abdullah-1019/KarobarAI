@@ -10,6 +10,7 @@ import {
   ClipboardList,
   House,
   MessageCircle,
+  PackagePlus,
   PanelLeftClose,
   PanelLeftOpen,
   Plus,
@@ -28,7 +29,7 @@ import { useLanguage, useMediaQuery } from '../../hooks';
 import { useAiUnreadStore } from '../../lib/aiUnreadStore';
 import { useAuthStore } from '../../lib/authStore';
 import { useUnreadMessages } from '../human-chat/useUnreadMessages';
-import { NotificationBell } from '../notifications';
+import { NotificationBell, useUnreadSummary } from '../notifications';
 import { AccountMenu } from '../profile';
 import { PROFILE_QUERY_KEY, STORE_STATUS_QUERY_KEY, getProfile, getStoreStatus } from '../profile/profileApi';
 import { logout as logoutApi } from '../auth/authApi';
@@ -66,6 +67,8 @@ export function SellerLayout() {
   const { dir } = useLanguage();
   const unreadMessages = useUnreadMessages();
   const aiUnread = useAiUnreadStore((s) => s.seller);
+  // New orders and return updates light up their own nav items (sidebar + phone tabs), not just the bell.
+  const unread = useUnreadSummary();
   // Desktop-only choice to shrink the sidebar to its icon rail; remembered on this device.
   const [collapsed, setCollapsed] = useState(() => {
     try {
@@ -114,8 +117,8 @@ export function SellerLayout() {
   });
   const withUnread = (label: string, count: number) => (count > 0 ? t('nav.withUnread', { label, count }) : label);
   const home = item('home', '/seller', t('nav.sellerHome'), House, true);
-  const orders = item('orders', '/seller/orders', t('nav.orders'), ClipboardList);
-  const returns = item('returns', '/seller/returns', t('nav.returns'), Undo2);
+  const orders = item('orders', '/seller/orders', t('nav.orders'), ClipboardList, false, unread?.orders.count ?? 0);
+  const returns = item('returns', '/seller/returns', t('nav.returns'), Undo2, false, unread?.returns.count ?? 0);
   const messages = item('messages', '/seller/messages', t('nav.messages'), MessageCircle, false, unreadMessages);
   const analytics = item('analytics', '/seller/analytics', t('nav.analytics'), BarChart3);
   const assistant = item('assistant', '/seller/assistant', t('nav.assistant'), Bot, false, aiUnread);
@@ -160,7 +163,8 @@ export function SellerLayout() {
         data-active={active || undefined}
       >
         <span className="slNavIcon">
-          <Icon size={18} aria-hidden="true" />
+          {/* The assistant uses the same AI mark as the top bar's assistant button. */}
+          {navItem.key === 'assistant' ? <AiMark size={18} color="currentColor" /> : <Icon size={18} aria-hidden="true" />}
           <CountBadge count={navItem.badge} />
         </span>
         <span className="slNavLabel">{navItem.label}</span>
@@ -193,7 +197,7 @@ export function SellerLayout() {
           </div>
 
           <Link to="/seller/products/new" className="slAddAi">
-            <AiMark size={14} color="currentColor" />
+            <PackagePlus size={16} aria-hidden="true" />
             <span className="slAddAiLabel">{t('nav.addWithAi')}</span>
           </Link>
 

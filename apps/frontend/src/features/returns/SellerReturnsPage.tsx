@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
 import { ProductThumbnail, SkeletonLoader } from '../../components';
+import { NewMarker, useSectionSeen } from '../notifications';
 import { listSellerReturns, sellerReturnsQueryKey } from './returnsApi';
 import { formatReturnsError } from './returnsErrors';
 import { needsSeller, reasonLabel } from './returnFormat';
@@ -31,6 +32,9 @@ export function SellerReturnsPage() {
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
   });
+
+  // Opening the queue clears the Returns dot; returns that had news stay marked "New" for this visit.
+  const fresh = useSectionSeen('returns', sellerReturnsQueryKey(history));
 
   const items = data?.pages.flatMap((page) => page.items) ?? [];
   const sorted = [...items].sort((a, b) => Number(needsSeller(b)) - Number(needsSeller(a)));
@@ -111,6 +115,7 @@ export function SellerReturnsPage() {
                     </span>
                     <span className="rtRowEnd">
                       <span className="olStatus">
+                        {fresh.has(item.orderId) && <NewMarker />}
                         {attention && <span className="rtNeedsYou">{t('sellerList.needsYou')}</span>}
                         <ReturnStatusTag status={item.status} />
                       </span>

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Drawer } from 'antd';
 import { ArrowUp, MessageCircle, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -6,8 +7,12 @@ import { useNavigate } from 'react-router-dom';
 
 import { AiMark, CountBadge } from '../../components';
 import { ChatMarkdown } from '../ai-chat/ChatMarkdown';
+import { ChatModeSelector } from '../ai-chat/ChatModeSelector';
+import { chatErrorMessage, useChatMode } from '../ai-chat/chatMode';
+import { CART_QUERY_KEY } from '../cart/cartApi';
 import { useAiUnreadStore } from '../../lib/aiUnreadStore';
 import { useAuthStore } from '../../lib/authStore';
+import { useStoreChatStore } from '../../lib/storeChatStore';
 import { streamBuyerMessage, type BuyerChatMessage } from './storeApi';
 import { StoreMonogram } from './StoreMonogram';
 
@@ -22,6 +27,8 @@ interface StoreChatWidgetProps {
   showLauncher?: boolean;
   /** A product the buyer is looking at, offered as a first question. */
   productTitle?: string;
+  /** That product's id, so "this product" in the chat refers to it. */
+  productId?: string;
 }
 
 // After this long without a reply, say so: the store assistant runs on a local model and a reply
@@ -41,10 +48,13 @@ export function StoreChatWidget({
   onOpenChange,
   showLauncher = true,
   productTitle,
+  productId,
 }: StoreChatWidgetProps) {
   const { t } = useTranslation('marketplace');
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const user = useAuthStore((state) => state.user);
+  const [mode, setMode] = useChatMode('karobar-ai-mode:buyer');
   const [openState, setOpenState] = useState(false);
   const open = openProp ?? openState;
   // Read inside the async send() so a reply that lands after the sheet was closed counts as unseen.
@@ -87,6 +97,23 @@ export function StoreChatWidget({
   // The conversation lives only while this page is open, so its unseen count goes with it.
   useEffect(() => () => clearBuyer(storeSlug), [storeSlug, clearBuyer]);
 
+  // Let the storefront navbar's AI button open this store's chat while this page is open.
+  const registerChat = useStoreChatStore((s) => s.register);
+  const unregisterChat = useStoreChatStore((s) => s.unregister);
+  const openTick = useStoreChatStore((s) => s.openTick);
+  const seenOpenTick = useRef(openTick);
+  useEffect(() => {
+    registerChat({ slug: storeSlug, name: storeName });
+    return () => unregisterChat(storeSlug);
+  }, [storeSlug, storeName, registerChat, unregisterChat]);
+  useEffect(() => {
+    if (openTick === seenOpenTick.current) return;
+    seenOpenTick.current = openTick;
+    setOpen(true);
+  // setOpen is recreated each render; only a new navbar request should open the sheet.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openTick]);
+
   useEffect(() => {
     if (!loading) {
       setSlow(false);
@@ -110,7 +137,7 @@ export function StoreChatWidget({
     const replyAt = new Date().toISOString();
     setMessages((current) => [...current, { role: 'ASSISTANT', content: '', createdAt: replyAt }]);
     try {
-      const result = await streamBuyerMessage(storeSlug, { message, sessionId, locale, requestId: pendingRequest.current!.id }, (text) => {
+      const result = await streamBuyerMessage(storeSlug, { message, sessionId, locale, requestId: pendingRequest.current!.id, mode, ...(productId ? { productId } : {}) }, (text) => {
         setMessages((current) => current.map((item) => item.createdAt === replyAt && item.role === 'ASSISTANT'
           ? { ...item, content: item.content + text } : item));
       }, controller.signal);
@@ -119,11 +146,13 @@ export function StoreChatWidget({
       setMessages((current) => current.map((item) => item.createdAt === replyAt && item.role === 'ASSISTANT'
         ? { ...item, content: result.reply } : item));
       if (!openRef.current) buyerReplyLanded(storeSlug);
+      // The server confirmed a cart change: refresh the header cart badge.
+      if (result.cartChanged) void queryClient.invalidateQueries({ queryKey: CART_QUERY_KEY });
       if (result.redirectToCheckout) {
         navigate(user?.role === 'BUYER' ? '/checkout' : '/login', user?.role === 'BUYER' ? undefined : { state: { redirect: '/checkout' } });
       }
-    } catch {
-      setError(controller.signal.aborted ? t('chat.stopped') : t('chat.error'));
+    } catch (failure) {
+      setError(controller.signal.aborted ? t('chat.stopped') : chatErrorMessage(failure, t) ?? t('chat.error'));
       setMessages((current) => current.filter((item) => item.createdAt !== replyAt && item.createdAt !== userAt));
       // Give the unsent text back so the buyer doesn't have to retype it.
       setDraft(message);
@@ -190,6 +219,9 @@ export function StoreChatWidget({
               <X size={20} aria-hidden="true" />
             </button>
           </header>
+          <div className="store-chat__mode">
+            <ChatModeSelector value={mode} onChange={setMode} disabled={loading} />
+          </div>
 
           <div className="store-chat__log" aria-live="polite">
             {messages.length === 0 && (
@@ -223,7 +255,7 @@ export function StoreChatWidget({
                   <i />
                 </span>
                 <span className="sr-only">{t('chat.thinking')}</span>
-                {slow && <span className="store-chat__slow">{t('chat.slow')}</span>}
+                {slow && mode === 'slow' && <span className="store-chat__slow">{t('chat.slow')}</span>}
               </div>
             )}
             {loading && <button type="button" onClick={() => activeRequest.current?.abort()}>{t('chat.stopGenerating')}</button>}

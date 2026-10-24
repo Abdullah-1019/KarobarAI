@@ -1,7 +1,8 @@
-import type { ProductDetailDTO } from '@karobarai/shared';
+import type { ProductDetailDTO, ProductVariantDTO } from '@karobarai/shared';
 
 import type { ApiEnvelope } from '../../api';
 import { apiClient, unwrap } from '../../api';
+import type { ChatMode } from '../ai-chat/chatMode';
 import { StreamRouteUnavailableError, streamChat } from '../ai-chat/streamChat';
 
 export interface PublicStorefrontProduct {
@@ -14,6 +15,7 @@ export interface PublicStorefrontProduct {
   stock: number;
   imageUrl: string | null;
   category: { slug: string; nameEn: string; nameUr: string } | null;
+  variants?: ProductVariantDTO[];
 }
 
 export interface PublicStorefront {
@@ -88,6 +90,7 @@ export function toCardProduct(product: PublicStorefrontProduct): ProductDetailDT
     aiGenerated: false,
     category: product.category ? { id: product.category.slug, ...product.category } : null,
     images: product.imageUrl ? [{ id: `${product.id}-0`, url: product.imageUrl, position: 0 }] : [],
+    variants: product.variants ?? [],
     createdAt: '',
   };
 }
@@ -102,6 +105,9 @@ export interface BuyerChatResponse {
   sessionId: string;
   reply: string;
   redirectToCheckout: boolean;
+  /** Present when the request chose a mode; true only after the server confirmed a cart change. */
+  mode?: ChatMode;
+  cartChanged?: boolean;
 }
 
 export function getPublicStorefront(storeSlug: string): Promise<PublicStorefront> {
@@ -114,7 +120,7 @@ export function getStoreForProduct(productPublicId: string): Promise<{ slug: str
 
 export function sendBuyerMessage(
   storeSlug: string,
-  input: { message: string; sessionId?: string; locale: 'en' | 'ur'; requestId?: string },
+  input: { message: string; sessionId?: string; locale: 'en' | 'ur'; requestId?: string; mode?: ChatMode; productId?: string },
   signal?: AbortSignal,
 ): Promise<BuyerChatResponse> {
   return unwrap(apiClient.post<ApiEnvelope<BuyerChatResponse>>(`/stores/${encodeURIComponent(storeSlug)}/chat`, input, { signal }));
@@ -122,7 +128,7 @@ export function sendBuyerMessage(
 
 export async function streamBuyerMessage(
   storeSlug: string,
-  input: { message: string; sessionId?: string; locale: 'en' | 'ur'; requestId?: string },
+  input: { message: string; sessionId?: string; locale: 'en' | 'ur'; requestId?: string; mode?: ChatMode; productId?: string },
   onDelta: (text: string) => void,
   signal: AbortSignal,
 ): Promise<BuyerChatResponse> {

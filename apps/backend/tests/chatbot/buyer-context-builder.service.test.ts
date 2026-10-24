@@ -57,7 +57,7 @@ describe('buyer context builder', () => {
 
     expect(prisma.product.findMany).toHaveBeenCalledWith(expect.objectContaining({
       where: { sellerId: 41n, status: 'LIVE', deletedAt: null },
-      take: 24,
+      take: 200,
     }));
   });
 });

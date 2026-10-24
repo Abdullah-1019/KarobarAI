@@ -7,6 +7,7 @@ import { Link, useParams } from 'react-router-dom';
 
 import { Modal, PriceDisplay, STATUS_VARIANT_COLOR, SkeletonLoader, StatusTag, toast } from '../../components';
 import type { StatusVariant } from '../../components';
+import { useOrderSeen } from '../notifications';
 import { getProduct, productQueryKey } from '../catalog/catalogApi';
 import { CourierRecommendationCard, TrackingTimeline } from '../tracking';
 import { getAuthenticatedTracking, trackingQueryKey } from '../tracking/trackingApi';
@@ -43,6 +44,7 @@ const PAYMENT_STATUS_VARIANT: Record<string, StatusVariant> = {
 export function OrderDetailPage({ scope }: OrderDetailPageProps) {
   const { t } = useTranslation(['orders']);
   const { id = '' } = useParams<{ id: string }>();
+  useOrderSeen('orders', id);
   const queryClient = useQueryClient();
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [deliveryModalOpen, setDeliveryModalOpen] = useState(false);
@@ -207,6 +209,7 @@ export function OrderDetailPage({ scope }: OrderDetailPageProps) {
                     <span className="odItemMain">
                       <span className="odItemTitle">{item.titleSnapshot}</span>
                       <span className="odItemMeta">
+                        {item.variantLabel && <span className="odItemVariant" dir="auto">{item.variantLabel}</span>}
                         <PriceDisplay amount={item.unitPrice} size="sm" muted /> × {item.quantity}
                         {item.resolution && item.resolution !== 'PURCHASED' && (
                           <StatusTag variant="info" label={t(`detail.itemResolution.${item.resolution}`)} />
@@ -398,9 +401,6 @@ export function OrderDetailPage({ scope }: OrderDetailPageProps) {
               {t('detail.cancel')}
             </Button>
           )}
-          <p className="odRef">
-            {t('detail.referenceId')}: <span dir="ltr">{order.id}</span>
-          </p>
         </aside>
       </div>
 

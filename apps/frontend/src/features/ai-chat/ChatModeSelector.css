@@ -1,0 +1,93 @@
+/* Assistant mode switch, Studio Light: a stone pill track holding two segments; the selected one
+   is a white raised chip in ink text. Quiet by design — it must not compete with the chat itself. */
+
+.chat-mode {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.chat-mode__switch {
+  display: inline-grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--bg-sunken);
+  justify-self: start;
+  max-width: 100%;
+}
+.chat-mode__option {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 32px;
+  padding-inline: 12px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
+}
+.chat-mode__option span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.chat-mode__option:hover:not(:disabled):not(.is-active) {
+  color: var(--text-primary);
+}
+.chat-mode__option.is-active {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-sm);
+}
+.chat-mode__option.is-active svg {
+  color: var(--ai-accent);
+}
+.chat-mode__option:focus-visible {
+  outline: 2px solid var(--ai-accent);
+  outline-offset: 2px;
+}
+.chat-mode__option:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.chat-mode__hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-tertiary);
+}
+html[lang='ur'] .chat-mode__hint,
+html[lang='ur'] .chat-mode__option {
+  font-family: var(--font-urdu-ui);
+  letter-spacing: 0;
+}
+@media (max-width: 420px) {
+  .chat-mode__switch {
+    justify-self: stretch;
+  }
+  .chat-mode__option {
+    padding-inline: 8px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chat-mode__option {
+    transition: none;
+  }
+}
+
+/* Placement: below the store chat sheet header, and under the seller assistant's subtitle. */
+.store-chat__mode {
+  padding: 12px 18px;
+  border-block-end: 1px solid var(--border);
+}
+.saMode {
+  margin-block-start: 10px;
+}

@@ -16,6 +16,7 @@ export type NotificationEventType =
   | 'ORDER_DELIVERED'
   | 'COURIER_MANUAL_LOGISTICS'
   | 'TRACKING_POLL_FAILURE'
+  | 'SELLER_NEW_ORDER'
   | (string & {});
 
 // Task 3.1 — a fixed business rule (not admin-configurable per any source doc), so a constant
@@ -38,6 +39,7 @@ export type NotificationStatus = 'QUEUED' | 'SENT' | 'DELIVERED' | 'FAILED' | 'R
 export interface NotificationDTO {
   id: string; // notificationId, stringified — this table has no publicId column (Schema §4.19)
   orderId: string | null; // the order's publicId, if this notification relates to one
+  returnId?: string | null; // for return/refund events: the order's latest return, so a click can open it
   channel: NotificationChannel;
   eventType: NotificationEventType;
   message: string;
@@ -54,4 +56,18 @@ export interface NotificationListDTO {
 
 export interface UnreadCountDTO {
   count: number;
+}
+
+// Which nav section a notification belongs to — drives the dots on the Orders / Returns links.
+export type NotificationCategory = 'orders' | 'returns';
+
+export interface UnreadSectionDTO {
+  count: number;
+  orderIds: string[]; // publicIds of the orders these unread notifications are about
+}
+
+export interface UnreadSummaryDTO {
+  count: number; // every unread in-app notification (the bell)
+  orders: UnreadSectionDTO;
+  returns: UnreadSectionDTO;
 }

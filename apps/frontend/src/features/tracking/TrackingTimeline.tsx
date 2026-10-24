@@ -26,12 +26,14 @@ interface TrackingTimelineProps {
 // PAYMENT_PENDING (precedes tracking existing at all) and COMPLETED (a post-delivery settlement
 // status, not a delivery milestone the buyer is waiting on). CANCELLED/PENDING_MANUAL_LOGISTICS
 // are exception branches, not part of this line — handled separately below.
-const HAPPY_PATH = ['PAYMENT_CONFIRMED', 'PROCESSING', 'PICKED_UP', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'DELIVERED'];
+const HAPPY_PATH = ['PAYMENT_CONFIRMED', 'PROCESSING', 'PACKED', 'HANDED_OVER_TO_COURIER', 'PICKED_UP', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'DELIVERED'];
 
 export const STATUS_ICON: Record<string, ComponentType<LucideProps>> = {
   PAYMENT_PENDING: Package,
   PAYMENT_CONFIRMED: PackageCheck,
   PROCESSING: Package,
+  PACKED: Package,
+  HANDED_OVER_TO_COURIER: Truck,
   PICKED_UP: Truck,
   IN_TRANSIT: Truck,
   OUT_FOR_DELIVERY: MapPin,

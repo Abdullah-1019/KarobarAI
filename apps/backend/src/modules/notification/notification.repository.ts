@@ -4,7 +4,10 @@ import { prisma } from '../../core/prisma';
 
 // Task 1.1 — Prisma-backed methods for notifications/notification_preferences only.
 
-const NOTIFICATION_INCLUDE = { order: { select: { publicId: true } } } satisfies Prisma.NotificationInclude;
+// The order's latest return rides along so return/refund notifications can link to that return.
+const NOTIFICATION_INCLUDE = {
+  order: { select: { publicId: true, returns: { select: { returnId: true }, orderBy: { createdAt: 'desc' }, take: 1 } } },
+} satisfies Prisma.NotificationInclude;
 export type NotificationRow = Prisma.NotificationGetPayload<{ include: typeof NOTIFICATION_INCLUDE }>;
 
 export interface CreateNotificationInput {
@@ -81,4 +84,45 @@ export async function getUnreadCount(userId: bigint): Promise<number> {
 
 export async function findPreferences(userId: bigint) {
   return prisma.notificationPreference.findUnique({ where: { userId } });
+}
+
+// Section membership by event-type prefix, so new ORDER_*/RETURN_* events land in the right
+// section without touching this list.
+const CATEGORY_PREFIXES = {
+  orders: ['ORDER_', 'SELLER_NEW_ORDER', 'COURIER_', 'TRACKING_'],
+  returns: ['RETURN_', 'REFUND_'],
+} as const;
+export type NotificationCategory = keyof typeof CATEGORY_PREFIXES;
+
+export function categoryOf(eventType: string): NotificationCategory | null {
+  for (const [category, prefixes] of Object.entries(CATEGORY_PREFIXES) as [NotificationCategory, readonly string[]][]) {
+    if (prefixes.some((prefix) => eventType.startsWith(prefix))) return category;
+  }
+  return null;
+}
+
+export async function findUnreadForSummary(userId: bigint) {
+  return prisma.notification.findMany({
+    where: { userId, channel: 'IN_APP', status: { not: 'READ' } },
+    select: { eventType: true, order: { select: { publicId: true } } },
+  });
+}
+
+export async function markManyAsRead(
+  userId: bigint,
+  filters: { category?: NotificationCategory; orderInternalId?: bigint },
+): Promise<number> {
+  const result = await prisma.notification.updateMany({
+    where: {
+      userId,
+      channel: 'IN_APP',
+      status: { not: 'READ' },
+      ...(filters.orderInternalId !== undefined && { orderId: filters.orderInternalId }),
+      ...(filters.category && {
+        OR: CATEGORY_PREFIXES[filters.category].map((prefix) => ({ eventType: { startsWith: prefix } })),
+      }),
+    },
+    data: { status: 'READ', readAt: new Date() },
+  });
+  return result.count;
 }

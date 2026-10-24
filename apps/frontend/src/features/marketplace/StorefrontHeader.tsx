@@ -5,11 +5,13 @@ import { ClipboardList, Home, LogOut, Menu, MessageCircle, Search, ShoppingBag, 
 import { useTranslation } from 'react-i18next';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 
-import { Button, Container, CountBadge, LanguageToggle } from '../../components';
+import { AiMark, Button, Container, CountBadge, LanguageToggle } from '../../components';
 import { useLanguage, useScrolled } from '../../hooks';
+import { useAiUnreadStore } from '../../lib/aiUnreadStore';
 import type { AuthUser } from '../../lib/authStore';
+import { useStoreChatStore } from '../../lib/storeChatStore';
 import { useUnreadMessages } from '../human-chat/useUnreadMessages';
-import { NotificationBell } from '../notifications';
+import { NotificationBell, useUnreadSummary } from '../notifications';
 import { AccountMenu, GuestAccountLink } from '../profile';
 import { AnnouncementBar } from './AnnouncementBar';
 import { CategoriesMenu } from './CategoriesMenu';
@@ -44,6 +46,14 @@ export function StorefrontHeader({ user, cartCount, onLogout }: StorefrontHeader
   const unreadMessages = useUnreadMessages();
   const messagesLabel =
     unreadMessages > 0 ? t('common:nav.withUnread', { label: t('common:nav.messages'), count: unreadMessages }) : t('common:nav.messages');
+  // Order / return updates get their own counts on the links that lead to them.
+  const unread = useUnreadSummary();
+  const ordersUnread = unread?.orders.count ?? 0;
+  const returnsUnread = unread?.returns.count ?? 0;
+  const withCount = (label: string, count: number) => (count > 0 ? t('common:nav.withUnread', { label, count }) : label);
+  const countPill = (count: number, className: string) =>
+    count > 0 ? <span className={className}>{count > 9 ? '9+' : count}</span> : null;
+  const menuHasNew = (isBuyer && unreadMessages > 0) || ordersUnread > 0 || returnsUnread > 0;
 
   // Cart badge "pop" — only when the count grows (adding an item), not on initial mount.
   useEffect(() => {
@@ -60,7 +70,24 @@ export function StorefrontHeader({ user, cartCount, onLogout }: StorefrontHeader
     user?.role === 'SELLER'
       ? [
           { key: 'dashboard', label: <Link to="/seller">{t('common:nav.dashboard')}</Link> },
-          { key: 'orders', label: <Link to="/seller/orders">{t('common:nav.orders')}</Link> },
+          {
+            key: 'orders',
+            label: (
+              <Link to="/seller/orders" className="account-menu__count-link" aria-label={withCount(t('common:nav.orders'), ordersUnread)}>
+                {t('common:nav.orders')}
+                {countPill(ordersUnread, 'account-menu__count')}
+              </Link>
+            ),
+          },
+          {
+            key: 'returns',
+            label: (
+              <Link to="/seller/returns" className="account-menu__count-link" aria-label={withCount(t('common:nav.returns'), returnsUnread)}>
+                {t('common:nav.returns')}
+                {countPill(returnsUnread, 'account-menu__count')}
+              </Link>
+            ),
+          },
           { type: 'divider' },
           { key: 'logout', label: t('common:actions.logout'), onClick: onLogout },
         ]
@@ -71,8 +98,24 @@ export function StorefrontHeader({ user, cartCount, onLogout }: StorefrontHeader
             { key: 'logout', label: t('common:actions.logout'), onClick: onLogout },
           ]
         : [
-            { key: 'orders', label: <Link to="/orders">{t('common:nav.orders')}</Link> },
-            { key: 'returns', label: <Link to="/returns">{t('common:nav.myReturns')}</Link> },
+            {
+              key: 'orders',
+              label: (
+                <Link to="/orders" className="account-menu__count-link" aria-label={withCount(t('common:nav.orders'), ordersUnread)}>
+                  {t('common:nav.orders')}
+                  {countPill(ordersUnread, 'account-menu__count')}
+                </Link>
+              ),
+            },
+            {
+              key: 'returns',
+              label: (
+                <Link to="/returns" className="account-menu__count-link" aria-label={withCount(t('common:nav.myReturns'), returnsUnread)}>
+                  {t('common:nav.myReturns')}
+                  {countPill(returnsUnread, 'account-menu__count')}
+                </Link>
+              ),
+            },
             {
               key: 'messages',
               label: (
@@ -88,6 +131,10 @@ export function StorefrontHeader({ user, cartCount, onLogout }: StorefrontHeader
           ];
 
   const cartBadge = cartCount > 9 ? '9+' : cartCount;
+  const storeChat = useStoreChatStore((s) => s.active);
+  const requestStoreChat = useStoreChatStore((s) => s.requestOpen);
+  const aiUnread = useAiUnreadStore((s) => (storeChat ? s.buyer[storeChat.slug] ?? 0 : 0));
+  const aiLabel = storeChat ? t('common:nav.askStoreAi', { store: storeChat.name }) : t('common:nav.aiPickStore');
 
   return (
     <div className={`storefront-header${scrolled ? ' is-scrolled' : ''}`}>
@@ -103,7 +150,7 @@ export function StorefrontHeader({ user, cartCount, onLogout }: StorefrontHeader
               aria-label={t('marketplace:nav.openMenu')}
             >
               <Menu size={20} aria-hidden="true" />
-              {isBuyer && <CountBadge dot={unreadMessages > 0} />}
+              {user && <CountBadge dot={menuHasNew} />}
             </button>
 
             <StorefrontLogo />
@@ -146,6 +193,25 @@ export function StorefrontHeader({ user, cartCount, onLogout }: StorefrontHeader
                 </Link>
               )}
 
+              {/* AI store assistant: opens the chat of the store being viewed, otherwise leads to the
+                  store directory (each store has its own assistant). */}
+              {storeChat ? (
+                <button
+                  type="button"
+                  className="icon-btn storefront-nav__ai buyer-desktop"
+                  onClick={requestStoreChat}
+                  aria-label={aiUnread > 0 ? t('common:nav.withUnread', { label: aiLabel, count: aiUnread }) : aiLabel}
+                  title={aiLabel}
+                >
+                  <AiMark size={18} color="var(--ai-accent)" />
+                  <CountBadge count={aiUnread} />
+                </button>
+              ) : (
+                <Link to="/stores" className="icon-btn storefront-nav__ai buyer-desktop" aria-label={aiLabel} title={aiLabel}>
+                  <AiMark size={18} color="var(--ai-accent)" />
+                </Link>
+              )}
+
               <Link to="/cart" className={`icon-btn cart-btn${cartPop ? ' is-pop' : ''}`} aria-label={t('common:nav.cart')}>
                 <ShoppingBag size={20} strokeWidth={1.9} aria-hidden="true" />
                 {cartCount > 0 && <span className="cart-btn__badge">{cartBadge}</span>}
@@ -153,7 +219,7 @@ export function StorefrontHeader({ user, cartCount, onLogout }: StorefrontHeader
 
               {/* Account: an ink "Log in" pill for guests (a round glyph on phones), the avatar menu
                   once signed in. */}
-              {user ? <AccountMenu items={menuItems} /> : <GuestAccountLink label={t('marketplace:nav.login')} />}
+              {user ? <AccountMenu items={menuItems} hasNew={menuHasNew} /> : <GuestAccountLink label={t('marketplace:nav.login')} />}
             </div>
           </div>
         </Container>
@@ -180,6 +246,22 @@ export function StorefrontHeader({ user, cartCount, onLogout }: StorefrontHeader
             <Store size={18} aria-hidden="true" />
             {t('common:nav.stores')}
           </Link>
+          {storeChat ? (
+            <button
+              type="button"
+              className="storefront-drawer__link storefront-drawer__link--button"
+              onClick={() => { setMenuOpen(false); requestStoreChat(); }}
+            >
+              <AiMark size={18} color="var(--ai-accent)" />
+              {aiLabel}
+              {aiUnread > 0 && <span className="storefront-drawer__count">{aiUnread > 9 ? '9+' : aiUnread}</span>}
+            </button>
+          ) : (
+            <Link to="/stores" className="storefront-drawer__link" onClick={() => setMenuOpen(false)}>
+              <AiMark size={18} color="var(--ai-accent)" />
+              {t('common:nav.aiAssistant')}
+            </Link>
+          )}
           <Link to="/sell" className="storefront-drawer__link" onClick={() => setMenuOpen(false)}>
             <Store size={18} aria-hidden="true" />
             {t('marketplace:nav.sell')}
@@ -188,6 +270,7 @@ export function StorefrontHeader({ user, cartCount, onLogout }: StorefrontHeader
             <Link to="/seller" className="storefront-drawer__link" onClick={() => setMenuOpen(false)}>
               <User size={18} aria-hidden="true" />
               {t('common:nav.dashboard')}
+              {countPill(ordersUnread + returnsUnread, 'storefront-drawer__count')}
             </Link>
           ) : user?.role === 'ADMIN' ? (
             <Link to="/admin" className="storefront-drawer__link" onClick={() => setMenuOpen(false)}>
@@ -196,14 +279,28 @@ export function StorefrontHeader({ user, cartCount, onLogout }: StorefrontHeader
             </Link>
           ) : (
             <>
-              <Link to={user ? '/orders' : '/login'} className="storefront-drawer__link" onClick={() => setMenuOpen(false)}>
+              <Link
+                to={user ? '/orders' : '/login'}
+                className="storefront-drawer__link"
+                aria-label={withCount(t('common:nav.orders'), ordersUnread)}
+                onClick={() => setMenuOpen(false)}
+              >
                 <ClipboardList size={18} aria-hidden="true" />
                 {t('common:nav.orders')}
+                {countPill(ordersUnread, 'storefront-drawer__count')}
               </Link>
-              {user && <Link to="/returns" className="storefront-drawer__link" onClick={() => setMenuOpen(false)}>
-                <Undo2 size={18} aria-hidden="true" />
-                {t('common:nav.myReturns')}
-              </Link>}
+              {user && (
+                <Link
+                  to="/returns"
+                  className="storefront-drawer__link"
+                  aria-label={withCount(t('common:nav.myReturns'), returnsUnread)}
+                  onClick={() => setMenuOpen(false)}
+                >
+                  <Undo2 size={18} aria-hidden="true" />
+                  {t('common:nav.myReturns')}
+                  {countPill(returnsUnread, 'storefront-drawer__count')}
+                </Link>
+              )}
               {isBuyer && (
                 <Link to="/messages" className="storefront-drawer__link" aria-label={messagesLabel} onClick={() => setMenuOpen(false)}>
                   <MessageCircle size={18} aria-hidden="true" />

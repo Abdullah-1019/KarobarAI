@@ -3,7 +3,9 @@ import type {
   CategorySummaryDTO,
   ProductDetailDTO,
   ProductImageDTO,
+  ProductVariantDTO,
   SellerProductListDTO,
+  SetProductVariantsInput,
 } from '@karobarai/shared';
 import { Prisma } from '@prisma/client';
 import type { Category, Product, ProductCondition, ProductStatus } from '@prisma/client';
@@ -26,6 +28,7 @@ import type {
   UpdateProductInput,
 } from './catalog.dto';
 import { toAiServiceImageUrl } from './ai-image-url';
+import { variantLabel } from './variant-label';
 import { generatedListingResponseSchema } from './generated-listing.schema';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -94,7 +97,14 @@ export async function findCategoryBySlug(slug: string): Promise<CategorySummaryD
 const PRODUCT_INCLUDE = {
   category: true,
   images: { orderBy: { position: 'asc' as const } },
+  variants: { where: { isActive: true }, orderBy: [{ position: 'asc' as const }, { variantId: 'asc' as const }] },
 } satisfies Prisma.ProductInclude;
+
+export { variantLabel };
+
+export function toVariantDTO(variant: { variantId: bigint; size: string | null; color: string | null; stock: number }): ProductVariantDTO {
+  return { id: variant.variantId.toString(), size: variant.size, color: variant.color, label: variantLabel(variant), stock: variant.stock };
+}
 
 type ProductWithRelations = Prisma.ProductGetPayload<{ include: typeof PRODUCT_INCLUDE }>;
 
@@ -121,6 +131,7 @@ function toProductDetail(product: ProductWithRelations): ProductDetailDTO {
     aiGenerated: product.aiGenerated,
     category: toCategorySummary(product.category),
     images: product.images.map(toImageDTO),
+    variants: product.variants.map(toVariantDTO),
     createdAt: product.createdAt.toISOString(),
   };
 }
@@ -480,8 +491,20 @@ export async function decrementStock(
   productId: bigint,
   quantity: number,
   tx?: Prisma.TransactionClient,
+  variantId?: bigint | null,
 ): Promise<void> {
   const run = async (client: Prisma.TransactionClient): Promise<void> => {
+    // Feature 23 — the chosen variant must have the units too, checked by the same kind of single
+    // conditional UPDATE; products.stock (the total) is then decremented as before.
+    if (variantId) {
+      const variant = await client.productVariant.updateMany({
+        where: { variantId, productId, isActive: true, stock: { gte: quantity } },
+        data: { stock: { decrement: quantity } },
+      });
+      if (variant.count === 0) {
+        throw new ConflictError('Insufficient stock', undefined, 'INSUFFICIENT_STOCK');
+      }
+    }
     const result = await client.product.updateMany({
       where: { productId, stock: { gte: quantity } },
       data: { stock: { decrement: quantity } },
@@ -503,8 +526,16 @@ export async function decrementStock(
 // Task 5.2 — symmetric to decrement, for cancellation/rejected-payment paths. Increments are
 // always safe (no lower bound), but re-triggers the OUT_OF_STOCK -> LIVE check. Same optional-`tx`
 // shape as decrementStock, for the same reason.
-export async function restoreStock(productId: bigint, quantity: number, tx?: Prisma.TransactionClient): Promise<void> {
+export async function restoreStock(
+  productId: bigint,
+  quantity: number,
+  tx?: Prisma.TransactionClient,
+  variantId?: bigint | null,
+): Promise<void> {
   const run = async (client: Prisma.TransactionClient): Promise<void> => {
+    // Feature 23 — the variant gets its units back too (even if since deactivated, so its count
+    // stays truthful should the seller re-enable it); products.stock remains the total.
+    if (variantId) await client.productVariant.updateMany({ where: { variantId, productId }, data: { stock: { increment: quantity } } });
     await client.product.update({ where: { productId }, data: { stock: { increment: quantity } } });
     await syncStockDerivedStatus(client, productId);
   };
@@ -569,6 +600,11 @@ export async function updateProduct(
 ): Promise<ProductDetailDTO> {
   const product = await loadOwnedProduct(sellerUserId, productPublicId);
 
+  // Feature 23 — with active variants, products.stock is their total and is set per variant.
+  if (input.stock !== undefined && (await prisma.productVariant.count({ where: { productId: product.productId, isActive: true } })) > 0) {
+    throw new BusinessRuleError('Stock is set per size/colour for this product', undefined, 'PRODUCT_HAS_VARIANTS');
+  }
+
   let categoryId: bigint | null | undefined;
   if (input.categoryId !== undefined) {
     if (input.categoryId === null) {
@@ -599,6 +635,46 @@ export async function updateProduct(
     }
   });
 
+  const result = await getProductDetailByProductId(product.productId);
+  await enqueueProductEmbeddingSync(product.productId);
+  return result;
+}
+
+// Feature 23 — replace the product's active size/colour list. Listed ids are updated, new rows
+// created, and active variants left out are deactivated (never deleted: carts and order history
+// may point at them). When any variant stays active, products.stock becomes their total; when the
+// last one is removed, products.stock keeps that total and is edited directly again.
+export async function setProductVariants(
+  sellerUserId: bigint,
+  productPublicId: string,
+  input: SetProductVariantsInput,
+): Promise<ProductDetailDTO> {
+  const product = await loadOwnedProduct(sellerUserId, productPublicId);
+  await prisma.$transaction(async (tx) => {
+    const existing = await tx.productVariant.findMany({ where: { productId: product.productId }, select: { variantId: true } });
+    const ownIds = new Set(existing.map((variant) => variant.variantId.toString()));
+    const keep = new Set<string>();
+    for (const [position, variant] of input.variants.entries()) {
+      const data = { size: variant.size ?? null, color: variant.color ?? null, stock: variant.stock, isActive: true, position };
+      if (variant.id) {
+        if (!ownIds.has(variant.id)) throw new NotFoundError('Variant not found for this product', undefined, 'VARIANT_NOT_FOUND');
+        keep.add(variant.id);
+        await tx.productVariant.update({ where: { variantId: BigInt(variant.id) }, data });
+      } else {
+        const created = await tx.productVariant.create({ data: { ...data, productId: product.productId }, select: { variantId: true } });
+        keep.add(created.variantId.toString());
+      }
+    }
+    await tx.productVariant.updateMany({
+      where: { productId: product.productId, isActive: true, variantId: { notIn: [...keep].map((id) => BigInt(id)) } },
+      data: { isActive: false },
+    });
+    if (input.variants.length) {
+      const total = input.variants.reduce((sum, variant) => sum + variant.stock, 0);
+      await tx.product.update({ where: { productId: product.productId }, data: { stock: total } });
+      await syncStockDerivedStatus(tx, product.productId);
+    }
+  });
   const result = await getProductDetailByProductId(product.productId);
   await enqueueProductEmbeddingSync(product.productId);
   return result;

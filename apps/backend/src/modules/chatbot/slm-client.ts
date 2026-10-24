@@ -16,19 +16,44 @@ export interface ToolCall {
 
 export type ChatEnvelope = { reply: string } | { tool_call: ToolCall };
 
+/** 'gemini' is chatbot Fast Mode; 'ollama' (the default) is the existing local model. */
+export type ChatProvider = 'ollama' | 'gemini';
+
+// The AI service reports Fast Mode failures as safe codes. They are surfaced as-is so the UI can
+// say what went wrong; a Fast Mode failure is never retried on Ollama behind the user's back.
+const FAST_MODE_ERRORS: Record<string, { message: string; code: string }> = {
+  GEMINI_NOT_CONFIGURED: { message: 'Fast Mode is not configured on the server', code: 'FAST_MODE_NOT_CONFIGURED' },
+  GEMINI_RATE_LIMITED: { message: 'Fast Mode is busy; try again shortly', code: 'FAST_MODE_RATE_LIMITED' },
+  GEMINI_TIMEOUT: { message: 'Fast Mode took too long to respond', code: 'FAST_MODE_TIMEOUT' },
+};
+
+export function fastModeError(error: unknown): DependencyError {
+  const data = axios.isAxiosError(error) ? error.response?.data as { detail?: { code?: unknown } } | undefined : undefined;
+  const code = data?.detail?.code;
+  const known = typeof code === 'string' ? FAST_MODE_ERRORS[code] : undefined;
+  if (known) return new DependencyError(known.message, undefined, known.code);
+  if (axios.isAxiosError(error) && error.code === 'ECONNABORTED') {
+    return new DependencyError('Fast Mode took too long to respond', undefined, 'FAST_MODE_TIMEOUT');
+  }
+  return new DependencyError('Fast Mode is unavailable', undefined, 'FAST_MODE_UNAVAILABLE');
+}
+
 export async function chatWithLocalModel(
   messages: Array<{ role: string; content: string }>,
   tools: ChatToolDefinition[],
+  provider: ChatProvider = 'ollama',
 ): Promise<ChatEnvelope> {
   try {
     const response = await axios.post<unknown>(
       `${config.aiServiceUrl}/internal/chat`,
-      { messages, tools },
-      { timeout: 600_000 },
+      // The Ollama request body is unchanged from before Fast Mode existed.
+      provider === 'gemini' ? { messages, tools, provider } : { messages, tools },
+      { timeout: provider === 'gemini' ? 45_000 : 600_000 },
     );
     return parseChatEnvelope(response.data, new Set(tools.map((tool) => tool.name)));
   } catch (error) {
     if (error instanceof DependencyError) throw error;
+    if (provider === 'gemini') throw fastModeError(error);
     throw new DependencyError('Local AI service is unavailable', undefined, 'LOCAL_AI_UNAVAILABLE');
   }
 }

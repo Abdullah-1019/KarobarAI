@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Select } from 'antd';
 import { useQuery } from '@tanstack/react-query';
-import { Banknote, Camera, Globe, MapPin, MessageCircle, Music2, Package, Play, Users } from 'lucide-react';
+import { Banknote, Camera, Globe, MapPin, MessageCircle, MessagesSquare, Music2, Package, Play, Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 
@@ -139,15 +139,21 @@ export function StorePage() {
               })}
             </div>
           )}
-          <span className="count-anchor">
-            <Button variant="secondary" icon={<MessageCircle size={18} aria-hidden="true" />} onClick={() => setChatOpen(true)}>
-              {t('pdp.askStore')}
+          <div className="store-band__actions">
+            <span className="count-anchor">
+              <Button variant="secondary" icon={<MessageCircle size={18} aria-hidden="true" />} onClick={() => setChatOpen(true)}>
+                {t('pdp.askStore')}
+              </Button>
+              <CountBadge count={aiUnseen} />
+            </span>
+            <Button
+              variant="outline"
+              icon={<MessagesSquare size={18} aria-hidden="true" />}
+              onClick={() => navigate(`/messages?store=${encodeURIComponent(storeSlug)}`)}
+            >
+              {t('humanChat:start')}
             </Button>
-            <CountBadge count={aiUnseen} />
-          </span>
-          <Button variant="outline" onClick={() => navigate(`/messages?store=${encodeURIComponent(storeSlug)}`)}>
-            {t('humanChat:start')}
-          </Button>
+          </div>
         </div>
 
         {store.bannerUrl ? (

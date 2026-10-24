@@ -1665,6 +1665,42 @@ html[lang='ur'] .empty-state__title {
     animation: none;
   }
 }
+
+/* "New" chip on a list row (NewMarker): soft persimmon tint, pulsing dot. */
+.new-marker {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 5px;
+  padding: 1px 8px 1px 7px;
+  border-radius: var(--radius-pill);
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary-active);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 18px;
+  letter-spacing: 0.01em;
+  vertical-align: middle;
+  animation: karobarai-pop var(--dur-slow) var(--ease-spring);
+}
+.new-marker__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--brand-primary);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--brand-primary) 45%, transparent);
+  animation: new-marker-pulse 1.8s var(--ease-soft) infinite;
+}
+@keyframes new-marker-pulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--brand-primary) 45%, transparent); }
+  70%, 100% { box-shadow: 0 0 0 5px transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .new-marker,
+  .new-marker__dot {
+    animation: none;
+  }
+}
 .cart-btn__badge {
   position: absolute;
   inset-inline-end: -4px;
@@ -1882,6 +1918,22 @@ html[lang='ur'] .empty-state__title {
 .storefront-drawer__link:hover {
   background: var(--bg-sunken);
   color: var(--text-primary);
+}
+/* The "Ask <store> AI" entry is a button (it opens the chat in place), styled like the links. */
+.storefront-drawer__link--button {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+/* Between tablet and wide desktop the inline search and six actions share the pill; tighten the
+   action spacing so the AI button fits without crowding the links. */
+@media (min-width: 768px) and (max-width: 1279px) {
+  .storefront-nav__actions {
+    gap: var(--sp-1);
+  }
 }
 .storefront-drawer__section {
   margin-block-start: var(--sp-5);
@@ -5053,6 +5105,26 @@ html[lang='ur'] .pdp-title {
   text-decoration-thickness: 1.5px;
   text-underline-offset: 4px;
 }
+/* "Ask the store" (AI) and "Message seller" (human chat): two compact outline pills stacked in a
+   narrow column, so the store name beside them keeps its room. */
+.pdp-store__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--sp-2);
+  width: 190px;
+  flex-shrink: 0;
+}
+.pdp-store__actions .count-anchor {
+  display: flex;
+}
+/* Store page banner: the two chat actions side by side, wrapping together on narrow screens. */
+.store-band__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+}
 .pdp-more {
   margin-block-start: var(--sp-8);
 }
@@ -6369,6 +6441,16 @@ html[dir='rtl'] .cart-group__name {
 .cart-row__each {
   color: var(--text-tertiary);
   font-size: 13px;
+}
+/* Feature 23 — the chosen size/colour under the title, e.g. "M / Black". */
+.cart-row__variant {
+  justify-self: start;
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-sunken);
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  font-weight: 600;
 }
 .cart-row__qty {
   grid-area: qty;

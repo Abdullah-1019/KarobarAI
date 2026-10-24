@@ -1,0 +1,80 @@
+/* Feature 23 — seller size/colour rows inside the edit page's form cards (Studio Light). */
+
+.pve-hint {
+  margin: 0 0 var(--sp-3);
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+}
+.pve-table {
+  display: grid;
+  gap: var(--sp-2);
+}
+.pve-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 112px 40px;
+  gap: var(--sp-2);
+  align-items: center;
+}
+.pve-row--head {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.pve-remove {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.pve-remove:hover {
+  color: var(--error);
+  border-color: var(--error);
+}
+.pve-remove:focus-visible {
+  outline: 2px solid var(--studio-ink);
+  outline-offset: 2px;
+}
+.pve-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-block-start: var(--sp-4);
+}
+.pve-total {
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+}
+.pve-save {
+  margin-inline-start: auto;
+}
+.pve-error {
+  margin: var(--sp-2) 0 0;
+  font-size: var(--fs-sm);
+  color: var(--error);
+}
+@media (max-width: 560px) {
+  .pve-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 40px;
+  }
+  .pve-row > :nth-child(3) {
+    grid-column: 1 / 3;
+  }
+  .pve-row > :nth-child(4) {
+    grid-column: 3;
+    grid-row: 1;
+  }
+  .pve-row--head > :nth-child(3) {
+    display: none;
+  }
+  .pve-save {
+    margin-inline-start: 0;
+  }
+}

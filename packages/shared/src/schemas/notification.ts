@@ -8,3 +8,14 @@ export const listNotificationsQuerySchema = z
   .strict();
 
 export type ListNotificationsQueryInput = z.infer<typeof listNotificationsQuerySchema>;
+
+// Bulk "mark read" — everything unread (no filter), one section's notifications (`category`),
+// and/or one order's (`orderId`). Lets a section's nav dot clear once its page is opened.
+export const markNotificationsReadSchema = z
+  .object({
+    category: z.enum(['orders', 'returns']).optional(),
+    orderId: z.string().uuid().optional(),
+  })
+  .strict();
+
+export type MarkNotificationsReadInput = z.infer<typeof markNotificationsReadSchema>;

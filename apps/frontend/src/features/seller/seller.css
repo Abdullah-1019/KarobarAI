@@ -1999,3 +1999,9 @@ a.slSetupLink:focus-visible {
 .slDangerLink.ant-btn {
   justify-self: center;
 }
+
+/* A field in a row with a taller neighbour (e.g. a note under one input) keeps its label and
+   control at the top instead of the grid spreading the extra height between them. */
+.slFieldRow > .slField {
+  align-content: start;
+}

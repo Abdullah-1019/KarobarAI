@@ -225,7 +225,7 @@ export async function processStripeEvent(event: Stripe.Event): Promise<{ duplica
           const items = await tx.orderItem.findMany({ where: { orderId: payment.order.orderId } });
           for (const item of items) {
             // eslint-disable-next-line no-await-in-loop -- stock restoration must remain in this transaction
-            await restoreStock(item.productId, item.quantity, tx);
+            await restoreStock(item.productId, item.quantity, tx, item.variantId);
           }
           status = 'CANCELLED';
         } else if (payment.status !== 'CANCELLED') {

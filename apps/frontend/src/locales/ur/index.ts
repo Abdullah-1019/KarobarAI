@@ -19,7 +19,22 @@ export const humanChat = {
 };
 
 export const common = {
+  aiMode: {
+    label: 'اسسٹنٹ موڈ',
+    fast: 'فاسٹ موڈ — Gemini AI',
+    slow: 'سلو موڈ — Local Ollama',
+    fastHint: 'فاسٹ موڈ: فوری جواب، پروڈکٹ سرچ اور شاپنگ ایکشنز۔',
+    slowHint: 'سلو موڈ: لوکل AI اسسٹنٹ۔ جواب میں زیادہ وقت لگ سکتا ہے۔',
+    errors: {
+      fastNotConfigured: 'فاسٹ موڈ ابھی سرور پر سیٹ اپ نہیں ہے۔ سلو موڈ استعمال کریں یا بعد میں کوشش کریں۔',
+      fastBusy: 'فاسٹ موڈ ابھی مصروف ہے۔ تھوڑی دیر بعد دوبارہ کوشش کریں۔',
+      fastUnavailable: 'فاسٹ موڈ ابھی جواب نہیں دے سکا۔ دوبارہ کوشش کریں یا سلو موڈ استعمال کریں۔',
+      slowUnavailable: 'لوکل AI (Ollama) سے رابطہ نہیں ہو سکا۔ دوبارہ کوشش کریں یا فاسٹ موڈ استعمال کریں۔',
+      tooMany: 'کم وقت میں بہت زیادہ پیغامات۔ تھوڑا انتظار کر کے دوبارہ کوشش کریں۔',
+    },
+  },
   nav: {
+    new: 'نیا',
     withUnread: '{{label}}، {{count}} نئے',
     home: 'ہوم',
     orders: 'آرڈرز',
@@ -56,6 +71,9 @@ export const common = {
     backTo: '{{label}} پر واپس',
     payments: 'ادائیگیاں',
     audit: 'آڈٹ',
+    aiAssistant: 'AI شاپنگ اسسٹنٹ',
+    askStoreAi: '{{store}} کے AI سے پوچھیں',
+    aiPickStore: 'AI اسسٹنٹ — بات کرنے کے لیے کوئی اسٹور کھولیں',
   },
   landmarks: {
     buyerNav: 'خریداری نیویگیشن',
@@ -462,6 +480,22 @@ export const profile = {
 
 // Feature 4 — SCR-S01/S02/S03/S04, seller-facing product list/create/edit.
 export const catalog = {
+  variants: {
+    title: 'سائز اور رنگ',
+    hint: 'ہر سائز یا رنگ اس کے اپنے اسٹاک کے ساتھ شامل کریں۔ خریدار کارٹ میں ڈالنے سے پہلے ایک چنے گا۔ اگر پروڈکٹ کا ایک ہی آپشن ہے تو خالی چھوڑ دیں۔',
+    size: 'سائز',
+    color: 'رنگ',
+    stock: 'اسٹاک',
+    sizePlaceholder: 'مثلاً M',
+    colorPlaceholder: 'مثلاً کالا',
+    add: 'سائز یا رنگ شامل کریں',
+    remove: 'آپشن ہٹائیں',
+    save: 'سائز اور رنگ محفوظ کریں',
+    saved: 'سائز اور رنگ محفوظ ہو گئے۔',
+    total: 'کل اسٹاک: {{count}}',
+    invalid: 'سائز اور رنگ چیک کر کے دوبارہ کوشش کریں۔',
+    stockFromVariants: 'نیچے سائز اور رنگ سے طے ہوتا ہے (ان کا مجموعہ)۔',
+  },
   assistantChat: {
     title: 'کاروباری معاون',
     subtitle: 'اپنے اسٹور کے بارے میں سادہ الفاظ میں پوچھیں۔ یہ صرف آپ کا ڈیٹا پڑھتا ہے، کچھ تبدیل نہیں کرتا۔',
@@ -611,6 +645,9 @@ export const catalog = {
     REORDER_INVALID: 'تصاویر کی ترتیب تبدیل نہیں ہو سکی — براہ کرم صفحہ ریفریش کریں۔',
     INSUFFICIENT_STOCK: 'کافی اسٹاک دستیاب نہیں ہے۔',
     NETWORK_ERROR: 'سرور تک رسائی نہیں ہو سکی۔ اپنا کنکشن چیک کریں اور دوبارہ کوشش کریں۔',
+    PRODUCT_HAS_VARIANTS: 'اس پروڈکٹ کا اسٹاک ہر سائز اور رنگ کے حساب سے طے ہوتا ہے۔',
+    VARIANT_REQUIRED: 'پہلے سائز یا رنگ چنیں۔',
+    VARIANT_NOT_FOUND: 'یہ سائز یا رنگ اب دستیاب نہیں۔',
     GENERIC: 'کچھ غلط ہو گیا۔ براہ کرم دوبارہ کوشش کریں۔',
   },
 };
@@ -860,6 +897,7 @@ export const marketplace = {
     sortRating: 'بیچنے والے کی درجہ بندی (جلد آ رہا ہے)',
   },
   product: {
+    chooseVariantFirst: 'پہلے سائز یا رنگ چنیں۔',
     addToCart: 'ٹوکری میں شامل کریں',
     buyNow: 'ابھی خریدیں',
     outOfStock: 'اسٹاک ختم',
@@ -878,6 +916,7 @@ export const marketplace = {
     unsaved: 'محفوظ فہرست سے ہٹا دیا',
   },
   pdp: {
+    chooseVariant: 'سائز / رنگ',
     gallery: 'پروڈکٹ کی تصاویر',
     imageOf: 'تصویر {{index}} از {{total}}',
     showImage: 'تصویر {{index}} از {{total}} دکھائیں',
@@ -1218,6 +1257,7 @@ export const orders = {
     paymentMethodLabel: 'ادائیگی کا طریقہ',
     paymentStatusLabel: 'ادائیگی کی حیثیت',
     courier: 'کورئیر',
+    bookingReference: 'بکنگ حوالہ',
     courierNotBooked: 'ابھی بک نہیں ہوا',
     timeline: 'حیثیت کی تاریخ',
     viewInvoice: 'انوائس دیکھیں',
@@ -1243,6 +1283,8 @@ export const orders = {
     PAYMENT_PENDING: 'ادائیگی زیر التوا',
     PAYMENT_CONFIRMED: 'ادائیگی کی تصدیق ہو گئی',
     PROCESSING: 'پروسیسنگ',
+    PACKED: 'پیک ہو گیا',
+    HANDED_OVER_TO_COURIER: 'کورئیر کے حوالے',
     PICKED_UP: 'اٹھا لیا گیا',
     IN_TRANSIT: 'راستے میں',
     OUT_FOR_DELIVERY: 'ڈیلیوری کے لیے روانہ',
@@ -1307,6 +1349,8 @@ export const orders = {
       PAYMENT_PENDING: 'ہم آپ کی ادائیگی کی تصدیق کر رہے ہیں۔',
       PAYMENT_CONFIRMED: 'ہمیں آپ کا آرڈر موصول ہو گیا ہے اور اسے تیار کیا جا رہا ہے۔',
       PROCESSING: 'دکاندار آپ کا آرڈر تیار کر رہا ہے۔',
+      PACKED: 'آپ کا آرڈر پیک ہو چکا ہے اور کورئیر کے لیے تیار ہے۔',
+      HANDED_OVER_TO_COURIER: 'دکاندار نے آپ کا پارسل کورئیر کے حوالے کر دیا ہے۔',
       PICKED_UP: 'آپ کا آرڈر کورئیر نے وصول کر لیا ہے۔',
       IN_TRANSIT: 'آپ کا آرڈر راستے میں ہے۔',
       OUT_FOR_DELIVERY: 'آپ کا آرڈر ڈیلیوری کے لیے روانہ ہو چکا ہے۔',
@@ -1361,6 +1405,7 @@ export const notifications = {
     tabUnread: 'نئی',
     emptyUnread: 'کوئی نئی اطلاع نہیں',
     emptyUnreadBody: 'آپ سب کچھ دیکھ چکے ہیں۔ نئی اپ ڈیٹس یہاں آئیں گی۔',
+    viewReturn: 'واپسی دیکھیں',
     viewOrder: 'آرڈر دیکھیں',
     unreadLabel: 'نئی',
     goHome: 'ہوم پر واپس',

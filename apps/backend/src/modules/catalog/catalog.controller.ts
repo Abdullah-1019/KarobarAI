@@ -8,6 +8,7 @@ import type {
   ListSellerProductsQueryInput,
   ReorderImagesInput,
   SearchQueryInput,
+  SetProductVariantsInput,
   UpdateProductInput,
 } from './catalog.dto';
 
@@ -67,6 +68,12 @@ export const listSellerProductsHandler = asyncHandler(async (req, res) => {
 export const updateProductHandler = asyncHandler(async (req, res) => {
   const input = req.body as UpdateProductInput;
   const product = await catalogService.updateProduct(req.sellerContext!.userId, req.params.productId ?? '', input);
+  res.status(200).json(ok(product));
+});
+
+export const setProductVariantsHandler = asyncHandler(async (req, res) => {
+  const input = req.body as SetProductVariantsInput;
+  const product = await catalogService.setProductVariants(req.sellerContext!.userId, req.params.productId ?? '', input);
   res.status(200).json(ok(product));
 });
 

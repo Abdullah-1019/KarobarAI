@@ -13,7 +13,7 @@ export function getCart(): Promise<CartDTO> {
   return unwrap(apiClient.get<ApiEnvelope<CartDTO>>('/cart'));
 }
 
-export function addCartItem(input: { productId: string; quantity: number }): Promise<CartDTO> {
+export function addCartItem(input: { productId: string; quantity: number; variantId?: string }): Promise<CartDTO> {
   return unwrap(apiClient.post<ApiEnvelope<CartDTO>>('/cart/items', input));
 }
 

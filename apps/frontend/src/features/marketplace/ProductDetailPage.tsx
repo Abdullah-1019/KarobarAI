@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Banknote, Check, Heart, MessageCircle, RotateCcw, ShoppingBag, Truck } from 'lucide-react';
+import { Banknote, Check, Heart, MessageCircle, MessagesSquare, RotateCcw, ShoppingBag, Truck } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Trans, useTranslation } from 'react-i18next';
 import { Link, useNavigate, useParams } from 'react-router-dom';
@@ -14,6 +14,7 @@ import { formatCatalogError } from '../catalog/catalogErrors';
 import { CART_QUERY_KEY, addCartItem } from '../cart/cartApi';
 import { useGuestCartStore } from '../cart/guestCartStore';
 import { useAddToCart } from '../cart/useAddToCart';
+import { VariantPicker } from './VariantPicker';
 import { tintFor } from './categoryVisuals';
 import { ProductCard } from './ProductCard';
 import { ProductGallery } from './ProductGallery';
@@ -45,6 +46,9 @@ export function ProductDetailPage() {
   const toggleSaved = useSavedStore((state) => state.toggle);
 
   const [quantity, setQuantity] = useState(1);
+  // Feature 23 — the chosen size/colour, and whether an add was tried without one.
+  const [variantId, setVariantId] = useState<string | null>(null);
+  const [variantMissing, setVariantMissing] = useState(false);
   const [added, setAdded] = useState(false);
   const [buying, setBuying] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
@@ -75,6 +79,8 @@ export function ProductDetailPage() {
   // New product → fresh quantity, closed reader, top of the page.
   useEffect(() => {
     setQuantity(1);
+    setVariantId(null);
+    setVariantMissing(false);
     setShowOther(false);
     setChatOpen(false);
     window.scrollTo({ top: 0 });
@@ -146,16 +152,30 @@ export function ProductDetailPage() {
   const description = isUr && product.descriptionUr ? product.descriptionUr : product.descriptionEn;
   const otherDescription = isUr ? product.descriptionEn : product.descriptionUr;
   const categoryName = product.category ? (isUr ? product.category.nameUr : product.category.nameEn) : null;
+  const variants = product.variants ?? [];
+  // A single in-stock option is chosen for the buyer; otherwise they pick one.
+  const onlyVariant = variants.length === 1 && (variants[0]?.stock ?? 0) > 0 ? variants[0] : undefined;
+  const variant = variants.find((v) => v.id === variantId) ?? onlyVariant;
   const outOfStock = product.stock <= 0 || product.status !== 'LIVE';
-  const lowStock = !outOfStock && product.stock <= LOW_STOCK_MAX;
+  // Stock shown and allowed in the stepper: the chosen option's own, else the product total.
+  const stock = variant ? variant.stock : product.stock;
+  const lowStock = !outOfStock && stock <= LOW_STOCK_MAX;
   const isBuyerOrGuest = !user || user.role === 'BUYER';
   const canBuy = isBuyerOrGuest && !outOfStock;
   const store = storeQuery.data;
   const moreFromStore = (storefrontQuery.data?.products ?? []).filter((p) => p.id !== product.id).slice(0, 4);
 
+  function needsVariant(): boolean {
+    if (variants.length && !variant) {
+      setVariantMissing(true);
+      return true;
+    }
+    return false;
+  }
+
   async function onAdd() {
-    if (!product) return;
-    const ok = await addToCart(product, quantity);
+    if (!product || needsVariant()) return;
+    const ok = await addToCart(product, quantity, variant);
     if (!ok) return;
     window.clearTimeout(addedTimer.current);
     setAdded(true);
@@ -163,7 +183,7 @@ export function ProductDetailPage() {
   }
 
   async function buyNow() {
-    if (!product) return;
+    if (!product || needsVariant()) return;
     if (!user) {
       addGuestItem(
         {
@@ -171,6 +191,7 @@ export function ProductDetailPage() {
           titleEn: product.titleEn,
           price: product.price,
           primaryImageUrl: product.images[0]?.url ?? null,
+          ...(variant ? { variantId: variant.id, variantLabel: variant.label } : {}),
         },
         quantity,
       );
@@ -179,7 +200,7 @@ export function ProductDetailPage() {
     }
     setBuying(true);
     try {
-      const cart = await addCartItem({ productId: id, quantity });
+      const cart = await addCartItem({ productId: id, quantity, ...(variant ? { variantId: variant.id } : {}) });
       queryClient.setQueryData(CART_QUERY_KEY, cart);
       navigate('/checkout');
     } catch (err) {
@@ -283,18 +304,31 @@ export function ProductDetailPage() {
             {outOfStock ? (
               <Badge variant="out-of-stock">{t('product.outOfStock')}</Badge>
             ) : lowStock ? (
-              <Badge variant="low-stock">{t('product.onlyLeft', { count: product.stock })}</Badge>
+              <Badge variant="low-stock">{t('product.onlyLeft', { count: stock })}</Badge>
             ) : (
               <>
                 <span className="pdp-stock__dot" aria-hidden="true" />
                 <span className="pdp-stock__label">{t('pdp.inStock')}</span>
-                <span className="pdp-stock__count">{t('pdp.available', { count: product.stock })}</span>
+                <span className="pdp-stock__count">{t('pdp.available', { count: stock })}</span>
               </>
             )}
           </p>
 
           {canBuy ? (
             <>
+              {variants.length > 0 && (
+                <VariantPicker
+                  variants={variants}
+                  value={variant?.id ?? null}
+                  showRequired={variantMissing && !variant}
+                  onChange={(next) => {
+                    setVariantId(next);
+                    setVariantMissing(false);
+                    const chosen = variants.find((v) => v.id === next);
+                    if (chosen) setQuantity((q) => Math.min(q, Math.max(chosen.stock, 1)));
+                  }}
+                />
+              )}
               <div className="pdp-qty">
                 <span className="pdp-qty__label" id="pdp-qty-label">
                   {t('product.quantity')}
@@ -302,7 +336,7 @@ export function ProductDetailPage() {
                 <QuantityStepper
                   value={quantity}
                   min={1}
-                  max={product.stock}
+                  max={Math.max(stock, 1)}
                   onChange={setQuantity}
                   label={t('product.quantity')}
                   decreaseLabel={t('pdp.decrease')}
@@ -368,14 +402,20 @@ export function ProductDetailPage() {
               </div>
               <div className="pdp-store__actions">
                 <span className="count-anchor">
-                  <Button variant="outline" icon={<MessageCircle size={18} aria-hidden="true" />} onClick={() => setChatOpen(true)}>
+                  <Button variant="outline" size="sm" fullWidth icon={<MessageCircle size={16} aria-hidden="true" />} onClick={() => setChatOpen(true)}>
                     {t('pdp.askStore')}
                   </Button>
                   <CountBadge count={aiUnseen} />
                 </span>
-                <Link to={`/messages?store=${encodeURIComponent(store.slug)}&product=${encodeURIComponent(id)}`}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  fullWidth
+                  icon={<MessagesSquare size={16} aria-hidden="true" />}
+                  to={`/messages?store=${encodeURIComponent(store.slug)}&product=${encodeURIComponent(id)}`}
+                >
                   {t('humanChat:start')}
-                </Link>
+                </Button>
               </div>
             </section>
           )}
@@ -436,6 +476,7 @@ export function ProductDetailPage() {
           onOpenChange={setChatOpen}
           showLauncher={false}
           productTitle={title}
+          productId={product.id}
         />
       )}
     </div>

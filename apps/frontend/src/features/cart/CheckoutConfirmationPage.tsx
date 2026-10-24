@@ -110,11 +110,14 @@ export function CheckoutConfirmationPage() {
                 </div>
               </header>
               <ul className="confirm-order__items">
-                {order.items.map((item) => (
-                  <li key={item.productId}>
+                {order.items.map((item, index) => (
+                  <li key={`${item.productId}-${index}`}>
                     <span>
                       {item.titleSnapshot}
-                      <small>{t('flow.qty', { count: item.quantity })}</small>
+                      <small>
+                        {item.variantLabel ? `${item.variantLabel} · ` : ''}
+                        {t('flow.qty', { count: item.quantity })}
+                      </small>
                     </span>
                     <PriceDisplay amount={Number(item.unitPrice) * item.quantity} />
                   </li>

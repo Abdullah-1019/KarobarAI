@@ -54,6 +54,7 @@ const SAMPLE_PRODUCTS: ProductDetailDTO[] = [
   aiGenerated: false,
   category: { id: `sample-cat-${i}`, slug: p.slug, nameEn: p.nameEn, nameUr: p.nameUr },
   images: [{ id: `sample-img-${i}`, url: `/demo/products/${p.slug}.svg`, position: 0 }],
+  variants: [],
   createdAt: p.createdAt,
 }));
 

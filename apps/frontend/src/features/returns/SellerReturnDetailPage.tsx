@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router-dom';
 
 import { Modal, SkeletonLoader, toast } from '../../components';
+import { useOrderSeen } from '../notifications';
 import { PrivateEvidenceImage } from './PrivateEvidenceImage';
 import { ReturnJourney } from './ReturnJourney';
 import { ReturnSimilarityGauge } from './ReturnSimilarityGauge';
@@ -49,6 +50,8 @@ export function SellerReturnDetailPage() {
   // asks for customer/order/product info; ReturnDetailDTO itself only carries the order's
   // publicId, so this reuses the same getOrder() call SellerOrderDetailPage already makes rather
   // than inventing a parallel read). Best-effort: if it fails, the return itself still renders.
+  useOrderSeen('returns', ret?.orderId);
+
   const { data: order } = useQuery({
     queryKey: orderQueryKey(ret?.orderId ?? ''),
     queryFn: () => getOrder(ret!.orderId),

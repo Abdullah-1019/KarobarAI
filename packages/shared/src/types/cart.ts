@@ -7,6 +7,9 @@ export interface CartItemDTO {
   id: string; // cartItemId
   productId: string; // publicId of the product
   titleEn: string;
+  // Feature 23 — the chosen size/colour; both null for products without variants.
+  variantId: string | null;
+  variantLabel: string | null;
   price: string; // current live product price (not a snapshot — cart items aren't purchased yet)
   quantity: number;
   lineSubtotal: string;
@@ -55,6 +58,7 @@ export interface ShippingEstimateDTO {
 export interface CreatedOrderItemDTO {
   productId: string;
   titleSnapshot: string;
+  variantLabel?: string | null;
   unitPrice: string;
   quantity: number;
 }

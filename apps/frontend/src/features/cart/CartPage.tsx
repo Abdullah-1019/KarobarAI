@@ -150,6 +150,7 @@ export function CartPage() {
   function renderRow(key: string, opts: {
     productId: string;
     title: string;
+    variant?: string | null;
     image: string | null;
     price: string;
     quantity: number;
@@ -168,6 +169,11 @@ export function CartPage() {
           <Link to={`/product/${opts.productId}`} className="cart-row__title" dir="auto">
             {opts.title}
           </Link>
+          {opts.variant && (
+            <span className="cart-row__variant" dir="auto">
+              {opts.variant}
+            </span>
+          )}
           <span className="cart-row__each">{t('flow.each', { price: rs(opts.price) })}</span>
           {opts.warning}
         </div>
@@ -214,6 +220,7 @@ export function CartPage() {
             renderRow(item.id, {
               productId: item.productId,
               title: item.titleEn,
+              variant: item.variantLabel,
               image: item.primaryImageUrl,
               price: item.price,
               quantity: item.quantity,
@@ -253,14 +260,15 @@ export function CartPage() {
         </header>
         <ul className="cart-group__items">
           {guestItems.map((item: GuestCartItem) =>
-            renderRow(item.productId, {
+            renderRow(`${item.productId}:${item.variantId ?? ''}`, {
               productId: item.productId,
               title: item.titleEn,
+              variant: item.variantLabel,
               image: item.primaryImageUrl,
               price: item.price,
               quantity: item.quantity,
-              onQty: (quantity) => updateGuestQuantity(item.productId, quantity),
-              onRemove: () => removeGuestItem(item.productId),
+              onQty: (quantity) => updateGuestQuantity(item.productId, quantity, item.variantId),
+              onRemove: () => removeGuestItem(item.productId, item.variantId),
             }),
           )}
         </ul>

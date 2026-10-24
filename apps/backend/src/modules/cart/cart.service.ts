@@ -1,8 +1,9 @@
 import type { CartDTO, CartItemDTO, SellerCartGroupDTO } from '@karobarai/shared';
 import { Prisma } from '@prisma/client';
 
-import { ForbiddenError, NotFoundError } from '../../core/errors/AppError';
+import { BusinessRuleError, ForbiddenError, NotFoundError } from '../../core/errors/AppError';
 import { prisma } from '../../core/prisma';
+import { variantLabel } from '../catalog/variant-label';
 
 // Feature 6 Task 1/2/3 — cart.repository.ts is intentionally not a separate file: consistent
 // with catalog's Feature 4 precedent, this codebase keeps one *.service.ts per module rather
@@ -13,8 +14,11 @@ const CART_ITEM_INCLUDE = {
     include: {
       seller: { include: { user: { select: { publicId: true } } } },
       images: { where: { position: 0 }, take: 1 },
+      // Feature 23 — only whether the product currently has active variants.
+      variants: { where: { isActive: true }, select: { variantId: true }, take: 1 },
     },
   },
+  variant: true,
 } satisfies Prisma.CartItemInclude;
 
 type CartItemWithProduct = Prisma.CartItemGetPayload<{ include: typeof CART_ITEM_INCLUDE }>;
@@ -27,6 +31,9 @@ export interface RawCartItem {
   productId: bigint;
   productPublicId: string;
   titleEn: string;
+  // Feature 23 — chosen size/colour (null for products without variants).
+  variantId: bigint | null;
+  variantLabel: string | null;
   unitPrice: Prisma.Decimal;
   quantity: number;
   availableStock: number;
@@ -83,7 +90,10 @@ export async function getRawCart(buyerId: bigint): Promise<RawCart> {
     const { product } = item;
     const sellerPublicId = product.seller.user.publicId;
     const isGone = product.deletedAt !== null || product.status === 'DRAFT' || product.status === 'REMOVED';
-    const availableStock = isGone ? 0 : product.stock;
+    // Feature 23 — a variant line uses that variant's stock; a retired variant, or a plain line for
+    // a product that has since gained variants (a size/colour must be chosen), is unavailable.
+    const variantGone = item.variant ? !item.variant.isActive : product.variants.length > 0;
+    const availableStock = isGone || variantGone ? 0 : item.variant ? item.variant.stock : product.stock;
     const isUnavailable = isGone || availableStock < item.quantity;
 
     let group = groups.get(sellerPublicId);
@@ -104,6 +114,8 @@ export async function getRawCart(buyerId: bigint): Promise<RawCart> {
       productId: product.productId,
       productPublicId: product.publicId,
       titleEn: product.titleEn,
+      variantId: item.variantId,
+      variantLabel: item.variant ? variantLabel(item.variant) : null,
       unitPrice: product.price,
       quantity: item.quantity,
       availableStock,
@@ -129,6 +141,8 @@ function toCartItemDTO(item: RawCartItem): CartItemDTO {
     id: item.cartItemId.toString(),
     productId: item.productPublicId,
     titleEn: item.titleEn,
+    variantId: item.variantId?.toString() ?? null,
+    variantLabel: item.variantLabel,
     price: item.unitPrice.toFixed(2),
     quantity: item.quantity,
     lineSubtotal: item.unitPrice.times(item.quantity).toFixed(2),
@@ -158,16 +172,37 @@ export async function getCart(buyerId: bigint): Promise<CartDTO> {
   return { sellerGroups, grandSubtotal };
 }
 
-export async function addCartItem(buyerId: bigint, productPublicId: string, quantity: number): Promise<CartDTO> {
-  const product = await prisma.product.findUnique({ where: { publicId: productPublicId } });
+export async function addCartItem(
+  buyerId: bigint,
+  productPublicId: string,
+  quantity: number,
+  variantPublicId?: string,
+): Promise<CartDTO> {
+  const product = await prisma.product.findUnique({
+    where: { publicId: productPublicId },
+    include: { variants: { where: { isActive: true }, select: { variantId: true } } },
+  });
   if (!product || product.deletedAt || product.status !== 'LIVE') {
     throw new NotFoundError('Product not found', undefined, 'PRODUCT_NOT_FOUND');
   }
 
+  // Feature 23 — a product with active variants needs one of its own variants chosen; a product
+  // without variants takes none.
+  let variantId: bigint | null = null;
+  if (product.variants.length) {
+    if (!variantPublicId) throw new BusinessRuleError('Choose a size or colour first', undefined, 'VARIANT_REQUIRED');
+    variantId = BigInt(variantPublicId);
+    if (!product.variants.some((variant) => variant.variantId === variantId)) {
+      throw new NotFoundError('That size or colour is not available', undefined, 'VARIANT_NOT_FOUND');
+    }
+  } else if (variantPublicId) {
+    throw new NotFoundError('That size or colour is not available', undefined, 'VARIANT_NOT_FOUND');
+  }
+
   const cart = await getOrCreateCart(buyerId);
 
-  const existing = await prisma.cartItem.findUnique({
-    where: { cartId_productId: { cartId: cart.cartId, productId: product.productId } },
+  const existing = await prisma.cartItem.findFirst({
+    where: { cartId: cart.cartId, productId: product.productId, variantId },
   });
 
   if (existing) {
@@ -177,7 +212,7 @@ export async function addCartItem(buyerId: bigint, productPublicId: string, quan
     });
   } else {
     await prisma.cartItem.create({
-      data: { cartId: cart.cartId, productId: product.productId, quantity },
+      data: { cartId: cart.cartId, productId: product.productId, variantId, quantity },
     });
   }
 

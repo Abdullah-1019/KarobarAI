@@ -19,7 +19,22 @@ export const humanChat = {
 };
 
 export const common = {
+  aiMode: {
+    label: 'Assistant mode',
+    fast: 'Fast Mode — Gemini AI',
+    slow: 'Slow Mode — Local Ollama',
+    fastHint: 'Fast Mode: Quick answers, product search and shopping actions.',
+    slowHint: 'Slow Mode: Local AI assistant. Responses may take longer.',
+    errors: {
+      fastNotConfigured: 'Fast Mode isn’t set up on the server right now. Switch to Slow Mode or try again later.',
+      fastBusy: 'Fast Mode is busy right now. Please try again in a moment.',
+      fastUnavailable: 'Fast Mode couldn’t answer just now. Please try again, or switch to Slow Mode.',
+      slowUnavailable: 'The local AI (Ollama) isn’t reachable. Please try again, or switch to Fast Mode.',
+      tooMany: 'Too many messages in a short time. Please wait a moment and try again.',
+    },
+  },
   nav: {
+    new: 'New',
     withUnread: '{{label}}, {{count}} new',
     home: 'Home',
     orders: 'Orders',
@@ -56,6 +71,9 @@ export const common = {
     backTo: 'Back to {{label}}',
     payments: 'Payments',
     audit: 'Audit',
+    aiAssistant: 'AI shopping assistant',
+    askStoreAi: 'Ask {{store}} AI',
+    aiPickStore: 'AI assistant — open a store to chat with it',
   },
   landmarks: {
     buyerNav: 'Shopping navigation',
@@ -465,6 +483,22 @@ export const profile = {
 
 // Feature 4 — SCR-S01/S02/S03/S04, seller-facing product list/create/edit.
 export const catalog = {
+  variants: {
+    title: 'Sizes & colours',
+    hint: 'Add each size or colour you sell with its own stock. Buyers choose one before adding to cart. Leave empty if this product has a single option.',
+    size: 'Size',
+    color: 'Colour',
+    stock: 'Stock',
+    sizePlaceholder: 'e.g. M',
+    colorPlaceholder: 'e.g. Black',
+    add: 'Add size or colour',
+    remove: 'Remove option',
+    save: 'Save sizes & colours',
+    saved: 'Sizes & colours saved.',
+    total: 'Total stock: {{count}}',
+    invalid: 'Check the sizes and colours and try again.',
+    stockFromVariants: 'Set by sizes & colours below (their total).',
+  },
   assistantChat: {
     title: 'Business assistant',
     subtitle: 'Ask about your store in plain words. It reads your data and never changes anything.',
@@ -622,6 +656,9 @@ export const catalog = {
     REORDER_INVALID: 'Could not reorder images — please refresh and try again.',
     INSUFFICIENT_STOCK: 'Not enough stock available.',
     NETWORK_ERROR: 'Could not reach the server. Check your connection and try again.',
+    PRODUCT_HAS_VARIANTS: 'This product’s stock is set per size and colour.',
+    VARIANT_REQUIRED: 'Choose a size or colour first.',
+    VARIANT_NOT_FOUND: 'That size or colour is no longer available.',
     GENERIC: 'Something went wrong. Please try again.',
   },
 };
@@ -871,6 +908,7 @@ export const marketplace = {
     sortRating: 'Seller rating (coming soon)',
   },
   product: {
+    chooseVariantFirst: 'Choose a size or colour first.',
     addToCart: 'Add to cart',
     buyNow: 'Buy now',
     outOfStock: 'Out of stock',
@@ -890,6 +928,7 @@ export const marketplace = {
   },
   // Product detail (SCR-B03), Day 2 Studio Light rebuild.
   pdp: {
+    chooseVariant: 'Size / colour',
     gallery: 'Product images',
     imageOf: 'Image {{index}} of {{total}}',
     showImage: 'Show image {{index}} of {{total}}',
@@ -1260,6 +1299,8 @@ export const orders = {
     PAYMENT_PENDING: 'Payment pending',
     PAYMENT_CONFIRMED: 'Payment confirmed',
     PROCESSING: 'Processing',
+    PACKED: 'Packed',
+    HANDED_OVER_TO_COURIER: 'Handed to courier',
     PICKED_UP: 'Picked up',
     IN_TRANSIT: 'In transit',
     OUT_FOR_DELIVERY: 'Out for delivery',
@@ -1324,6 +1365,8 @@ export const orders = {
       PAYMENT_PENDING: "We're confirming your payment.",
       PAYMENT_CONFIRMED: "We've received your order and are getting it ready.",
       PROCESSING: 'The seller is preparing your order.',
+      PACKED: 'Your order is packed and ready for the courier.',
+      HANDED_OVER_TO_COURIER: 'The seller has handed your parcel to the courier.',
       PICKED_UP: 'Your order has been picked up by the courier.',
       IN_TRANSIT: 'Your order is on its way.',
       OUT_FOR_DELIVERY: 'Your order is out for delivery.',
@@ -1378,6 +1421,7 @@ export const notifications = {
     tabUnread: 'Unread',
     emptyUnread: 'Nothing unread',
     emptyUnreadBody: "You've seen everything. New updates will show up here.",
+    viewReturn: 'View return',
     viewOrder: 'View order',
     unreadLabel: 'Unread',
     goHome: 'Back to home',
@@ -1569,6 +1613,7 @@ export const returns = {
     courierNotBooked: 'Courier not booked yet.',
     bookingDetailsUnavailable: 'A return pickup was recorded, but courier tracking details are not available.',
     courier: 'Courier',
+    bookingReference: 'Booking reference',
     trackingNumber: 'Tracking number',
     trackReturn: 'Track return',
     estimatedPickup: 'Estimated pickup',
@@ -1702,6 +1747,7 @@ export const returns = {
     proposeRefund: 'Request refund instead',
     conditions: { RESELLABLE: 'Resellable', DAMAGED: 'Damaged / unsellable', NEEDS_INSPECTION: 'Needs further inspection' },
     referencePhotos: 'Product listing reference photos',
+    dispatchPhotos: 'Photos before dispatch',
     dispatchGuidance: 'Capture clear item photos before pickup. These private images can help a later human return review.',
     captureDispatch: 'Upload pre-dispatch photos',
     dispatchUploadFailed: 'Could not save the pre-dispatch photos. Please retry.',
@@ -1729,6 +1775,7 @@ export const returns = {
       LOW_SIMILARITY: 'Low visual similarity under provisional thresholds.',
       AMBIGUOUS_SIMILARITY: 'Similarity is inconclusive.',
       CONFLICTING_VIEWS: 'The return photos give conflicting similarity results.',
+      NO_DISPATCH_EVIDENCE: 'No matching dispatch photo is available.',
       NO_LISTING_IMAGES: 'No usable product listing photo was available.',
       LOW_QUALITY_EVIDENCE: 'At least one photo is too unclear to compare.',
       INVALID_IMAGE: 'At least one photo could not be read.',

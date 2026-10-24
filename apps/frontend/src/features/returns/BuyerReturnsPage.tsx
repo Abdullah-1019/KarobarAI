@@ -4,7 +4,8 @@ import { ChevronRight, Undo2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
-import { BackLink, ProductThumbnail, SkeletonLoader } from '../../components';
+import { ProductThumbnail, SkeletonLoader } from '../../components';
+import { NewMarker, useSectionSeen } from '../notifications';
 import { buyerReturnsQueryKey, listBuyerReturns } from './returnsApi';
 import { formatReturnsError } from './returnsErrors';
 import { reasonLabel } from './returnFormat';
@@ -25,11 +26,13 @@ export function BuyerReturnsPage() {
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
   });
 
+  // Opening the list clears the Returns dot; returns that had news stay marked "New" for this visit.
+  const fresh = useSectionSeen('returns', buyerReturnsQueryKey);
+
   const items = data?.pages.flatMap((page) => page.items) ?? [];
 
   return (
     <div className="olPage">
-      <BackLink to="/orders" label={t('orders:list.titleBuyer')} />
       <h1 className="olTitle">{t('buyerList.title')}</h1>
 
       {isPending && <SkeletonLoader rows={4} />}
@@ -76,7 +79,10 @@ export function BuyerReturnsPage() {
                     <span className="rtReason">{reasonLabel(t, item.reason)}</span>
                   </span>
                   <span className="rtRowEnd">
-                    <ReturnStatusTag status={item.status} />
+                    <span className="olStatus">
+                      {fresh.has(item.orderId) && <NewMarker />}
+                      <ReturnStatusTag status={item.status} />
+                    </span>
                     <span className="rtViewCue">{t('buyerList.viewReturn')}</span>
                   </span>
                   <ChevronRight size={18} className="rtChevron" aria-hidden="true" />

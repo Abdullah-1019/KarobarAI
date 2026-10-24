@@ -525,7 +525,7 @@ export async function confirmReturnReceipt(
     if (changed.count !== 1)
       throw new ConflictError('Receipt already recorded', undefined, 'RETURN_RECEIPT_CONFLICT');
     if (condition === 'RESELLABLE')
-      await restoreStock(row.orderItem!.productId, row.orderItem!.quantity, tx);
+      await restoreStock(row.orderItem!.productId, row.orderItem!.quantity, tx, row.orderItem!.variantId);
     if (condition !== 'NEEDS_INSPECTION')
       await tx.orderItem.update({
         where: { orderItemId: row.orderItem!.orderItemId },
@@ -593,7 +593,9 @@ export async function reserveReplacement(
         'RETURN_REPLACEMENT_INVALID',
       );
     }
-    await decrementStock(product.productId, row.orderItem!.quantity, tx);
+    // Feature 23 — a same-product replacement ships the variant the buyer originally bought.
+    const replacementVariantId = product.productId === row.orderItem!.productId ? row.orderItem!.variantId : null;
+    await decrementStock(product.productId, row.orderItem!.quantity, tx, replacementVariantId);
     const reserved = await tx.returnFulfillment.update({
       where: { returnId },
       data: {

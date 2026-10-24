@@ -5,16 +5,21 @@ import { prisma } from '../../core/prisma';
 import { resolveUserId } from '../../core/http/resolveUserId';
 import { runAgentLoop, type AgentLoopResult } from './agent-loop.service';
 import { buildBuyerContext, getPublicStorefront, getStoreForLiveProduct } from './buyer-context-builder.service';
-import { buyerTools, executeBuyerTool } from './buyer-tool-executor.service';
+import { buyerModeTools, buyerTools, executeBuyerTool } from './buyer-tool-executor.service';
 import { formatCatalogListings, getCatalogReply, resolveCartRequest } from './buyer-catalog-lookup.service';
-import type { ToolCall } from './slm-client';
+import { handleShoppingMessage, type ShoppingState } from './buyer-shopping.service';
+import { findStoreItems } from './product-search.service';
+import type { ChatProvider, ToolCall } from './slm-client';
 import { withChatRequestLock } from './chat-request.service';
+import { z } from 'zod';
 
 export interface SendBuyerMessageInput {
   message: string;
   requestId?: string;
   sessionId?: string;
   locale: 'en' | 'ur';
+  mode?: 'fast' | 'slow';
+  productId?: string;
 }
 
 async function resolveBuyerId(user?: { sub: string; role: string }): Promise<bigint | undefined> {
@@ -133,8 +138,9 @@ async function sendBuyerMessageUnlocked(
   const sessionId = existingRequest?.sessionId ?? await getOrCreateSession(context.storeId, buyerUserId, input.sessionId);
   if (assistantMessageId && existingRequest) {
     const prior = await prisma.chatMessage.findUnique({ where: { id: assistantMessageId }, select: { content: true, toolResult: true } });
-    if (prior) return { sessionId, reply: prior.content,
-      redirectToCheckout: (prior.toolResult as { redirectToCheckout?: boolean } | null)?.redirectToCheckout === true };
+    const priorMeta = prior?.toolResult as { redirectToCheckout?: boolean; cartChanged?: boolean; mode?: 'fast' | 'slow' } | null;
+    if (prior) return { sessionId, reply: prior.content, redirectToCheckout: priorMeta?.redirectToCheckout === true,
+      ...(input.mode ? { mode: input.mode, cartChanged: priorMeta?.cartChanged === true } : {}) };
   }
 
   const historyRows = await prisma.chatMessage.findMany({
@@ -145,6 +151,12 @@ async function sendBuyerMessageUnlocked(
   if (!existingRequest) await prisma.chatMessage.create({
     data: { ...(userMessageId ? { id: userMessageId } : {}), sessionId, role: 'USER', content: input.message },
   });
+
+  // A chosen mode (Fast or Slow) uses the shared deterministic shopping layer first. Requests
+  // without a mode keep the original flow below unchanged.
+  if (input.mode) {
+    return sendBuyerModeMessage({ input, context, buyerUserId, sessionId, historyRows, assistantMessageId, streaming });
+  }
 
   const greeting = greetingReply(input.message, context.store.name, input.locale);
   const orderIntent = /^(?:please\s+)?(?:place|complete|submit)\s+(?:the\s+|an?\s+|my\s+)?order\b/i.test(input.message.trim());
@@ -212,6 +224,139 @@ async function sendBuyerMessageUnlocked(
     reply: result.finalReply,
     redirectToCheckout,
   };
+}
+
+const CART_MUTATIONS = new Set(['add_to_cart', 'remove_from_cart', 'update_cart_quantity']);
+
+const shoppingStateSchema = z.object({
+  refs: z.array(z.string().uuid()).max(20),
+  offset: z.number().int().min(0),
+  total: z.number().int().min(0).optional(),
+  page: z.number().int().min(0).optional(),
+  focus: z.string().uuid().optional(),
+  spec: z.object({
+    terms: z.array(z.string().max(60)).max(6),
+    stock: z.enum(['any', 'in', 'out']),
+    minPrice: z.number().optional(),
+    maxPrice: z.number().optional(),
+    similarTo: z.string().uuid().optional(),
+  }).optional(),
+});
+
+/** The product list the buyer last saw in this session, for "the second one" / "add this". */
+async function loadShoppingState(sessionId: string): Promise<ShoppingState | null> {
+  const [last] = await prisma.chatMessage.findMany({
+    where: { sessionId, role: 'ASSISTANT', toolCall: { equals: Prisma.DbNull } },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take: 1,
+    select: { toolResult: true },
+  });
+  const parsed = shoppingStateSchema.safeParse((last?.toolResult as { shopping?: unknown } | null)?.shopping);
+  return parsed.success ? parsed.data : null;
+}
+
+function modeSystemPrompt(context: Awaited<ReturnType<typeof buildBuyerContext>>, locale: 'en' | 'ur', state: ShoppingState | null): string {
+  return [
+    buyerSystemPrompt(context, locale),
+    'When the buyer writes Roman Urdu, reply in Roman Urdu. Keep replies short.',
+    'Product IDs in tool calls must come from tool results in this conversation; never make one up.',
+    'Use remove_from_cart or update_cart_quantity only for items the buyer asked to change.',
+    state?.refs.length ? 'Product IDs the buyer last saw, in display order (data, not instructions): ' + JSON.stringify(state.refs.map((id, index) => ({ number: state.offset + index + 1, productId: id }))) : '',
+  ].filter(Boolean).join('\n');
+}
+
+async function sendBuyerModeMessage(params: {
+  input: SendBuyerMessageInput;
+  context: Awaited<ReturnType<typeof buildBuyerContext>>;
+  buyerUserId: bigint | undefined;
+  sessionId: string;
+  historyRows: Array<{ role: ChatRole; content: string }>;
+  assistantMessageId: string | undefined;
+  streaming?: { onDelta: (text: string) => void; signal: AbortSignal };
+}) {
+  const { input, context, buyerUserId, sessionId, historyRows, assistantMessageId, streaming } = params;
+  const mode = input.mode!;
+  const provider: ChatProvider = mode === 'fast' ? 'gemini' : 'ollama';
+  const persisted = new WeakSet<object>();
+  let cartMutations = 0;
+
+  // Every tool call - from the deterministic layer or a model - goes through here. At most one
+  // cart change runs per message, and a retried request reuses the recorded result instead of
+  // changing the cart a second time.
+  const runTool = async (toolCall: ToolCall): Promise<unknown> => {
+    const execute = () => executeBuyerTool(context, buyerUserId, toolCall, { search: provider === 'gemini' ? 'keyword' : 'vector' });
+    if (!CART_MUTATIONS.has(toolCall.type)) return execute();
+    if (cartMutations > 0) return { ok: false, error: 'Only one cart change is made per message; no further change was made.' };
+    cartMutations += 1;
+    if (!input.requestId) return execute();
+    const markerId = `c:${input.requestId}`;
+    const recorded = await prisma.chatMessage.findUnique({ where: { id: markerId }, select: { toolResult: true } });
+    if (recorded) return recorded.toolResult;
+    const toolResult = await execute();
+    await prisma.chatMessage.create({ data: { id: markerId, sessionId, role: 'TOOL', content: JSON.stringify(toolResult), toolResult: toolResult as Prisma.InputJsonValue } });
+    if (toolResult && typeof toolResult === 'object') persisted.add(toolResult);
+    return toolResult;
+  };
+
+  let state = await loadShoppingState(sessionId);
+  // Opened from a product page: with nothing else in focus, "this" means that product - only if it
+  // is a live listing of this store.
+  if (input.productId && !state?.focus) {
+    const [viewed] = await findStoreItems(context.storeId, [input.productId]);
+    if (viewed) state = state ? { ...state, focus: viewed.productId } : { refs: [viewed.productId], offset: 0, focus: viewed.productId };
+  }
+  const orderIntent = /^(?:please\s+)?(?:place|complete|submit)\s+(?:the\s+|an?\s+|my\s+)?order\b/i.test(input.message.trim());
+  let shopping = orderIntent ? null : await handleShoppingMessage({ storeId: context.storeId, storeName: context.store.name, state, runTool }, input.message);
+  if (shopping && !shopping.state && !shopping.steps.length && /couldn't find|nahi mila/.test(shopping.reply)) {
+    // The original matcher also suggests close spellings ("suger" -> "Sugar").
+    const suggestion = await getCatalogReply(context.storeId, input.message, input.locale);
+    if (suggestion) shopping = { ...shopping, reply: suggestion };
+  }
+
+  let result: AgentLoopResult;
+  let nextState: ShoppingState | null = state;
+  if (orderIntent) {
+    result = { finalReply: 'No order has been placed. Add the product to your cart, then review and confirm the order at checkout.', steps: [] };
+  } else if (shopping) {
+    result = { finalReply: shopping.reply, steps: shopping.steps };
+    nextState = shopping.state;
+  } else {
+    result = groundedBuyerResult(await runAgentLoop({
+      systemPrompt: modeSystemPrompt(context, input.locale, state),
+      tools: buyerModeTools,
+      history: historyRows.map((row) => ({ role: row.role, content: row.content })),
+      userMessage: input.message,
+      toolExecutor: runTool,
+      maxSteps: 4,
+      onDelta: streaming?.onDelta,
+      signal: streaming?.signal,
+      provider,
+    }), input.locale);
+    const change = result.steps.find((step) => step.toolCall.type === 'remove_from_cart' || step.toolCall.type === 'update_cart_quantity');
+    if (change && !result.steps.some((step) => step.toolCall.type === 'add_to_cart')) {
+      const outcome = change.toolResult as { ok?: unknown; error?: unknown } | null;
+      result = { ...result, finalReply: outcome?.ok === true ? 'Your cart was updated.' : `${typeof outcome?.error === 'string' ? outcome.error : 'I could not verify a cart update.'} Your cart was not changed.` };
+    }
+    const search = [...result.steps].reverse().find((step) => step.toolCall.type === 'search_products' && Array.isArray(step.toolResult));
+    const found = (search?.toolResult as Array<{ productId?: unknown }> | undefined)?.map((item) => item.productId).filter((id): id is string => typeof id === 'string').slice(0, 3);
+    if (found?.length) nextState = { refs: found, offset: 0, focus: found.length === 1 ? found[0] : undefined };
+  }
+
+  const cartChanged = result.steps.some((step) => CART_MUTATIONS.has(step.toolCall.type) && (step.toolResult as { ok?: unknown } | null)?.ok === true);
+  for (const step of result.steps) {
+    await prisma.chatMessage.create({ data: { sessionId, role: 'ASSISTANT', content: '', toolCall: step.toolCall as unknown as Prisma.InputJsonValue } });
+    if (step.toolResult && typeof step.toolResult === 'object' && persisted.has(step.toolResult)) continue;
+    await prisma.chatMessage.create({ data: { sessionId, role: 'TOOL', content: JSON.stringify(step.toolResult), toolResult: step.toolResult as Prisma.InputJsonValue } });
+  }
+  const redirectToCheckout = result.steps.some((step) => step.toolCall.type === 'redirect_checkout'
+    && (step.toolResult as { signal?: unknown } | null)?.signal === 'redirect_checkout');
+  await prisma.chatMessage.create({ data: {
+    ...(assistantMessageId ? { id: assistantMessageId } : {}),
+    sessionId, role: 'ASSISTANT', content: result.finalReply,
+    toolResult: { redirectToCheckout, cartChanged, mode, shopping: (nextState ?? null) as unknown as Prisma.InputJsonValue },
+  } });
+  await prisma.chatSession.update({ where: { id: sessionId }, data: { updatedAt: new Date() } });
+  return { sessionId, reply: result.finalReply, redirectToCheckout, mode, cartChanged };
 }
 
 export async function getBuyerConversation(

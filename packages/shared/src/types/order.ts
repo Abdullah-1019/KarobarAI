@@ -42,6 +42,8 @@ export interface OrderItemDetailDTO {
   titleSnapshot: string;
   unitPrice: string;
   quantity: number;
+  /** Feature 23 — size/colour bought ("M / Black"); null for products without variants. */
+  variantLabel?: string | null;
 }
 
 export interface TrackingEventDTO {

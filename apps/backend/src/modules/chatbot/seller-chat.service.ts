@@ -2,6 +2,7 @@ import { Prisma, type ChatRole } from '@prisma/client';
 
 import { ForbiddenError, NotFoundError } from '../../core/errors/AppError';
 import { prisma } from '../../core/prisma';
+import { runAgentLoop, type AgentLoopResult } from './agent-loop.service';
 import { runScopedAgentLoop } from './scoped-agent.service';
 import type { ScopeGuardConfig } from './scope-guard.service';
 import { buildSellerContext } from './seller-context-builder.service';
@@ -167,7 +168,9 @@ async function sendSellerMessageUnlocked(sellerId: bigint, input: SellerMessageI
 
   const result = WRITE_INTENT.test(input.message)
     ? { finalReply: READ_ONLY_REFUSAL[input.locale], steps: [] as Array<{ toolCall: ToolCall; toolResult: unknown }> }
-    : await runScopedAgentLoop({
+    : input.mode
+      ? await runSellerModeLoop(context, input, historyRows, streaming)
+      : await runScopedAgentLoop({
       systemPrompt: systemPrompt(context, input.locale),
       tools: sellerTools,
       history: historyRows.map((row) => ({ role: row.role, content: row.content })),
@@ -189,10 +192,58 @@ async function sendSellerMessageUnlocked(sellerId: bigint, input: SellerMessageI
     await prisma.chatMessage.create({ data: { sessionId, role: 'ASSISTANT', content: '', toolCall: step.toolCall as unknown as Prisma.InputJsonValue } });
     await prisma.chatMessage.create({ data: { sessionId, role: 'TOOL', content: JSON.stringify(step.toolResult), toolResult: step.toolResult as Prisma.InputJsonValue } });
   }
-  await prisma.chatMessage.create({ data: { ...(assistantMessageId ? { id: assistantMessageId, toolResult: { toolCalls: result.steps.length } } : {}),
+  await prisma.chatMessage.create({ data: { ...(assistantMessageId ? { id: assistantMessageId, toolResult: { toolCalls: result.steps.length, ...(input.mode ? { mode: input.mode } : {}) } } : {}),
     sessionId, role: 'ASSISTANT', content: result.finalReply } });
   await prisma.chatSession.update({ where: { id: sessionId }, data: { updatedAt: new Date() } });
-  return { sessionId, reply: result.finalReply, toolCalls: result.steps.length };
+  return { sessionId, reply: result.finalReply, toolCalls: result.steps.length, ...(input.mode ? { mode: input.mode } : {}) };
+}
+
+const SELLER_QUICK = {
+  greeting: {
+    en: 'Hello! Ask me about your sales, orders, inventory, reviews, returns or deliveries.',
+    ur: 'السلام علیکم! اپنی فروخت، آرڈرز، انوینٹری، جائزوں، واپسیوں یا ڈیلیوری کے بارے میں پوچھیں۔',
+  },
+  thanks: { en: 'You’re welcome! Anything else about your store?', ur: 'شکریہ! اسٹور کے بارے میں کچھ اور؟' },
+};
+
+// Fast Mode skips the embedding scope check (it needs the local model) and asks Gemini to flag
+// off-topic questions instead; the seller's tools and data scope are identical in both modes.
+const FAST_SCOPE_RULE = 'If the question is not about this seller\'s own store business (sales, orders, inventory, products, reviews, returns, deliveries, store performance or advice based on them), reply with exactly {"reply":"OUT_OF_SCOPE"}.';
+
+function sellerQuickReply(message: string, locale: 'en' | 'ur'): string | null {
+  const text = message.trim().toLowerCase().replace(/[!.,?؟]+/gu, '').trim();
+  if (/^(?:hi+|hello+|hey|salam|salaam|assalam\s*o?\s*alaikum|assalamualaikum|aoa|السلام علیکم|سلام)$/u.test(text)) return SELLER_QUICK.greeting[locale];
+  if (/^(?:thanks?|thank you|shukriya|shukria|شکریہ)$/u.test(text)) return SELLER_QUICK.thanks[locale];
+  return null;
+}
+
+async function runSellerModeLoop(
+  context: Awaited<ReturnType<typeof buildSellerContext>>,
+  input: SellerMessageInput,
+  historyRows: Array<{ role: ChatRole; content: string }>,
+  streaming?: { onDelta: (text: string) => void; signal: AbortSignal },
+): Promise<AgentLoopResult> {
+  const quick = sellerQuickReply(input.message, input.locale);
+  if (quick) return { finalReply: quick, steps: [] };
+  if (isInventoryCountQuestion(input.message)) {
+    // Answered from the inventory tool directly; verifiedInventoryCountReply words the reply.
+    const toolCall: ToolCall = { type: 'get_inventory_status', payload: {} };
+    return { finalReply: '', steps: [{ toolCall, toolResult: await executeSellerTool(context, toolCall) }] };
+  }
+  const params = {
+    systemPrompt: systemPrompt(context, input.locale),
+    tools: sellerTools,
+    history: historyRows.map((row) => ({ role: row.role, content: row.content })),
+    userMessage: input.message,
+    toolExecutor: (toolCall: ToolCall) => executeSellerTool(context, toolCall),
+    maxSteps: 4,
+    onDelta: streaming?.onDelta,
+    signal: streaming?.signal,
+  };
+  if (input.mode !== 'fast') return runScopedAgentLoop(params, SELLER_SCOPE, input.locale);
+  const result = await runAgentLoop({ ...params, systemPrompt: `${params.systemPrompt}\n${FAST_SCOPE_RULE}`, provider: 'gemini' });
+  if (result.finalReply.trim() === 'OUT_OF_SCOPE') return { finalReply: SELLER_SCOPE.refusalMessage[input.locale], steps: result.steps };
+  return result;
 }
 
 export async function getSellerConversation(sellerId: bigint, sessionId: string) {

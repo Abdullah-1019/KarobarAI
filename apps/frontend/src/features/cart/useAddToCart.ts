@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
-import type { ProductImageDTO } from '@karobarai/shared';
+import type { ProductImageDTO, ProductVariantDTO } from '@karobarai/shared';
 import { toast } from '../../components';
 import { useAuthStore } from '../../lib/authStore';
 import { formatCatalogError } from '../catalog/catalogErrors';
@@ -19,6 +19,7 @@ export interface AddableProduct {
   titleEn: string;
   price: string;
   images: ProductImageDTO[];
+  variants?: ProductVariantDTO[];
 }
 
 // Guests hold the cart client-side (no backend guest-cart endpoint); authenticated Buyers hit the
@@ -31,7 +32,7 @@ export function useAddToCart() {
   const addGuestItem = useGuestCartStore((state) => state.addItem);
 
   const mutation = useMutation({
-    mutationFn: (vars: { productId: string; quantity: number }) => addCartItem(vars),
+    mutationFn: (vars: { productId: string; quantity: number; variantId?: string }) => addCartItem(vars),
     onSuccess: (cart) => {
       queryClient.setQueryData(CART_QUERY_KEY, cart);
       toast.success(t('marketplace:product.addedToCart'));
@@ -40,12 +41,17 @@ export function useAddToCart() {
   });
 
   const addToCart = useCallback(
-    (product: AddableProduct, quantity = 1) => {
+    (product: AddableProduct, quantity = 1, variant?: ProductVariantDTO) => {
+      // Feature 23 — a product with sizes/colours is added only with one chosen.
+      if (product.variants?.length && !variant) {
+        toast.info(t('marketplace:product.chooseVariantFirst'));
+        return Promise.resolve(false);
+      }
       if (user?.role === 'BUYER') {
         // Resolves true once the server has the item (onError has already toasted a failure), so
         // a caller can play its "added" moment only for a real add.
         return mutation
-          .mutateAsync({ productId: product.id, quantity })
+          .mutateAsync({ productId: product.id, quantity, ...(variant ? { variantId: variant.id } : {}) })
           .then(() => true)
           .catch(() => false);
       }
@@ -55,6 +61,7 @@ export function useAddToCart() {
           titleEn: product.titleEn,
           price: product.price,
           primaryImageUrl: product.images[0]?.url ?? null,
+          ...(variant ? { variantId: variant.id, variantLabel: variant.label } : {}),
         },
         quantity,
       );

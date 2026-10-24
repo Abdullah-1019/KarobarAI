@@ -35,6 +35,35 @@ export const updateProductSchema = z
   })
   .strict();
 
+// Feature 23 — PUT /seller/products/:id/variants replaces the product's active variant list.
+// Rows with an id update that variant; rows without one create a variant; active variants left out
+// are deactivated (never deleted, so carts and orders keep their links).
+const variantText = z.string().trim().max(40).transform((value) => value || null).nullable().optional();
+export const setProductVariantsSchema = z
+  .object({
+    variants: z
+      .array(
+        z
+          .object({
+            id: z.string().regex(/^\d+$/, 'variant id must be numeric').optional(),
+            size: variantText,
+            color: variantText,
+            stock: z.number().int().min(0).max(100000),
+          })
+          .strict()
+          .refine((variant) => Boolean(variant.size || variant.color), { message: 'Each variant needs a size or a colour' }),
+      )
+      .max(50),
+  })
+  .strict()
+  .refine(
+    (data) => {
+      const keys = data.variants.map((v) => `${(v.size ?? '').toLowerCase()}|${(v.color ?? '').toLowerCase()}`);
+      return new Set(keys).size === keys.length;
+    },
+    { message: 'Each size and colour combination can appear only once', path: ['variants'] },
+  );
+
 export const reorderImagesSchema = z
   .object({
     imageIds: z.array(z.string().regex(/^\d+$/, 'imageId must be numeric')).min(1),
@@ -83,6 +112,7 @@ export const listSellerProductsQuerySchema = z
 export type CreateProductInput = z.infer<typeof createProductSchema>;
 export type UpdateProductInput = z.infer<typeof updateProductSchema>;
 export type ReorderImagesInput = z.infer<typeof reorderImagesSchema>;
+export type SetProductVariantsInput = z.infer<typeof setProductVariantsSchema>;
 export type SearchQueryInput = z.infer<typeof searchQuerySchema>;
 export type AutocompleteQueryInput = z.infer<typeof autocompleteQuerySchema>;
 export type ListSellerProductsQueryInput = z.infer<typeof listSellerProductsQuerySchema>;

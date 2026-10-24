@@ -1,0 +1,66 @@
+/* Size/colour chips on the product page, Studio Light: stone pills, the chosen option in ink with
+   white text, sold-out options faded and struck through. */
+
+.pdp-variants {
+  display: grid;
+  gap: var(--sp-2);
+  margin: var(--sp-4) 0 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.pdp-variants__label {
+  padding: 0;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.pdp-variants__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+.pdp-variant {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  min-width: 48px;
+  padding-inline: 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface);
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease;
+}
+.pdp-variant:hover:not(:disabled):not([aria-pressed='true']) {
+  border-color: var(--text-primary);
+}
+.pdp-variant[aria-pressed='true'] {
+  border-color: var(--studio-ink);
+  background: var(--studio-ink);
+  color: var(--bg-surface);
+}
+.pdp-variant:focus-visible {
+  outline: 2px solid var(--studio-ink);
+  outline-offset: 2px;
+}
+.pdp-variant:disabled {
+  cursor: not-allowed;
+  color: var(--text-tertiary);
+  background: var(--bg-sunken);
+  text-decoration: line-through;
+}
+.pdp-variants__required {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--error);
+}
+@media (prefers-reduced-motion: reduce) {
+  .pdp-variant {
+    transition: none;
+  }
+}

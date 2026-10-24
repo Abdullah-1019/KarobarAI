@@ -1,5 +1,5 @@
 import { logger } from '../../core/logger';
-import { chatWithLocalModel, chatWithLocalModelStream, SAFE_AGENT_REPLY, type ChatToolDefinition, type ToolCall } from './slm-client';
+import { chatWithLocalModel, chatWithLocalModelStream, SAFE_AGENT_REPLY, type ChatProvider, type ChatToolDefinition, type ToolCall } from './slm-client';
 
 export interface AgentHistoryMessage {
   role: 'user' | 'assistant' | 'system' | 'tool' | 'USER' | 'ASSISTANT' | 'SYSTEM' | 'TOOL';
@@ -17,6 +17,8 @@ export interface AgentLoopParams {
   maxSteps?: number;
   onDelta?: (text: string) => void;
   signal?: AbortSignal;
+  /** Omitted means the existing local Ollama model. */
+  provider?: ChatProvider;
 }
 
 export interface AgentLoopResult {
@@ -39,9 +41,12 @@ export async function runAgentLoop(params: AgentLoopParams): Promise<AgentLoopRe
 
   for (let index = 0; index < maxSteps; index += 1) {
     if (params.signal?.aborted) throw new Error('Generation cancelled');
-    const response = params.onDelta
-      ? await chatWithLocalModelStream(messages, params.tools, params.onDelta, params.signal)
-      : await chatWithLocalModel(messages, params.tools);
+    // Fast Mode replies arrive in about a second, so they are not token-streamed.
+    const response = params.provider === 'gemini'
+      ? await chatWithLocalModel(messages, params.tools, 'gemini')
+      : params.onDelta
+        ? await chatWithLocalModelStream(messages, params.tools, params.onDelta, params.signal)
+        : await chatWithLocalModel(messages, params.tools);
     if ('reply' in response) return { finalReply: response.reply, steps };
 
     if (params.signal?.aborted) throw new Error('Generation cancelled');

@@ -7,6 +7,8 @@ export const addCartItemSchema = z
   .object({
     productId: z.string().min(1), // product's publicId (UUID)
     quantity: z.number().int().positive(),
+    // Feature 23 — required by the server when the product has active variants.
+    variantId: z.string().regex(/^\d+$/, 'variantId must be numeric').optional(),
   })
   .strict();
 

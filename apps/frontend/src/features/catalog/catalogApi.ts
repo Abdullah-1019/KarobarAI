@@ -3,6 +3,7 @@ import type {
   CreateProductInput,
   ProductDetailDTO,
   SellerProductListDTO,
+  SetProductVariantsInput,
   UpdateProductInput,
 } from '@karobarai/shared';
 
@@ -45,6 +46,11 @@ export function createProduct(input: CreateProductInput): Promise<ProductDetailD
 
 export function updateProduct(id: string, input: UpdateProductInput): Promise<ProductDetailDTO> {
   return unwrap(apiClient.patch<ApiEnvelope<ProductDetailDTO>>(`/seller/products/${id}`, input));
+}
+
+// Feature 23 — replace the product's size/colour list (left-out options are retired, not deleted).
+export function setProductVariants(id: string, input: SetProductVariantsInput): Promise<ProductDetailDTO> {
+  return unwrap(apiClient.put<ApiEnvelope<ProductDetailDTO>>(`/seller/products/${id}/variants`, input));
 }
 
 export function deleteProduct(id: string): Promise<{ deleted: true }> {

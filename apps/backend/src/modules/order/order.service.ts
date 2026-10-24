@@ -198,6 +198,7 @@ export async function getOrderById(
       returnEligible: returnWindowOpen && !hasLegacyReturn
         && !returnedItemIds.has(item.orderItemId.toString()),
       titleSnapshot: item.titleSnapshot,
+      variantLabel: item.variantLabel,
       unitPrice: item.unitPrice.toFixed(2),
       quantity: item.quantity,
     })),
@@ -393,7 +394,7 @@ export async function transitionOrderStatus(
       const items = await tx.orderItem.findMany({ where: { orderId } });
       for (const item of items) {
         // eslint-disable-next-line no-await-in-loop -- must serialize within this transaction
-        await restoreStock(item.productId, item.quantity, tx);
+        await restoreStock(item.productId, item.quantity, tx, item.variantId);
         restoredProductIds.add(item.productId);
       }
     }

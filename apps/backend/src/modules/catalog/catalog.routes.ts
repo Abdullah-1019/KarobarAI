@@ -20,6 +20,7 @@ import {
   removeProductImageHandler,
   reorderProductImagesHandler,
   searchProductsHandler,
+  setProductVariantsHandler,
   unpublishProductHandler,
   updateProductHandler,
   uploadProductImagesHandler,
@@ -30,6 +31,7 @@ import {
   listSellerProductsQuerySchema,
   reorderImagesSchema,
   searchQuerySchema,
+  setProductVariantsSchema,
   updateProductSchema,
 } from './catalog.dto';
 import { getCategoryBySlugHandler, getHomeFeedHandler } from './marketplace.controller';
@@ -275,6 +277,18 @@ sellerProductRouter.post('/:productId/unpublish', unpublishProductHandler);
  *         description: "{ deleted: true }"
  */
 sellerProductRouter.patch('/:productId', validateBody(updateProductSchema), updateProductHandler);
+/**
+ * @openapi
+ * /seller/products/{productId}/variants:
+ *   put:
+ *     summary: Replace the product's size/colour variants (left-out variants are deactivated, not deleted)
+ *     tags: [Catalog]
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200:
+ *         description: Updated product detail with its active variants
+ */
+sellerProductRouter.put('/:productId/variants', validateBody(setProductVariantsSchema), setProductVariantsHandler);
 sellerProductRouter.delete('/:productId', deleteProductHandler);
 
 /**

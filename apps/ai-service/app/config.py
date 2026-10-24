@@ -10,6 +10,12 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
     gemini_listing_model: str = "gemini-3.1-flash-lite"
     gemini_listing_timeout_seconds: float = 45.0
+    # Chatbot Fast Mode. Measured on 2026-10-25: this model answered in about 1.1 s, while the
+    # "gemini-flash-lite-latest" alias took 5-8 s. Override with GEMINI_CHAT_MODEL.
+    gemini_chat_model: str = "gemini-3.1-flash-lite"
+    gemini_chat_timeout_seconds: float = Field(default=20.0, gt=0, le=120)
+    gemini_chat_max_output_tokens: int = Field(default=1024, ge=64, le=4096)
+    gemini_chat_enabled: bool = True
     return_dino_model: str = "facebook/dinov2-small"
     return_dino_revision: str = "ed25f3a31f01632728cabb09d1542f84ab7b0056"
     return_dino_cache_dir: str = "/models/dinov2"

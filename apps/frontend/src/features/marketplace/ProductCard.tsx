@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Check, Heart, Plus } from 'lucide-react';
 
 import type { ProductDetailDTO } from '@karobarai/shared';
@@ -44,6 +44,7 @@ export function ProductCard({ product }: ProductCardProps) {
   const { t } = useTranslation(['marketplace']);
   const { language } = useLanguage();
   const { addToCart, isAdding } = useAddToCart();
+  const navigate = useNavigate();
   const saved = useSavedStore((state) => state.ids.includes(product.id));
   const toggleSaved = useSavedStore((state) => state.toggle);
   const [added, setAdded] = useState(false);
@@ -63,6 +64,11 @@ export function ProductCard({ product }: ProductCardProps) {
   const lowStock = !outOfStock && product.stock <= LOW_STOCK_MAX;
 
   const onAdd = async () => {
+    // Feature 23 — a size/colour has to be chosen first, on the product page.
+    if (product.variants?.length) {
+      navigate(`/product/${product.id}`);
+      return;
+    }
     const ok = await addToCart(product);
     if (!ok) return;
     window.clearTimeout(addedTimer.current);

@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next';
 
 import { AiMark } from '../../components';
 import { ChatMarkdown } from '../ai-chat/ChatMarkdown';
+import { ChatModeSelector } from '../ai-chat/ChatModeSelector';
+import { chatErrorMessage, useChatMode } from '../ai-chat/chatMode';
 import { useAiUnreadStore } from '../../lib/aiUnreadStore';
 import { useAuthStore } from '../../lib/authStore';
 import { getSellerAssistantConversation, streamSellerAssistantMessage, type SellerAssistantMessage } from './sellerAssistantApi';
@@ -30,6 +32,7 @@ export function SellerAssistantPage() {
   const sellerUserId = useAuthStore((state) => state.user?.id);
   const sessionStorageKey = sellerUserId ? `seller-assistant-session:${sellerUserId}` : undefined;
   const locale = i18n.language.toLowerCase().startsWith('ur') ? 'ur' : 'en';
+  const [mode, setMode] = useChatMode('karobar-ai-mode:seller');
   const [sessionId, setSessionId] = useState<string | undefined>(() => {
     if (!sessionStorageKey || typeof window === 'undefined') return undefined;
     return window.sessionStorage.getItem(sessionStorageKey) ?? undefined;
@@ -108,7 +111,7 @@ export function SellerAssistantPage() {
     const replyAt = new Date(Date.now() + 1).toISOString();
     setMessages((current) => [...current, { role: 'ASSISTANT', content: '', createdAt: replyAt }]);
     try {
-      const result = await streamSellerAssistantMessage({ message, sessionId, locale, requestId: pendingRequest.current!.id }, (delta) => {
+      const result = await streamSellerAssistantMessage({ message, sessionId, locale, requestId: pendingRequest.current!.id, mode }, (delta) => {
         setMessages((current) => current.map((item) => item.createdAt === replyAt && item.role === 'ASSISTANT'
           ? { ...item, content: item.content + delta } : item));
       }, controller.signal);
@@ -122,9 +125,9 @@ export function SellerAssistantPage() {
       setSessionId(result.sessionId);
       setMessages((current) => current.map((item) => item.createdAt === replyAt && item.role === 'ASSISTANT'
         ? { ...item, content: result.reply } : item));
-    } catch {
+    } catch (failure) {
       setMessages((current) => current.filter((item) => item.createdAt !== replyAt && item.createdAt !== userAt));
-      setError(controller.signal.aborted ? t('catalog:assistantChat.stopped') : t('catalog:assistantChat.sendError'));
+      setError(controller.signal.aborted ? t('catalog:assistantChat.stopped') : chatErrorMessage(failure, t) ?? t('catalog:assistantChat.sendError'));
       setDraft(message);
     } finally { if (activeRequest.current === controller) activeRequest.current = null; setLoading(false); }
   }
@@ -138,6 +141,9 @@ export function SellerAssistantPage() {
         <div className="saHeadText">
           <h1>{t('catalog:assistantChat.title')}</h1>
           <p>{t('catalog:assistantChat.subtitle')}</p>
+          <div className="saMode">
+            <ChatModeSelector value={mode} onChange={setMode} disabled={loading} />
+          </div>
         </div>
         {!empty && (
           <button type="button" className="saGhost" onClick={startNewConversation}>

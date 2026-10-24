@@ -33,6 +33,7 @@ import {
 import { formatCatalogError } from './catalogErrors';
 import { ProductImageManager } from './ProductImageManager';
 import { ProductStatusTag } from './ProductStatusTag';
+import { ProductVariantsEditor } from './ProductVariantsEditor';
 
 interface FormValues {
   titleEn: string;
@@ -141,6 +142,7 @@ export function EditProductPage() {
   }
 
   const categoryOptions = categories ? flattenCategories(categories).map((c) => ({ value: c.id, label: c.label })) : [];
+  const hasVariants = (product?.variants?.length ?? 0) > 0;
 
   const onSubmit = handleSubmit(async (values) => {
     setSubmitError(null);
@@ -151,7 +153,8 @@ export function EditProductPage() {
       descriptionEn: values.descriptionEn.trim() === '' ? null : values.descriptionEn,
       descriptionUr: values.descriptionUr.trim() === '' ? null : values.descriptionUr,
       price: values.price ?? 0,
-      stock: values.stock ?? 0,
+      // Feature 23 — with sizes/colours the stock is their total, saved in the variants card.
+      ...(hasVariants ? {} : { stock: values.stock ?? 0 }),
       condition: values.condition,
       categoryId: values.categoryId ?? null,
       tags: values.tags,
@@ -375,8 +378,23 @@ export function EditProductPage() {
                 <Controller
                   name="stock"
                   control={control}
-                  render={({ field }) => <InputNumber {...field} id="edit-product-stock" size="large" min={0} style={{ width: '100%' }} />}
+                  render={({ field }) => (
+                    <InputNumber
+                      {...field}
+                      id="edit-product-stock"
+                      size="large"
+                      min={0}
+                      disabled={hasVariants}
+                      aria-describedby={hasVariants ? 'edit-product-stock-note' : undefined}
+                      style={{ width: '100%' }}
+                    />
+                  )}
                 />
+                {hasVariants && (
+                  <small id="edit-product-stock-note" className="pve-hint">
+                    {t('catalog:variants.stockFromVariants')}
+                  </small>
+                )}
                 {fieldError(errors.stock?.message)}
               </div>
               <div className="slField">
@@ -397,6 +415,8 @@ export function EditProductPage() {
               </div>
             </div>
           </section>
+
+          <ProductVariantsEditor productId={id} variants={product.variants ?? []} />
 
           <div className="slActionBar">
             <Button type="primary" htmlType="submit" shape="round" loading={submitting}>

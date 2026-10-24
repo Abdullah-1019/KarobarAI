@@ -4,9 +4,10 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Trans, useTranslation } from 'react-i18next';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
-import { AiMark, ArrowIcon, Badge, Breadcrumb, Button, EmptyState, PriceDisplay, QuantityStepper, Skeleton, toast } from '../../components';
+import { AiMark, ArrowIcon, Badge, Breadcrumb, Button, CountBadge, EmptyState, PriceDisplay, QuantityStepper, Skeleton, toast } from '../../components';
 import { useLanguage } from '../../hooks';
 import { ApiError } from '../../api';
+import { useAiUnreadStore } from '../../lib/aiUnreadStore';
 import { useAuthStore } from '../../lib/authStore';
 import { getProduct, productQueryKey } from '../catalog/catalogApi';
 import { formatCatalogError } from '../catalog/catalogErrors';
@@ -64,6 +65,7 @@ export function ProductDetailPage() {
     enabled: !!product && product.status === 'LIVE',
   });
   const storeSlug = storeQuery.data?.slug ?? '';
+  const aiUnseen = useAiUnreadStore((s) => s.buyer[storeSlug] ?? 0);
   const storefrontQuery = useQuery({
     queryKey: ['storefront', storeSlug],
     queryFn: () => getPublicStorefront(storeSlug),
@@ -365,9 +367,12 @@ export function ProductDetailPage() {
                 </Link>
               </div>
               <div className="pdp-store__actions">
-                <Button variant="outline" icon={<MessageCircle size={18} aria-hidden="true" />} onClick={() => setChatOpen(true)}>
-                  {t('pdp.askStore')}
-                </Button>
+                <span className="count-anchor">
+                  <Button variant="outline" icon={<MessageCircle size={18} aria-hidden="true" />} onClick={() => setChatOpen(true)}>
+                    {t('pdp.askStore')}
+                  </Button>
+                  <CountBadge count={aiUnseen} />
+                </span>
                 <Link to={`/messages?store=${encodeURIComponent(store.slug)}&product=${encodeURIComponent(id)}`}>
                   {t('humanChat:start')}
                 </Link>

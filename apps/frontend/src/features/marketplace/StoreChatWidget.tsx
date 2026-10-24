@@ -4,8 +4,9 @@ import { ArrowUp, MessageCircle, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
-import { AiMark } from '../../components';
+import { AiMark, CountBadge } from '../../components';
 import { ChatMarkdown } from '../ai-chat/ChatMarkdown';
+import { useAiUnreadStore } from '../../lib/aiUnreadStore';
 import { useAuthStore } from '../../lib/authStore';
 import { streamBuyerMessage, type BuyerChatMessage } from './storeApi';
 import { StoreMonogram } from './StoreMonogram';
@@ -46,6 +47,12 @@ export function StoreChatWidget({
   const user = useAuthStore((state) => state.user);
   const [openState, setOpenState] = useState(false);
   const open = openProp ?? openState;
+  // Read inside the async send() so a reply that lands after the sheet was closed counts as unseen.
+  const openRef = useRef(open);
+  openRef.current = open;
+  const unseen = useAiUnreadStore((s) => s.buyer[storeSlug] ?? 0);
+  const buyerReplyLanded = useAiUnreadStore((s) => s.buyerReplyLanded);
+  const clearBuyer = useAiUnreadStore((s) => s.clearBuyer);
   const setOpen = (next: boolean) => {
     setOpenState(next);
     onOpenChange?.(next);
@@ -74,6 +81,11 @@ export function StoreChatWidget({
     pendingRequest.current = null;
   }, [storeSlug]);
   useEffect(() => () => activeRequest.current?.abort(), []);
+  useEffect(() => {
+    if (open) clearBuyer(storeSlug);
+  }, [open, storeSlug, clearBuyer]);
+  // The conversation lives only while this page is open, so its unseen count goes with it.
+  useEffect(() => () => clearBuyer(storeSlug), [storeSlug, clearBuyer]);
 
   useEffect(() => {
     if (!loading) {
@@ -106,6 +118,7 @@ export function StoreChatWidget({
       pendingRequest.current = null;
       setMessages((current) => current.map((item) => item.createdAt === replyAt && item.role === 'ASSISTANT'
         ? { ...item, content: result.reply } : item));
+      if (!openRef.current) buyerReplyLanded(storeSlug);
       if (result.redirectToCheckout) {
         navigate(user?.role === 'BUYER' ? '/checkout' : '/login', user?.role === 'BUYER' ? undefined : { state: { redirect: '/checkout' } });
       }
@@ -132,13 +145,18 @@ export function StoreChatWidget({
         <button
           type="button"
           className="chat-launcher"
-          aria-label={t('chat.openNamed', { store: storeName })}
+          aria-label={
+            unseen > 0
+              ? t('common:nav.withUnread', { label: t('chat.openNamed', { store: storeName }), count: unseen })
+              : t('chat.openNamed', { store: storeName })
+          }
           aria-haspopup="dialog"
           aria-expanded={open}
           onClick={() => setOpen(true)}
         >
           <MessageCircle size={20} strokeWidth={2} aria-hidden="true" />
           <span className="chat-launcher__label">{t('chat.open')}</span>
+          <CountBadge count={unseen} />
         </button>
       )}
       <Drawer

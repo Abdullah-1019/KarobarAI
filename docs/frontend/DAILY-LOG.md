@@ -529,6 +529,26 @@ Rafia said the screenshots matched neither her reference images nor the sample d
 
 ---
 
+## Pre-Day 4 fixes (Rafia's list, 2026-10-24)
+
+- **Buyer returns:**
+  - The orders list "Return" text link is now a footer strip with a real pill button.
+  - Order detail gets a "Request a return" button and a "Your returns on this order" list.
+  - The orders header links to My Returns.
+  - `/returns` is restyled to the Studio Light rows.
+- **Notifications:**
+  - The page now renders inside each role's own layout (`app/RoleShell.tsx`), so the header and footer show.
+  - Redesigned: unread count, Mark all as read, All/Unread pills, day groups, toned rows, empty state.
+- **Unread badges:**
+  - Shared `CountBadge` component: notification bell, messages and AI.
+  - Seller: top-bar AI and messages icons, sidebar and mobile tabs.
+  - Buyer: header messages icon (desktop), a dot on the menu button and the count in the drawer and account menu on phones, and a badge on "Ask the store" plus the chat launcher when an AI reply lands while the sheet is closed.
+  - Seller Assistant replies now finish in the background when the seller leaves the page, and the AI badge appears (`lib/aiUnreadStore.ts`).
+- **All Stores `/stores`:**
+  - New hero, toolbar and category pills.
+  - Rich cards: banner, or the store's product photos, or the category art; overlapping logo, city, category, description, product strip, product count, "Since …", and a New tag for stores under 30 days old.
+  - Banner and photos come from each store's storefront call (backend ask filed).
+
 ## Day 4: Batch 5 + Batch 6 + QA (planned)
 
 - **Buyer after purchase:**

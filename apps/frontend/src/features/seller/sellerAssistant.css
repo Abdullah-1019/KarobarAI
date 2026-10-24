@@ -365,10 +365,13 @@
   font-size: 11.5px;
   color: var(--text-tertiary);
 }
-.saPage button:focus-visible,
-.saComposeBar textarea:focus-visible {
+.saPage button:focus-visible {
   outline: 3px solid var(--brand-ring);
   outline-offset: 2px;
+}
+/* The rounded bar shows focus (:focus-within); the textarea itself draws no square ring. */
+.saComposeBar textarea:focus-visible {
+  outline: none;
 }
 
 /* Motion */

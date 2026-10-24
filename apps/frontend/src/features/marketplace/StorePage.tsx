@@ -5,7 +5,8 @@ import { Banknote, Camera, Globe, MapPin, MessageCircle, Music2, Package, Play, 
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 
-import { Breadcrumb, Button, EmptyState, Skeleton } from '../../components';
+import { Breadcrumb, Button, CountBadge, EmptyState, Skeleton } from '../../components';
+import { useAiUnreadStore } from '../../lib/aiUnreadStore';
 import { useLanguage } from '../../hooks';
 import { tintFor } from './categoryVisuals';
 import { ProductCard } from './ProductCard';
@@ -29,6 +30,7 @@ export function StorePage() {
   const { language } = useLanguage();
   const isUr = language === 'UR';
   const [chatOpen, setChatOpen] = useState(false);
+  const aiUnseen = useAiUnreadStore((s) => s.buyer[storeSlug] ?? 0);
   const [bandVisible, setBandVisible] = useState(true);
   const [category, setCategory] = useState<string | null>(null);
   const [sort, setSort] = useState<StoreSort>('store');
@@ -137,9 +139,12 @@ export function StorePage() {
               })}
             </div>
           )}
-          <Button variant="secondary" icon={<MessageCircle size={18} aria-hidden="true" />} onClick={() => setChatOpen(true)}>
-            {t('pdp.askStore')}
-          </Button>
+          <span className="count-anchor">
+            <Button variant="secondary" icon={<MessageCircle size={18} aria-hidden="true" />} onClick={() => setChatOpen(true)}>
+              {t('pdp.askStore')}
+            </Button>
+            <CountBadge count={aiUnseen} />
+          </span>
           <Button variant="outline" onClick={() => navigate(`/messages?store=${encodeURIComponent(storeSlug)}`)}>
             {t('humanChat:start')}
           </Button>

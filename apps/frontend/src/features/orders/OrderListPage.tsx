@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { Alert, Button } from 'antd';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { ClipboardList } from 'lucide-react';
+import { ClipboardList, Undo2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
@@ -29,7 +29,7 @@ const NEEDS_SELLER = new Set<OrderListItemDTO['status']>(['PAYMENT_CONFIRMED', '
 // BACKEND-NOTES), order number + person, a five-dot journey track, total and status. Rows collapse
 // to cards on phones. Behaviour (tabs, paging, buyer return action) is unchanged.
 export function OrderListPage({ scope }: OrderListPageProps) {
-  const { t } = useTranslation(['orders']);
+  const { t } = useTranslation(['orders', 'common']);
   const [tab, setTab] = useState<TabFilter>('All');
 
   const backendTab = tab === 'All' ? undefined : tab;
@@ -61,7 +61,15 @@ export function OrderListPage({ scope }: OrderListPageProps) {
 
   return (
     <div className="olPage">
-      <h1 className="olTitle">{t(scope === 'buyer' ? 'list.titleBuyer' : 'list.titleSeller')}</h1>
+      <header className="olHead">
+        <h1 className="olTitle">{t(scope === 'buyer' ? 'list.titleBuyer' : 'list.titleSeller')}</h1>
+        {scope === 'buyer' && (
+          <Link to="/returns" className="olReturn">
+            <Undo2 size={15} aria-hidden="true" />
+            {t('common:nav.myReturns')}
+          </Link>
+        )}
+      </header>
 
       <div className="olTabs" ref={tabsRef} role="group" aria-label={t('list.columnStatus')}>
         {indicator && <span className="olTabInk" style={{ left: indicator.left, width: indicator.width }} aria-hidden="true" />}
@@ -142,9 +150,13 @@ export function OrderListPage({ scope }: OrderListPageProps) {
                 </Link>
 
                 {scope === 'buyer' && item.returnEligible && (
-                  <Link to={`/orders/${item.id}/return`} className="olReturn">
-                    {t('list.returnAction')}
-                  </Link>
+                  <div className="olFoot">
+                    <span className="olFootNote">{t('list.returnHint')}</span>
+                    <Link to={`/orders/${item.id}/return`} className="olReturn">
+                      <Undo2 size={15} aria-hidden="true" />
+                      {t('list.returnAction')}
+                    </Link>
+                  </div>
                 )}
               </li>
             ))}

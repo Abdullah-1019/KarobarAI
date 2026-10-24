@@ -1,24 +1,24 @@
-import { Alert, Button, Card, Typography } from 'antd';
+import { Alert, Button } from 'antd';
 import { useInfiniteQuery } from '@tanstack/react-query';
+import { ChevronRight, Undo2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 
-import { EmptyState, PageHeader, ProductThumbnail, SkeletonLoader } from '../../components';
+import { BackLink, ProductThumbnail, SkeletonLoader } from '../../components';
 import { buyerReturnsQueryKey, listBuyerReturns } from './returnsApi';
 import { formatReturnsError } from './returnsErrors';
+import { reasonLabel } from './returnFormat';
 import { ReturnStatusTag } from './ReturnStatusTag';
+import '../orders/orders.css';
+import './returns.css';
 
-// Buyer-facing return history — the E6 brief's "Return History" screen. No dedicated route
-// existed for this before (only a per-order /orders/:id/return/status), but listBuyerReturns()
-// itself already existed and was already called (ReturnStatusPage used it internally to look up
-// one match by orderId) — this surfaces the same, already-working endpoint as its own screen
-// rather than adding new backend/API surface. Card layout (not a table) — this is a small,
-// personal list, not a management queue like SellerReturnsPage's.
+// Buyer-facing return history (E6 "Return History"), on the same Studio Light rows as the
+// seller's returns queue and the buyer's own orders list: product photo, product + order, the
+// reason as a chip, status, and a chevron — the whole row opens that return's status page.
 export function BuyerReturnsPage() {
-  const { t } = useTranslation(['returns', 'orders']);
-  const navigate = useNavigate();
+  const { t } = useTranslation(['returns', 'orders', 'common']);
 
-  const { data, isPending, isError, error, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
+  const { data, isPending, isError, error, fetchNextPage, hasNextPage, isFetchingNextPage, refetch } = useInfiniteQuery({
     queryKey: buyerReturnsQueryKey,
     queryFn: ({ pageParam }: { pageParam: string | undefined }) => listBuyerReturns(pageParam),
     initialPageParam: undefined as string | undefined,
@@ -28,52 +28,65 @@ export function BuyerReturnsPage() {
   const items = data?.pages.flatMap((page) => page.items) ?? [];
 
   return (
-    <div style={{ maxWidth: 640, margin: '0 auto' }}>
-      <PageHeader title={t('buyerList.title')} backTo="/orders" backLabel={t('orders:list.titleBuyer')} />
+    <div className="olPage">
+      <BackLink to="/orders" label={t('orders:list.titleBuyer')} />
+      <h1 className="olTitle">{t('buyerList.title')}</h1>
 
       {isPending && <SkeletonLoader rows={4} />}
 
-      {isError && <Alert type="error" showIcon message={formatReturnsError(t, error)} />}
+      {isError && (
+        <Alert
+          type="error"
+          showIcon
+          message={formatReturnsError(t, error)}
+          action={
+            <Button size="small" shape="round" onClick={() => void refetch()}>
+              {t('common:actions.retry')}
+            </Button>
+          }
+        />
+      )}
 
       {!isPending && !isError && items.length === 0 && (
-        <EmptyState
-          title={t('buyerList.empty')}
-          description={t('buyerList.emptyBody')}
-          actionLabel={t('buyerList.browseOrders')}
-          onAction={() => navigate('/orders')}
-        />
+        <div className="olEmpty">
+          <span className="olEmptyIcon" aria-hidden="true">
+            <Undo2 size={24} />
+          </span>
+          <p className="olEmptyTitle">{t('buyerList.empty')}</p>
+          <p className="rtEmptyBody">{t('buyerList.emptyBody')}</p>
+          <Link to="/orders" className="olEmptyLink">
+            {t('buyerList.browseOrders')}
+          </Link>
+        </div>
       )}
 
       {!isPending && !isError && items.length > 0 && (
         <>
-          {items.map((item) => (
-            <Card key={item.id} style={{ marginBottom: 'var(--sp-3)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 'var(--sp-3)' }}>
-                {item.productImage && <ProductThumbnail src={item.productImage} size={72} />}
-                <div>
-                  <Typography.Text type="secondary" style={{ fontSize: 'var(--fs-xs)' }}>
-                    {item.orderNumber ? `Order #${item.orderNumber}` : t('buyerList.orderLabel', { id: item.orderId })}
-                  </Typography.Text>
-                  {item.productName && <div><Typography.Text strong>{item.productName}</Typography.Text></div>}
-                  <div style={{ marginTop: 'var(--sp-1)' }}>{item.reason.startsWith('OTHER: ')
-                    ? `${t('reasons.OTHER')}: ${item.reason.slice(7)}`
-                    : t(`reasons.${item.reason}`, { defaultValue: item.reason })}</div>
-                  <Typography.Text type="secondary" style={{ fontSize: 'var(--fs-xs)' }}>
-                    {t('buyerList.requested', { date: new Date(item.createdAt).toLocaleDateString() })}
-                  </Typography.Text>
-                </div>
-                <ReturnStatusTag status={item.status} />
-              </div>
-              <div style={{ marginTop: 'var(--sp-3)', textAlign: 'end' }}>
-                <Link to={`/orders/${item.orderId}/return/${item.id}/status`}>
-                  <Button size="small">{t('buyerList.viewReturn')}</Button>
+          <ul className="olRows">
+            {items.map((item, index) => (
+              <li key={item.id} className="olRowWrap" style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}>
+                <Link to={`/orders/${item.orderId}/return/${item.id}/status`} className="rtRow" aria-label={t('buyerList.viewReturn')}>
+                  <ProductThumbnail src={item.productImage ?? null} size={52} radius="md" />
+                  <span className="olMain">
+                    <span className="rtRowTitle">{item.productName ?? (item.orderNumber ? `#${item.orderNumber}` : item.orderId)}</span>
+                    <span className="olMeta">
+                      {item.orderNumber ? `#${item.orderNumber}` : t('buyerList.orderLabel', { id: item.orderId.slice(0, 8) })} ·{' '}
+                      {t('buyerList.requested', { date: new Date(item.createdAt).toLocaleDateString() })}
+                    </span>
+                    <span className="rtReason">{reasonLabel(t, item.reason)}</span>
+                  </span>
+                  <span className="rtRowEnd">
+                    <ReturnStatusTag status={item.status} />
+                    <span className="rtViewCue">{t('buyerList.viewReturn')}</span>
+                  </span>
+                  <ChevronRight size={18} className="rtChevron" aria-hidden="true" />
                 </Link>
-              </div>
-            </Card>
-          ))}
+              </li>
+            ))}
+          </ul>
           {hasNextPage && (
-            <div style={{ textAlign: 'center', marginTop: 'var(--sp-4)' }}>
-              <Button loading={isFetchingNextPage} onClick={() => fetchNextPage()}>
+            <div className="olMore">
+              <Button shape="round" loading={isFetchingNextPage} onClick={() => fetchNextPage()}>
                 {t('buyerList.loadMore')}
               </Button>
             </div>

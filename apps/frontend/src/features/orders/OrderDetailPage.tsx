@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Alert, Button } from 'antd';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
-import { FileText, MapPin, Phone, Truck } from 'lucide-react';
+import { FileText, MapPin, Phone, Truck, Undo2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router-dom';
 
@@ -153,6 +153,7 @@ export function OrderDetailPage({ scope }: OrderDetailPageProps) {
         return { text: t('next.SHIPPED') };
     }
   })();
+  const canRequestReturn = order.items.some((item) => item.returnEligible);
   const canSimulateDelivery =
     tracking?.simulated === true &&
     !!tracking.courier &&
@@ -358,6 +359,36 @@ export function OrderDetailPage({ scope }: OrderDetailPageProps) {
                   <Truck size={16} aria-hidden="true" />
                   {t('tracking.trackButton')}
                 </Link>
+              )}
+            </section>
+          )}
+
+          {scope === 'buyer' && (canRequestReturn || order.returnCases.length > 0) && (
+            <section className="odCard odReturnCard">
+              {canRequestReturn && (
+                <>
+                  <p className="odReturnNote">{t('detail.returnWindowNote')}</p>
+                  <Link to={`/orders/${order.id}/return`} className="odGhostLink odGhostLink--block">
+                    <Undo2 size={16} aria-hidden="true" />
+                    {t('detail.requestReturn')}
+                  </Link>
+                </>
+              )}
+              {order.returnCases.length > 0 && (
+                <>
+                  <h2 className="odCardTitle">{t('detail.yourReturns')}</h2>
+                  {order.returnCases.map((returnCase) => (
+                    <Link
+                      key={returnCase.id}
+                      to={`/orders/${order.id}/return/${returnCase.id}/status`}
+                      className="odReturnLink"
+                    >
+                      <span className="odReturnLinkName">{returnCase.productName ?? t('detail.returnCaseFallback')}</span>
+                      <ReturnStatusTag status={returnCase.status} />
+                      <span className="odReturnLinkGo">{t('detail.viewReturnStatus')}</span>
+                    </Link>
+                  ))}
+                </>
               )}
             </section>
           )}

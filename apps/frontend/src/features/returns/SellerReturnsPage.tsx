@@ -55,7 +55,7 @@ export function SellerReturnsPage() {
           <h1 className="olTitle">{t('sellerList.title')}</h1>
           <p className="odSub">{t('sellerList.subtitle')}</p>
         </div>
-        {!history && waiting > 0 && <span className="rtWaiting">{t('sellerList.waiting', { count: waiting })}</span>}
+        {!history && waiting > 0 && <span className="rtWaiting">{t(hasNextPage ? 'sellerList.waitingMore' : 'sellerList.waiting', { count: waiting })}</span>}
       </header>
 
       <div className="olTabs" ref={tabsRef} role="group" aria-label={t('sellerList.title')}>

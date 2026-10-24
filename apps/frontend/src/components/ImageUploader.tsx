@@ -64,33 +64,24 @@ export function ImageUploader<T>({
   // Not ProductThumbnail: that component is 1:1-square-only by design (UIUX §13's product-card
   // spec) — this uploader's rect shape is a wide banner aspect (160x72), which ProductThumbnail
   // can't represent, so it keeps its own box rather than being forced into the wrong shape.
+  // Wraps instead of overflowing: in a narrow column (the logo cell is ~220px) the buttons drop
+  // under the preview rather than spilling out of their card.
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-4)' }}>
+    <div className="img-uploader" data-shape={shape}>
       {shape === 'circle' ? (
-        <Avatar size={72} src={value ?? undefined} shape="circle" />
+        <Avatar size={72} src={value ?? undefined} shape="circle" className="img-uploader__preview" />
       ) : value ? (
-        <img
-          src={value}
-          alt=""
-          style={{ width: 160, height: 72, objectFit: 'cover', borderRadius: 'var(--radius-sm)', background: 'var(--bg-sunken)' }}
-        />
+        <img src={value} alt="" className="img-uploader__preview img-uploader__banner" />
       ) : (
-        <div
-          style={{
-            width: 160,
-            height: 72,
-            borderRadius: 'var(--radius-sm)',
-            background: 'var(--bg-sunken)',
-          }}
-        />
+        <div className="img-uploader__preview img-uploader__banner" />
       )}
-      <div>
-        <div style={{ display: 'flex', gap: 'var(--sp-2)' }}>
-          <Button size="small" loading={busy} onClick={() => fileInputRef.current?.click()}>
+      <div className="img-uploader__side">
+        <div className="img-uploader__actions">
+          <Button size="small" shape="round" loading={busy} onClick={() => fileInputRef.current?.click()}>
             {uploadLabel}
           </Button>
           {value && (
-            <Button size="small" danger loading={busy} onClick={handleRemove}>
+            <Button size="small" shape="round" danger loading={busy} onClick={handleRemove}>
               {removeLabel}
             </Button>
           )}
@@ -102,9 +93,7 @@ export function ImageUploader<T>({
           style={{ display: 'none' }}
           onChange={handleFileChange}
         />
-        {error && (
-          <Alert type="error" message={error} showIcon style={{ marginTop: 'var(--sp-2)', maxWidth: 320 }} />
-        )}
+        {error && <Alert type="error" message={error} showIcon className="img-uploader__error" />}
       </div>
     </div>
   );

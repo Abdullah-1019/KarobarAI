@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 
 import { AiMark } from '../../components';
 import { ChatMarkdown } from '../ai-chat/ChatMarkdown';
+import { useAiUnreadStore } from '../../lib/aiUnreadStore';
 import { useAuthStore } from '../../lib/authStore';
 import { getSellerAssistantConversation, streamSellerAssistantMessage, type SellerAssistantMessage } from './sellerAssistantApi';
 import './sellerAssistant.css';
@@ -21,6 +22,9 @@ const PROMPTS: Array<{ key: string; icon: LucideIcon }> = [
 // the session per seller in sessionStorage. Layout: an AiMark welcome with suggested questions
 // as pills; then the user's questions as ink bubbles and the assistant's answers as plain text
 // beside the mark, with a calm three-dot indicator until the first words arrive.
+//
+// Leaving the page doesn't cancel a reply in flight (only Stop / New chat do): it finishes in the
+// background, its session id is saved, and the AI icons in SellerLayout get an unread badge.
 export function SellerAssistantPage() {
   const { t, i18n } = useTranslation(['catalog']);
   const sellerUserId = useAuthStore((state) => state.user?.id);
@@ -38,7 +42,26 @@ export function SellerAssistantPage() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const activeRequest = useRef<AbortController | null>(null);
   const pendingRequest = useRef<{ id: string; message: string } | null>(null);
-  useEffect(() => () => activeRequest.current?.abort(), []);
+  const mounted = useRef(true);
+  const setSellerViewing = useAiUnreadStore((s) => s.setSellerViewing);
+  const sellerReplyLanded = useAiUnreadStore((s) => s.sellerReplyLanded);
+  const reloadTick = useAiUnreadStore((s) => s.sellerReloadTick);
+  useEffect(() => {
+    mounted.current = true;
+    setSellerViewing(true);
+    return () => {
+      mounted.current = false;
+      setSellerViewing(false);
+    };
+  }, [setSellerViewing]);
+  // A reply that an earlier visit to this page asked for has landed: show it from saved history.
+  useEffect(() => {
+    if (!reloadTick || !sessionStorageKey) return;
+    const saved = window.sessionStorage.getItem(sessionStorageKey);
+    if (!saved) return;
+    setSessionId(saved);
+    void getSellerAssistantConversation(saved).then((result) => setMessages(result.messages)).catch(() => undefined);
+  }, [reloadTick, sessionStorageKey]);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -89,8 +112,14 @@ export function SellerAssistantPage() {
         setMessages((current) => current.map((item) => item.createdAt === replyAt && item.role === 'ASSISTANT'
           ? { ...item, content: item.content + delta } : item));
       }, controller.signal);
-      setSessionId(result.sessionId);
       pendingRequest.current = null;
+      if (!mounted.current) {
+        // The seller left mid-reply: keep the session so the next visit loads it, and flag it.
+        if (sessionStorageKey) window.sessionStorage.setItem(sessionStorageKey, result.sessionId);
+        sellerReplyLanded();
+        return;
+      }
+      setSessionId(result.sessionId);
       setMessages((current) => current.map((item) => item.createdAt === replyAt && item.role === 'ASSISTANT'
         ? { ...item, content: result.reply } : item));
     } catch {

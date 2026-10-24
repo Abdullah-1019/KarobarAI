@@ -814,3 +814,8 @@
     transition: none;
   }
 }
+
+/* The rounded compose bar shows focus (:focus-within); its textarea draws no square ring. */
+.human-chat__compose-bar textarea:focus-visible {
+  outline: none;
+}

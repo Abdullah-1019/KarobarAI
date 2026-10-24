@@ -44,9 +44,10 @@ const DEFAULT_META: EventMeta = { icon: Bell, fg: 'var(--text-secondary)', bg: '
 
 interface NotificationIconProps {
   eventType: string;
+  size?: number;
 }
 
-export function NotificationIcon({ eventType }: NotificationIconProps) {
+export function NotificationIcon({ eventType, size = 36 }: NotificationIconProps) {
   const { icon: Icon, fg, bg } = EVENT_META[eventType] ?? DEFAULT_META;
   return (
     <span
@@ -55,15 +56,15 @@ export function NotificationIcon({ eventType }: NotificationIconProps) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        width: 36,
-        height: 36,
+        width: size,
+        height: size,
         borderRadius: '50%',
         background: bg,
         color: fg,
         flexShrink: 0,
       }}
     >
-      <Icon size={18} />
+      <Icon size={Math.round(size / 2)} />
     </span>
   );
 }

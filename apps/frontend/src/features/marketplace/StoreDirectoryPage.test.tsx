@@ -7,10 +7,10 @@ import i18n from '../../app/i18n';
 import { useLanguageStore } from '../../lib/languageStore';
 import { getCategories } from '../catalog/catalogApi';
 import { StoreDirectoryPage } from './StoreDirectoryPage';
-import { getStoreDirectory } from './storeApi';
+import { getPublicStorefront, getStoreDirectory } from './storeApi';
 
 vi.mock('../catalog/catalogApi', () => ({ CATEGORIES_QUERY_KEY: ['catalog', 'categories'], getCategories: vi.fn() }));
-vi.mock('./storeApi', () => ({ getStoreDirectory: vi.fn() }));
+vi.mock('./storeApi', () => ({ getStoreDirectory: vi.fn(), getPublicStorefront: vi.fn() }));
 
 const item = {
   slug: 'alpha-fabrics', name: 'Alpha Fabrics', description: 'Handmade shirts', logoUrl: null,
@@ -26,6 +26,7 @@ function renderPage() {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(getCategories).mockResolvedValue([]);
+  vi.mocked(getPublicStorefront).mockImplementation(() => new Promise(() => {}));
   useLanguageStore.getState().setLanguage('EN');
 });
 afterEach(() => useLanguageStore.getState().setLanguage('EN'));
@@ -34,7 +35,7 @@ describe('Store Directory page', () => {
   it('shows a loading state while stores load', () => {
     vi.mocked(getStoreDirectory).mockImplementation(() => new Promise(() => {}));
     renderPage();
-    expect(screen.getByRole('heading', { name: 'Shop by Store' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Every store on KarobarAI' })).toBeInTheDocument();
     expect(screen.getByLabelText('Loading stores…')).toHaveAttribute('aria-busy', 'true');
   });
 
@@ -46,7 +47,28 @@ describe('Store Directory page', () => {
     expect(screen.getByText('Handmade shirts')).toBeInTheDocument();
     expect(screen.getByText('Clothing')).toBeInTheDocument();
     expect(screen.getByText('Lahore')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
+    // A single page needs no pager.
+    expect(screen.queryByRole('button', { name: /Next/ })).not.toBeInTheDocument();
+  });
+
+  it('pages through stores and disables Next on the last page', async () => {
+    vi.mocked(getStoreDirectory)
+      .mockResolvedValueOnce({ items: [item], page: 1, limit: 12, total: 13, hasMore: true })
+      .mockResolvedValue({ items: [{ ...item, slug: 'beta' }], page: 2, limit: 12, total: 13, hasMore: false });
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: /Next/ }));
+    await waitFor(() => expect(getStoreDirectory).toHaveBeenCalledWith(expect.objectContaining({ page: 2 })));
+    await waitFor(() => expect(screen.getByRole('button', { name: /Next/ })).toBeDisabled());
+  });
+
+  it('shows the store banner from its storefront', async () => {
+    vi.mocked(getStoreDirectory).mockResolvedValue({ items: [item], page: 1, limit: 12, total: 1, hasMore: false });
+    vi.mocked(getPublicStorefront).mockResolvedValue({
+      store: { bannerUrl: 'https://cdn.test/banner.jpg' },
+      products: [],
+    } as unknown as Awaited<ReturnType<typeof getPublicStorefront>>);
+    const { container } = renderPage();
+    await waitFor(() => expect(container.querySelector('img[src="https://cdn.test/banner.jpg"]')).not.toBeNull());
   });
 
   it('shows Urdu store labels in RTL mode', async () => {

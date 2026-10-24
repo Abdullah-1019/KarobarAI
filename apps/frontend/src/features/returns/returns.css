@@ -694,3 +694,10 @@
     transition: none;
   }
 }
+
+/* Buyer return history: a quiet text cue under the status, so the row reads as tappable. */
+.rtViewCue {
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+}

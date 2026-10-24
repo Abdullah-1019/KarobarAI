@@ -83,6 +83,7 @@
 .slCollapse,
 .slIconBtn,
 .slBell .icon-btn {
+  position: relative;
   display: grid;
   flex-shrink: 0;
   place-items: center;
@@ -189,6 +190,7 @@
     color var(--dur-fast) var(--ease);
 }
 .slNavIcon {
+  position: relative;
   display: grid;
   flex-shrink: 0;
   place-items: center;
@@ -709,6 +711,45 @@ a.slSetupLink:focus-visible {
   border-radius: 32px;
   background: var(--wash-lilac);
   overflow: hidden;
+}
+/* The store's own banner behind the band, washed out on the text side so the greeting and stats
+   stay readable; stores without one keep the plain lilac band. */
+.slBandBanner {
+  position: absolute;
+  z-index: -2;
+  inset: 0;
+}
+.slBandBanner img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.slBandBanner::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--bg-surface) 94%, transparent) 0%,
+    color-mix(in srgb, var(--bg-surface) 82%, transparent) 45%,
+    color-mix(in srgb, var(--bg-surface) 30%, transparent) 100%
+  );
+}
+[dir='rtl'] .slBandBanner::after {
+  background: linear-gradient(
+    270deg,
+    color-mix(in srgb, var(--bg-surface) 94%, transparent) 0%,
+    color-mix(in srgb, var(--bg-surface) 82%, transparent) 45%,
+    color-mix(in srgb, var(--bg-surface) 30%, transparent) 100%
+  );
+}
+.slBand[data-banner]::before {
+  display: none;
+}
+@media (max-width: 767px) {
+  .slBandBanner::after {
+    background: color-mix(in srgb, var(--bg-surface) 86%, transparent);
+  }
 }
 .slBand::before {
   content: '';

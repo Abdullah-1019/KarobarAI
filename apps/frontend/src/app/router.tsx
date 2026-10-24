@@ -27,6 +27,7 @@ import { RequireStore, SellerLayout, SellerPlaceholder, StoreSetupWizard } from 
 import { SellerAssistantPage } from '../features/seller/SellerAssistantPage';
 import { BuyerTrackingPage, PublicTrackingPage, SellerTrackingPage } from '../features/tracking';
 import { ProtectedRoute } from './ProtectedRoute';
+import { RoleShell } from './RoleShell';
 
 // Base routing skeleton (TRD §12), auth routes match App Flow's literal paths (SCR-A01/A02/A03/A04)
 // rather than being nested under /auth. Home moved from the old /buyer placeholder to '/' once
@@ -129,12 +130,11 @@ export const router = createBrowserRouter([
       },
     ],
   },
-  // Feature 9 — personal to any authenticated role, not nested under either layout (same
-  // bare-page convention as features/tracking's detail-style pages). SUPPORT added alongside
-  // Feature 12 — AdminLayout renders the same NotificationBell for Support as for Admin.
+  // Feature 9 — personal to any authenticated role. RoleShell wraps it in the signed-in role's own
+  // layout (storefront, seller workspace or admin), so it keeps that role's header and nav.
   {
     element: <ProtectedRoute allowedRoles={['BUYER', 'SELLER', 'ADMIN', 'SUPPORT']} />,
-    children: [{ path: '/notifications', element: <NotificationCenterPage /> }],
+    children: [{ element: <RoleShell />, children: [{ path: '/notifications', element: <NotificationCenterPage /> }] }],
   },
   // Dev-only component gallery (Phase 1, Batch-1 Buyer Purchase Journey) — a reference surface for
   // the shared UI in EN/UR + LTR/RTL. Not rendered in production builds.

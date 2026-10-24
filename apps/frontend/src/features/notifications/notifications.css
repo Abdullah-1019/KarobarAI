@@ -1,0 +1,336 @@
+/* Notification Center, Studio Light. Same title scale, pill tabs and white rounded rows as the
+   orders list (orders.css), so it reads as part of the same app in every role's layout. */
+
+.ncPage {
+  display: grid;
+  gap: 18px;
+  width: 100%;
+  max-width: 760px;
+  margin-inline: auto;
+  padding-block: 8px 32px;
+}
+
+.ncHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px 20px;
+}
+.ncHeadText {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.ncTitle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-size: clamp(26px, 2.6vw, 34px);
+  font-weight: var(--fw-display);
+  letter-spacing: var(--tracking-heading);
+  line-height: 1.15;
+}
+.ncCount {
+  padding: 3px 12px;
+  border-radius: var(--radius-pill);
+  background: var(--wash-peach);
+  color: var(--accent-ink);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.ncSub {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+}
+
+.ncGhost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding-inline: 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease);
+}
+.ncGhost:hover:not(:disabled) {
+  background: var(--bg-sunken);
+}
+.ncGhost:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.ncTabs {
+  display: flex;
+  gap: 2px;
+  width: fit-content;
+  padding: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-sunken);
+}
+.ncTab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding-inline: 16px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 240ms var(--ease),
+    color 240ms var(--ease);
+}
+.ncTab:hover {
+  color: var(--text-primary);
+}
+.ncTab[aria-pressed='true'] {
+  background: var(--brand-ink);
+  color: var(--text-on-dark);
+  font-weight: 600;
+}
+.ncTabCount {
+  min-width: 20px;
+  height: 20px;
+  padding-inline: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--brand-primary);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 20px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.ncGroup {
+  display: grid;
+  gap: 8px;
+}
+.ncGroupTitle {
+  margin: 6px 0 0;
+  color: var(--text-tertiary);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+html[lang='ur'] .ncGroupTitle {
+  letter-spacing: 0;
+  font-size: var(--fs-sm);
+}
+
+.ncList {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ncList > li {
+  animation: ncIn 360ms var(--ease-soft) backwards;
+}
+@keyframes ncIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+.ncItem {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 64px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition:
+    box-shadow var(--dur-base) var(--ease),
+    transform var(--dur-base) var(--ease);
+}
+.ncItem:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+.ncItem:focus-visible {
+  outline: 3px solid var(--brand-ring);
+  outline-offset: 2px;
+}
+.ncItem[data-unread] {
+  border-color: color-mix(in srgb, var(--brand-primary) 26%, var(--border));
+  background: linear-gradient(90deg, var(--wash-peach), var(--bg-surface) 55%);
+}
+[dir='rtl'] .ncItem[data-unread] {
+  background: linear-gradient(270deg, var(--wash-peach), var(--bg-surface) 55%);
+}
+.ncBody {
+  display: grid;
+  flex: 1;
+  gap: 4px;
+  min-width: 0;
+}
+.ncMessage {
+  font-size: var(--fs-sm);
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+.ncItem[data-unread] .ncMessage {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.ncMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-tertiary);
+  font-size: var(--fs-xs);
+}
+.ncCue {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.ncDot {
+  flex-shrink: 0;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--brand-primary);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--brand-primary) 16%, transparent);
+}
+.ncChevron {
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+  transition: transform var(--dur-base) var(--ease-soft);
+}
+.ncItem:hover .ncChevron {
+  transform: translateX(3px);
+}
+[dir='rtl'] .ncChevron {
+  transform: scaleX(-1);
+}
+[dir='rtl'] .ncItem:hover .ncChevron {
+  transform: scaleX(-1) translateX(3px);
+}
+
+.ncSkeleton {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--bg-surface);
+}
+.ncSkelIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--bg-sunken);
+}
+.ncSkelLines {
+  display: grid;
+  flex: 1;
+  gap: 8px;
+}
+.ncSkelLines span {
+  height: 11px;
+  border-radius: 6px;
+  background: var(--bg-sunken);
+}
+
+.ncEmpty {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 56px 20px;
+  border: 1.5px dashed var(--border-strong);
+  border-radius: 24px;
+  text-align: center;
+}
+.ncEmptyArt {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  margin-block-end: 6px;
+  border-radius: 50%;
+  background: var(--wash-peach);
+  color: var(--brand-primary);
+  box-shadow:
+    0 0 0 10px color-mix(in srgb, var(--wash-peach) 55%, transparent),
+    0 0 0 20px color-mix(in srgb, var(--wash-peach) 25%, transparent);
+}
+.ncEmptyTitle {
+  margin: 12px 0 0;
+  font-family: var(--font-heading);
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-display);
+}
+.ncEmptyBody {
+  max-width: 44ch;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+}
+.ncEmptyLink {
+  margin-block-start: 6px;
+  color: var(--text-primary);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.ncMore {
+  text-align: center;
+}
+
+@media (max-width: 767px) {
+  .ncItem {
+    gap: 12px;
+    padding: 12px 14px;
+  }
+  .ncGhost {
+    min-height: 44px;
+  }
+  .ncTab {
+    height: 40px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ncList > li {
+    animation: none;
+  }
+  .ncItem,
+  .ncChevron {
+    transition: none;
+  }
+  .ncItem:hover {
+    transform: none;
+  }
+}

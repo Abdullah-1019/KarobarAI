@@ -14,7 +14,8 @@ import { NewArrivalsGrid } from './NewArrivalsGrid';
 import { AiBanner } from './AiBanner';
 import { HOME_FEED_QUERY_KEY, getHomeFeed } from './marketplaceApi';
 import { formatMarketplaceError } from './marketplaceErrors';
-import { StoreMonogram } from './StoreMonogram';
+import { Rail } from './Rail';
+import { StoreCard } from './StoreCard';
 import { getFeaturedStores } from './storeApi';
 
 // SCR-B01 — entry + discovery. Identical content for Guest and authenticated Buyer (no
@@ -41,43 +42,61 @@ export function HomePage() {
   const stores = useQuery({ queryKey: ['stores', 'featured'], queryFn: getFeaturedStores });
 
   const hasProducts = !!data && (data.featured.length > 0 || data.newArrivals.length > 0);
-  // New arrivals skip what Featured already shows, so the page never repeats a row — unless that
-  // would leave fewer than four, in which case the full list is the more useful page.
+  // The API currently sends the same "newest LIVE" list as both Featured and New arrivals
+  // (BACKEND-NOTES). New arrivals skip what Featured shows; when that leaves fewer than four, the
+  // one list is split instead (first half Featured, rest New arrivals) so no product shows twice.
   const featuredIds = new Set(data?.featured.map((p) => p.id));
   const freshArrivals = data?.newArrivals.filter((p) => !featuredIds.has(p.id)) ?? [];
-  const newArrivals = freshArrivals.length >= 4 ? freshArrivals : (data?.newArrivals ?? []);
+  const splitFeed = freshArrivals.length < 4;
+  const feedList = data ? [...data.featured, ...freshArrivals] : [];
+  const half = Math.ceil(feedList.length / 2);
+  const featured = splitFeed ? feedList.slice(0, half) : (data?.featured ?? []);
+  const newArrivals = splitFeed ? feedList.slice(half) : freshArrivals;
 
   return (
     <div>
       <Hero categories={data?.categories} products={data ? [...data.featured, ...data.newArrivals] : undefined} />
       <TrustStrip />
 
-      <Section title={t('directory.homeTitle')} action={<Link to="/stores" className="section-action-link">{t('directory.viewAll')}<ArrowIcon size={16} /></Link>}>
+      <Section>
         {stores.isPending && (
-          <div className="store-directory__grid" aria-busy="true" aria-label={t('directory.loading')}>
-            {Array.from({ length: 8 }, (_, index) => <Skeleton key={index} height={180} radius="var(--card-radius)" />)}
-          </div>
+          <>
+            <header className="section-head">
+              <div className="section-head-text">
+                <h2 className="section-title">{t('directory.homeTitle')}</h2>
+              </div>
+              <Link to="/stores" className="section-action-link">{t('directory.viewAll')}<ArrowIcon size={16} /></Link>
+            </header>
+            <div className="sd-grid" aria-busy="true" aria-label={t('directory.loading')}>
+              {Array.from({ length: 3 }, (_, index) => <Skeleton key={index} height={420} radius="28px" />)}
+            </div>
+          </>
         )}
         {stores.isError && (
           <Alert type="error" showIcon message={t('directory.error')}
             action={<Button variant="outline" onClick={() => stores.refetch()}>{t('common:actions.retry')}</Button>} />
         )}
-        {stores.data?.length === 0 && <EmptyState title={t('directory.emptyHome')} />}
+        {stores.data?.length === 0 && (
+          <>
+            <header className="section-head">
+              <div className="section-head-text">
+                <h2 className="section-title">{t('directory.homeTitle')}</h2>
+              </div>
+              <Link to="/stores" className="section-action-link">{t('directory.viewAll')}<ArrowIcon size={16} /></Link>
+            </header>
+            <EmptyState title={t('directory.emptyHome')} />
+          </>
+        )}
         {stores.data && stores.data.length > 0 && (
-          <div className="store-directory__grid">
-            {stores.data.map((store) => (
-              <Link key={store.slug} to={`/store/${encodeURIComponent(store.slug)}`} className="store-directory__card">
-                <StoreMonogram name={store.name} logoUrl={store.logoUrl} />
-                <strong dir="auto">{store.name}</strong>
-                {store.category && <span>{language === 'UR' ? store.category.nameUr : store.category.nameEn}</span>}
-                {store.city && <span dir="auto">{store.city}</span>}
-                {(language === 'UR' ? store.descriptionUr ?? store.description : store.description ?? store.descriptionUr) && (
-                  <p dir="auto">{language === 'UR' ? store.descriptionUr ?? store.description : store.description ?? store.descriptionUr}</p>
-                )}
-                <span>{t('store.products', { count: store.productCount })}</span>
-              </Link>
-            ))}
-          </div>
+          <Rail
+            title={t('directory.homeTitle')}
+            subtitle={t('home.storesSub')}
+            size="store"
+            action={<Link to="/stores" className="section-action-link">{t('directory.viewAll')}<ArrowIcon size={16} /></Link>}
+            prevLabel={t('featured.prevStores')}
+            nextLabel={t('featured.nextStores')}
+            items={stores.data.map((store) => ({ key: store.slug, node: <StoreCard store={store} isUr={language === 'UR'} /> }))}
+          />
         )}
       </Section>
 
@@ -121,13 +140,22 @@ export function HomePage() {
 
           {hasProducts ? (
             <>
-              {data.featured.length > 0 && (
+              {featured.length > 0 && (
                 <Section>
-                  <FeaturedProducts title={t('home.featuredTitle')} products={data.featured} />
+                  <FeaturedProducts title={t('home.featuredTitle')} products={featured} />
                 </Section>
               )}
               {newArrivals.length > 0 && (
-                <Section title={t('home.newArrivalsTitle')}>
+                <Section
+                  title={t('home.newArrivalsTitle')}
+                  subtitle={t('home.newArrivalsSub')}
+                  action={
+                    <Link to="/search" className="section-action-link">
+                      {t('home.viewAllNew')}
+                      <ArrowIcon size={16} />
+                    </Link>
+                  }
+                >
                   <NewArrivalsGrid products={newArrivals} />
                 </Section>
               )}

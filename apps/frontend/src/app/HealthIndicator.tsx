@@ -10,18 +10,27 @@ type Status = 'checking' | 'ok' | 'unreachable';
 export function HealthIndicator() {
   const [status, setStatus] = useState<Status>('checking');
 
+  // Re-checks every 10s while unreachable, so a page opened before the API finished starting
+  // clears itself instead of showing a stale badge until refresh.
   useEffect(() => {
     let cancelled = false;
-    axios
-      .get(`${apiRootUrl}/health`)
-      .then(() => {
-        if (!cancelled) setStatus('ok');
-      })
-      .catch(() => {
-        if (!cancelled) setStatus('unreachable');
-      });
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const check = () => {
+      axios
+        .get(`${apiRootUrl}/health`)
+        .then(() => {
+          if (!cancelled) setStatus('ok');
+        })
+        .catch(() => {
+          if (cancelled) return;
+          setStatus('unreachable');
+          timer = setTimeout(check, 10_000);
+        });
+    };
+    check();
     return () => {
       cancelled = true;
+      if (timer) clearTimeout(timer);
     };
   }, []);
 

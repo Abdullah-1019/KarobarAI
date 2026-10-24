@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { Drawer } from 'antd';
 import type { MenuProps } from 'antd';
-import { ClipboardList, Home, LogOut, Menu, Search, ShoppingBag, Store, User } from 'lucide-react';
+import { ClipboardList, Home, LogOut, Menu, MessageCircle, Search, ShoppingBag, Store, Undo2, User } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 
-import { Button, Container, LanguageToggle } from '../../components';
+import { Button, Container, CountBadge, LanguageToggle } from '../../components';
 import { useLanguage, useScrolled } from '../../hooks';
 import type { AuthUser } from '../../lib/authStore';
+import { useUnreadMessages } from '../human-chat/useUnreadMessages';
 import { NotificationBell } from '../notifications';
 import { AccountMenu, GuestAccountLink } from '../profile';
 import { AnnouncementBar } from './AnnouncementBar';
@@ -39,6 +40,10 @@ export function StorefrontHeader({ user, cartCount, onLogout }: StorefrontHeader
   const [searchOpen, setSearchOpen] = useState(false);
   const [cartPop, setCartPop] = useState(false);
   const prevCartCount = useRef(cartCount);
+  const isBuyer = user?.role === 'BUYER';
+  const unreadMessages = useUnreadMessages();
+  const messagesLabel =
+    unreadMessages > 0 ? t('common:nav.withUnread', { label: t('common:nav.messages'), count: unreadMessages }) : t('common:nav.messages');
 
   // Cart badge "pop" — only when the count grows (adding an item), not on initial mount.
   useEffect(() => {
@@ -68,7 +73,15 @@ export function StorefrontHeader({ user, cartCount, onLogout }: StorefrontHeader
         : [
             { key: 'orders', label: <Link to="/orders">{t('common:nav.orders')}</Link> },
             { key: 'returns', label: <Link to="/returns">{t('common:nav.myReturns')}</Link> },
-            { key: 'messages', label: <Link to="/messages">{t('common:nav.messages')}</Link> },
+            {
+              key: 'messages',
+              label: (
+                <Link to="/messages" className="account-menu__count-link" aria-label={messagesLabel}>
+                  {t('common:nav.messages')}
+                  {unreadMessages > 0 && <span className="account-menu__count">{unreadMessages > 9 ? '9+' : unreadMessages}</span>}
+                </Link>
+              ),
+            },
             { key: 'profile', label: <Link to="/buyer/profile">{t('common:nav.profile')}</Link> },
             { type: 'divider' },
             { key: 'logout', label: t('common:actions.logout'), onClick: onLogout },
@@ -90,6 +103,7 @@ export function StorefrontHeader({ user, cartCount, onLogout }: StorefrontHeader
               aria-label={t('marketplace:nav.openMenu')}
             >
               <Menu size={20} aria-hidden="true" />
+              {isBuyer && <CountBadge dot={unreadMessages > 0} />}
             </button>
 
             <StorefrontLogo />
@@ -124,6 +138,13 @@ export function StorefrontHeader({ user, cartCount, onLogout }: StorefrontHeader
               <LanguageToggle className="buyer-desktop" />
 
               {user && <NotificationBell />}
+
+              {isBuyer && (
+                <Link to="/messages" className="icon-btn buyer-desktop" aria-label={messagesLabel} title={t('common:nav.messages')}>
+                  <MessageCircle size={20} aria-hidden="true" />
+                  <CountBadge count={unreadMessages} />
+                </Link>
+              )}
 
               <Link to="/cart" className={`icon-btn cart-btn${cartPop ? ' is-pop' : ''}`} aria-label={t('common:nav.cart')}>
                 <ShoppingBag size={20} strokeWidth={1.9} aria-hidden="true" />
@@ -180,9 +201,16 @@ export function StorefrontHeader({ user, cartCount, onLogout }: StorefrontHeader
                 {t('common:nav.orders')}
               </Link>
               {user && <Link to="/returns" className="storefront-drawer__link" onClick={() => setMenuOpen(false)}>
-                <ClipboardList size={18} aria-hidden="true" />
+                <Undo2 size={18} aria-hidden="true" />
                 {t('common:nav.myReturns')}
               </Link>}
+              {isBuyer && (
+                <Link to="/messages" className="storefront-drawer__link" aria-label={messagesLabel} onClick={() => setMenuOpen(false)}>
+                  <MessageCircle size={18} aria-hidden="true" />
+                  {t('common:nav.messages')}
+                  {unreadMessages > 0 && <span className="storefront-drawer__count">{unreadMessages > 9 ? '9+' : unreadMessages}</span>}
+                </Link>
+              )}
               <Link to={user ? '/buyer/profile' : '/login'} className="storefront-drawer__link" onClick={() => setMenuOpen(false)}>
                 <User size={18} aria-hidden="true" />
                 {t('common:nav.profile')}

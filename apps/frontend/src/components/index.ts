@@ -11,6 +11,7 @@ export { StatusTag } from './StatusTag';
 export { STATUS_VARIANT_COLOR, type StatusVariant } from './statusVariants';
 export { QuantityStepper } from './QuantityStepper';
 export { BackLink } from './BackLink';
+export { CountBadge } from './CountBadge';
 export { ProductThumbnail } from './ProductThumbnail';
 export { PriceDisplay, PriceTag, type PriceTagProps } from './PriceDisplay';
 export { BilingualField } from './BilingualField';

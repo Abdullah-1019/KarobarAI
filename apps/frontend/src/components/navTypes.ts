@@ -6,7 +6,7 @@ export interface NavItem {
   to: string;
   label: string;
   icon: ComponentType<LucideProps>;
-  /** Buyer cart tab only — omitted or 0 renders no badge. */
+  /** Count badge on the icon (cart items, unread messages, AI replies) — omitted or 0 renders none. */
   badge?: number;
   /**
    * Match `to` exactly rather than as a path prefix. Needed for a role's root path (e.g.

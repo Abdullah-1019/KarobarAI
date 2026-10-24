@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Check, ClipboardList, Plus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-import type { ProductStatus } from '@karobarai/shared';
+import type { ProductStatus, SellerProductListDTO } from '@karobarai/shared';
 import { AiMark, PriceDisplay, ProductThumbnail, SkeletonLoader } from '../../components';
 import { OrderStatusTag } from '../orders/OrderStatusTag';
 import { listSellerOrders, sellerOrdersQueryKey } from '../orders/ordersApi';
@@ -24,6 +24,19 @@ const FILTERS: StatusFilter[] = ['ALL', 'LIVE', 'DRAFT', 'OUT_OF_STOCK', 'REMOVE
 //
 // Deliberately no revenue metric: RevenueCards documents that revenue reads "Rs. 0" for every
 // real seller until a settlement engine exists. Counts reuse existing endpoints only.
+// The dashboard counts need the whole catalogue, but /seller/products pages 20 at a time and has
+// no count endpoint (BACKEND-NOTES). Walk the pages, capped so a huge store can't loop for ever.
+const SUMMARY_PAGE_CAP = 25;
+async function listAllSellerProducts(): Promise<SellerProductListDTO> {
+  let page = await listSellerProducts(undefined, undefined);
+  const items = [...page.items];
+  for (let n = 1; page.nextCursor && n < SUMMARY_PAGE_CAP; n++) {
+    page = await listSellerProducts(undefined, page.nextCursor);
+    items.push(...page.items);
+  }
+  return { ...page, items };
+}
+
 export function SellerProductsPage() {
   const { t } = useTranslation(['catalog', 'common']);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
@@ -44,7 +57,7 @@ export function SellerProductsPage() {
   // ({pages}) and crash on `.items`. Found in live testing; see git history for details.
   const { data: allProducts } = useQuery({
     queryKey: [...sellerProductsQueryKey(undefined), 'summary'],
-    queryFn: () => listSellerProducts(undefined, undefined),
+    queryFn: listAllSellerProducts,
   });
   const { data: profile } = useQuery({ queryKey: PROFILE_QUERY_KEY, queryFn: getProfile });
   const { data: recentOrdersPage, isPending: ordersPending } = useQuery({
@@ -53,12 +66,15 @@ export function SellerProductsPage() {
   });
 
   const storeName = profile?.role === 'SELLER' ? profile.storeName : undefined;
+  const bannerUrl = profile?.role === 'SELLER' ? profile.bannerUrl : null;
   const recentOrders = recentOrdersPage?.items.slice(0, 4) ?? [];
-  // Counts only once we know it's the complete catalog (no count endpoint) — never understate.
+  // There is no count endpoint, so the summary walks every page (listAllSellerProducts).
   const countsComplete = !!allProducts && !allProducts.nextCursor;
   const totalCount = allProducts?.items.length ?? 0;
   const liveCount = allProducts?.items.filter((p) => p.status === 'LIVE').length ?? 0;
   const outOfStockCount = allProducts?.items.filter((p) => p.status === 'OUT_OF_STOCK').length ?? 0;
+  // "–" only while loading; a catalogue past the page cap shows "N+" instead of understating.
+  const countLabel = (count: number) => (!allProducts ? '–' : countsComplete ? count : `${count}+`);
 
   // Getting-started tracker, from real data only; hidden once everything is done.
   const setupSteps = [
@@ -74,7 +90,12 @@ export function SellerProductsPage() {
 
   return (
     <div className="slHome">
-      <section className="slBand">
+      <section className="slBand" data-banner={bannerUrl ? true : undefined}>
+        {bannerUrl && (
+          <span className="slBandBanner" aria-hidden="true">
+            <img src={bannerUrl} alt="" />
+          </span>
+        )}
         <div className="slBandText">
           <h1 className="slGreeting">
             {storeName ? t('catalog:dashboard.greeting', { storeName }) : t('catalog:productsList.title')}
@@ -84,15 +105,15 @@ export function SellerProductsPage() {
           <dl className="slStats" aria-busy={!countsComplete || undefined}>
             <div className="slStat">
               <dt>{t('catalog:dashboard.totalProducts')}</dt>
-              <dd>{countsComplete ? totalCount : '–'}</dd>
+              <dd>{countLabel(totalCount)}</dd>
             </div>
             <div className="slStat">
               <dt>{t('catalog:dashboard.liveProducts')}</dt>
-              <dd>{countsComplete ? liveCount : '–'}</dd>
+              <dd>{countLabel(liveCount)}</dd>
             </div>
             <div className="slStat" data-warn={outOfStockCount > 0 || undefined}>
               <dt>{t('catalog:dashboard.outOfStock')}</dt>
-              <dd>{countsComplete ? outOfStockCount : '–'}</dd>
+              <dd>{countLabel(outOfStockCount)}</dd>
             </div>
           </dl>
         </div>

@@ -282,15 +282,54 @@
   justify-content: flex-end;
   gap: 6px;
 }
-.olReturn {
-  position: absolute;
-  inset-block-end: 10px;
-  inset-inline-end: 18px;
+.olHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+}
+/* Buyer return action: its own footer strip under the row, with a real pill button. */
+.olFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-inline: 18px;
+  padding-block: 10px 12px;
+  border-block-start: 1px dashed var(--border);
+}
+.olFootNote {
+  min-width: 0;
+  color: var(--text-secondary);
   font-size: var(--fs-xs);
-  font-weight: 600;
+}
+.olReturn {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding-inline: 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface);
   color: var(--text-primary);
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  text-decoration: none;
+  transition:
+    background var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease);
+}
+.olReturn:hover {
+  border-color: var(--text-primary);
+  background: var(--bg-sunken);
+  color: var(--text-primary);
+}
+.olReturn:focus-visible {
+  outline: 3px solid var(--brand-ring);
+  outline-offset: 2px;
 }
 .olMore {
   text-align: center;
@@ -377,6 +416,49 @@
 }
 .odGhostLink--block {
   width: 100%;
+}
+.odReturnCard {
+  display: grid;
+  gap: 10px;
+}
+.odReturnNote {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+}
+.odReturnLink {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px 10px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--bg-sunken);
+  color: var(--text-primary);
+  text-decoration: none;
+}
+.odReturnLink:hover {
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--bg-sunken) 70%, var(--border));
+}
+.odReturnLink:focus-visible {
+  outline: 3px solid var(--brand-ring);
+  outline-offset: 2px;
+}
+.odReturnLinkName {
+  overflow: hidden;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.odReturnLinkGo {
+  grid-column: 1 / -1;
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .odJourneyCard {
@@ -660,10 +742,11 @@
     gap: 12px;
     padding: 14px;
   }
+  .olFoot {
+    margin-inline: 14px;
+  }
   .olReturn {
-    position: static;
-    display: block;
-    padding: 0 14px 12px;
+    min-height: 44px;
   }
   .odJourneyCard {
     flex-direction: column;

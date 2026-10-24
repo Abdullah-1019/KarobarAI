@@ -22,10 +22,12 @@ import { useTranslation } from 'react-i18next';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 import { compactDensity } from '../../app/theme';
-import { AiMark, BrandLogo, LanguageToggle } from '../../components';
+import { AiMark, BrandLogo, CountBadge, LanguageToggle } from '../../components';
 import { isNavItemActive, type NavItem } from '../../components/navTypes';
 import { useLanguage, useMediaQuery } from '../../hooks';
+import { useAiUnreadStore } from '../../lib/aiUnreadStore';
 import { useAuthStore } from '../../lib/authStore';
+import { useUnreadMessages } from '../human-chat/useUnreadMessages';
 import { NotificationBell } from '../notifications';
 import { AccountMenu } from '../profile';
 import { PROFILE_QUERY_KEY, STORE_STATUS_QUERY_KEY, getProfile, getStoreStatus } from '../profile/profileApi';
@@ -62,6 +64,8 @@ export function SellerLayout() {
     enabled: !!store,
   });
   const { dir } = useLanguage();
+  const unreadMessages = useUnreadMessages();
+  const aiUnread = useAiUnreadStore((s) => s.seller);
   // Desktop-only choice to shrink the sidebar to its icon rail; remembered on this device.
   const [collapsed, setCollapsed] = useState(() => {
     try {
@@ -100,19 +104,21 @@ export function SellerLayout() {
     { key: 'logout', label: t('actions.logout'), onClick: handleLogout },
   ];
 
-  const item = (key: string, to: string, label: string, icon: LucideIcon, exact = false): NavItem => ({
+  const item = (key: string, to: string, label: string, icon: LucideIcon, exact = false, badge = 0): NavItem => ({
     key,
     to,
     label,
     icon,
     exact,
+    badge,
   });
+  const withUnread = (label: string, count: number) => (count > 0 ? t('nav.withUnread', { label, count }) : label);
   const home = item('home', '/seller', t('nav.sellerHome'), House, true);
   const orders = item('orders', '/seller/orders', t('nav.orders'), ClipboardList);
   const returns = item('returns', '/seller/returns', t('nav.returns'), Undo2);
-  const messages = item('messages', '/seller/messages', t('nav.messages'), MessageCircle);
+  const messages = item('messages', '/seller/messages', t('nav.messages'), MessageCircle, false, unreadMessages);
   const analytics = item('analytics', '/seller/analytics', t('nav.analytics'), BarChart3);
-  const assistant = item('assistant', '/seller/assistant', t('nav.assistant'), Bot);
+  const assistant = item('assistant', '/seller/assistant', t('nav.assistant'), Bot, false, aiUnread);
   const wallet = item('wallet', '/seller/wallet', t('nav.wallet'), Wallet);
   const settings = item('settings', '/seller/profile/settings', t('nav.adminConfig'), Settings);
 
@@ -149,11 +155,13 @@ export function SellerLayout() {
         to={navItem.to}
         className="slNavLink"
         title={collapsed ? navItem.label : undefined}
+        aria-label={navItem.badge ? withUnread(navItem.label, navItem.badge) : undefined}
         aria-current={active ? 'page' : undefined}
         data-active={active || undefined}
       >
         <span className="slNavIcon">
           <Icon size={18} aria-hidden="true" />
+          <CountBadge count={navItem.badge} />
         </span>
         <span className="slNavLabel">{navItem.label}</span>
       </Link>
@@ -240,11 +248,23 @@ export function SellerLayout() {
           <div className="slTopActions">
             {!settingUp && (
               <>
-                <Link to="/seller/assistant" className="slIconBtn slIconBtn--ai" aria-label={t('nav.assistant')} title={t('nav.assistant')}>
+                <Link
+                  to="/seller/assistant"
+                  className="slIconBtn slIconBtn--ai"
+                  aria-label={withUnread(t('nav.assistant'), aiUnread)}
+                  title={t('nav.assistant')}
+                >
                   <AiMark size={16} color="currentColor" />
+                  <CountBadge count={aiUnread} />
                 </Link>
-                <Link to="/seller/messages" className="slIconBtn" aria-label={t('nav.messages')} title={t('nav.messages')}>
+                <Link
+                  to="/seller/messages"
+                  className="slIconBtn"
+                  aria-label={withUnread(t('nav.messages'), unreadMessages)}
+                  title={t('nav.messages')}
+                >
                   <MessageCircle size={18} aria-hidden="true" />
+                  <CountBadge count={unreadMessages} />
                 </Link>
                 <span className="slBell">
                   <NotificationBell />

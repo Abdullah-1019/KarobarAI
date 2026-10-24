@@ -152,8 +152,21 @@ The UI does **not** fake any of these. Each one is left out until the field exis
 | Real **product photos** in the dev seed | Every product card and the Home hero fan | The seed points at placeholder SVG illustrations (`public/demo/products/*.svg`). Not a blocker. |
 | Product **thumbnail on orders** (`thumbnailUrl` on `OrderListItemDTO` = first item, and on each `OrderItemDetailDTO`; ideally a snapshot taken at order time) | Orders list rows (buyer + seller), order detail items, tracking band | Not in the order DTOs. Detail/tracking fetch each product via `GET /products/:id` (works, but shows the product's *current* photo and fails for removed products). The list shows an initial avatar until the field exists; the row is built to swap in the photo. |
 | **Store slug on the seller profile** (`storeSlug` on `SellerProfileDTO` from `GET /profile/me`) | Seller profile header: a "View my store" button that opens the public `/store/:storeSlug` page | The seller profile has no slug, so the button is left out for now. Adding the field is enough; the page is ready to show the link. |
+| **Banner + preview photos on the store directory** (`bannerUrl` and the first 3–4 product `imageUrl`s on each `GET /stores` item) | All Stores page cards (banner, shop-window photos, product strip) | Not in `StoreDirectoryItem`. Each card fetches that store's `GET /stores/:slug` storefront to get them (12 extra requests per page, cached and shared with the store page). Adding the fields lets the card drop that fetch. |
+| **Unread messages total** (`GET /human-chat/unread-count`, or a socket event app-wide) | Messages badge in the buyer header and seller top bar/nav | Badge sums `unreadCount` over the first page of conversations and polls every 30s. |
+| **Seller product counts** (`GET /seller/products/summary` → total / live / out of stock) | Seller home stats | No count endpoint. The dashboard walks every 20-item page of `/seller/products` (capped at 25 pages, shows "N+" beyond that). |
+| **Mark all notifications read** (`PATCH /notifications/read-all`) | "Mark all as read" on the Notifications page | Marks each loaded unread item one by one. |
 
 ---
+
+## Shared DB: demo store catalogue (2026-10-24, Rafia + Claude)
+
+- **What:** 5 demo stores were seeded into the shared Neon database with 111 LIVE products from Rafia's photos in `apps/stores/`: Zainab Fashion House, Lahore Kitchen Mart, TechZone Karachi, Glow Beauty by Hira and Sialkot Sports Hub.
+- **Script:** `apps/backend/prisma/seed-store-catalog.ts`, data in `prisma/store-catalog-data.ts`. It is idempotent and runs from the host without Docker.
+- **Seller logins:** the emails in the data file, password `Seller@123`.
+- **Prices:** realistic PKR estimates, not real listings.
+- **Home feed mix:** the script staggers `createdAt` round-robin across the 5 stores, because the feed (`getHomeFeed`) is just the 12 newest LIVE products, and Featured and New arrivals are the same query. A real fix on the API side would help: cap products per store in the feed, and make Featured differ from New arrivals.
+- **Pending:** product embeddings were not generated (they need Ollama). Run `scripts/backfill-product-embeddings.ts` in the api container so AI search and the store chatbot include these products.
 
 ## 4. Open questions
 

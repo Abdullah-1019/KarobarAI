@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
 import { changePasswordSchema } from '@karobarai/shared';
-import { PasswordField } from '../../components';
+import { BackLink, PasswordField } from '../../components';
 import { ApiError } from '../../api';
 import { useAuthStore } from '../../lib/authStore';
 import { changePassword } from './profileApi';
@@ -95,6 +95,7 @@ export function ChangePasswordPage() {
 
   return (
     <div className="pfPage stPage">
+      {user?.role === 'BUYER' && <div><BackLink to={profilePath} label={t('profile:changePasswordUi.backToProfile')} /></div>}
       <header className="stHead">
         <h1 className="stTitle">{t('profile:changePassword.title')}</h1>
         <p className="stSub">{t('profile:changePasswordUi.subtitle')}</p>

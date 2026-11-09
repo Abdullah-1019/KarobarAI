@@ -107,9 +107,9 @@ export function SellerReturnsPage() {
                   <Link to={`/seller/returns/${item.id}`} className="rtRow">
                     <ProductThumbnail src={item.productImage ?? null} size={52} radius="md" />
                     <span className="olMain">
-                      <span className="rtRowTitle">{item.productName ?? (item.orderNumber ? `#${item.orderNumber}` : item.orderId)}</span>
+                      <span className="rtRowTitle">{item.productName ?? `#${item.orderNumber ?? '…'}`}</span>
                       <span className="olMeta">
-                        {item.orderNumber ? `#${item.orderNumber}` : item.orderId.slice(0, 8)} · {new Date(item.createdAt).toLocaleDateString()}
+                        {item.orderNumber && <>#{item.orderNumber} · </>}{new Date(item.createdAt).toLocaleDateString()}
                       </span>
                       <span className="rtReason">{reasonLabel(t, item.reason)}</span>
                     </span>

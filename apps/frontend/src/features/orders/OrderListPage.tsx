@@ -136,7 +136,7 @@ export function OrderListPage({ scope }: OrderListPageProps) {
                   </span>
 
                   <span className="olMain">
-                    <span className="olNumber">{item.orderNumber ? `#${item.orderNumber}` : item.id.slice(0, 8)}</span>
+                    <span className="olNumber">{`#${item.orderNumber ?? '…'}`}</span>
                     <span className="olMeta">
                       {item.counterpartyName} · {new Date(item.placedAt).toLocaleDateString()}
                     </span>

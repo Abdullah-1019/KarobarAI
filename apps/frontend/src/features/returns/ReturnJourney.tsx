@@ -4,8 +4,8 @@ import { useTranslation } from 'react-i18next';
 import type { ReturnDetailDTO } from '@karobarai/shared';
 import { buildSteps } from './returnSteps';
 
-// The return's steps as a filled track for the seller detail band — same step logic as
-// ReturnProgressTimeline (buyer status page, admin), drawn like the order journey. The number of
+// The return's steps as a filled track for the detail band (buyer status, seller and admin
+// detail), from returnSteps.ts, drawn like the order journey. The number of
 // steps varies (rejected returns stop at the decision; exchanges run longer), so the track is a
 // flexible row on wide screens and a vertical list on phones.
 export function ReturnJourney({ ret }: { ret: ReturnDetailDTO }) {

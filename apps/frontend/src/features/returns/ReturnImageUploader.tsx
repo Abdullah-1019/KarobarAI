@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { Alert, Button } from 'antd';
+import { Camera, Check, ImagePlus, Loader2, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import type { ReturnImageDTO } from '@karobarai/shared';
@@ -15,13 +16,18 @@ interface ReturnImageUploaderProps {
   onChange: (images: ReturnImageDTO[]) => void;
 }
 
-// Mirrors features/catalog/ProductImageManager.tsx's multi-image grid closely, minus reordering
-// — position doesn't matter for return evidence photos, only count (>=3, REQ-F-Return-002).
+const isTouch = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches;
+
+// One slot per listing view: the listing photo beside the buyer's matching photo. Order matters
+// (the AI compares pair by pair), so only the next empty slot opens the picker and only the last
+// photo can be removed. Upload/remove calls are unchanged; minimum count is REQ-F-Return-002.
 export function ReturnImageUploader({ returnId, images, references, maxImages, onChange }: ReturnImageUploaderProps) {
   const { t } = useTranslation(['returns']);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const full = images.length >= maxImages;
 
   async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files ?? []);
@@ -58,46 +64,78 @@ export function ReturnImageUploader({ returnId, images, references, maxImages, o
   }
 
   return (
-    <div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--sp-3)', marginBottom: 'var(--sp-3)' }}>
-        {Array.from({ length: maxImages }, (_, index) => (
-          <div key={references[index]?.id ?? `slot-${index}`} style={{ position: 'relative', width: 160 }}>
-            <div style={{ marginBottom: 'var(--sp-1)' }}>{t('wizard.angleNumber', { count: index + 1 })}</div>
-            {references[index] && <img src={references[index].url} alt={t('wizard.referenceAlt', { count: index + 1 })}
-              style={{ width: 100, height: 100, objectFit: 'contain' }} />}
-            {images[index] && <PrivateEvidenceImage url={images[index].cdnUrl} size={100} />}
-            {images[index] && (
-            <Button
-              size="small"
-              danger
-              disabled={busy || index !== images.length - 1}
-              onClick={() => handleRemove(images[index]!.id)}
-              style={{ display: 'block', margin: 'var(--sp-1) auto 0' }}
-            >
-              {t('wizard.removeImage')}
+    <div className="rwPhotos">
+      <ol className="rwSlots">
+        {Array.from({ length: maxImages }, (_, index) => {
+          const reference = references[index];
+          const image = images[index];
+          const isNext = index === images.length;
+          return (
+            <li key={reference?.id ?? `slot-${index}`} className="rwSlot" data-filled={image ? true : undefined}>
+              <span className="rwSlotHead">
+                <span className="rwSlotNum">{index + 1}</span>
+                {t('wizard.angleNumber', { count: index + 1 })}
+              </span>
+              <div className="rwSlotPair" data-single={!reference || undefined}>
+                {reference && (
+                  <figure className="rwSlotRef">
+                    <img src={reference.url} alt={t('wizard.referenceAlt', { count: index + 1 })} />
+                    <figcaption>{t('buyerFlow.slotListing')}</figcaption>
+                  </figure>
+                )}
+                {image ? (
+                  <div className="rwSlotMine">
+                    <PrivateEvidenceImage url={image.cdnUrl} fill />
+                    <span className="rwSlotTick" aria-hidden="true"><Check size={13} strokeWidth={3} /></span>
+                    {index === images.length - 1 && (
+                      <button type="button" className="rwSlotRemove" disabled={busy}
+                        aria-label={t('buyerFlow.slotRemove', { count: index + 1 })}
+                        onClick={() => void handleRemove(image.id)}>
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <button type="button" className="rwSlotEmpty" disabled={busy || !isNext}
+                    data-next={isNext || undefined} onClick={() => fileInputRef.current?.click()}>
+                    {busy && isNext ? <Loader2 size={20} className="rwSpin" aria-hidden="true" /> : <ImagePlus size={20} aria-hidden="true" />}
+                    <span>{t('buyerFlow.slotEmpty')}</span>
+                  </button>
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+
+      <div className="rwPhotoBar">
+        <div className="rwMeter" role="status">
+          <span className="rwMeterDots" aria-hidden="true">
+            {Array.from({ length: maxImages }, (_, index) => (
+              <span key={index} data-on={index < images.length || undefined} />
+            ))}
+          </span>
+          <span className="rwMeterText" data-done={full || undefined}>
+            {full ? t('buyerFlow.photosReady') : t('wizard.pairedImageCount', { count: images.length, required: maxImages })}
+          </span>
+        </div>
+        <div className="rwPhotoActions">
+          <Button shape="round" icon={<ImagePlus size={16} />} loading={busy} disabled={full}
+            onClick={() => fileInputRef.current?.click()}>
+            {t('buyerFlow.choosePhotos')}
+          </Button>
+          {isTouch && (
+            <Button shape="round" icon={<Camera size={16} />} disabled={busy || full}
+              onClick={() => cameraInputRef.current?.click()}>
+              {t('buyerFlow.takePhoto')}
             </Button>
-            )}
-          </div>
-        ))}
+          )}
+        </div>
       </div>
 
-      <Button loading={busy} disabled={images.length >= maxImages} onClick={() => fileInputRef.current?.click()}>
-        {t('wizard.uploadImages')}
-      </Button>
-      <input
-        ref={fileInputRef}
-        type="file"
-        multiple
-        accept="image/jpeg,image/png,image/webp"
-        style={{ display: 'none' }}
-        onChange={handleFileChange}
-      />
-      <div style={{ marginTop: 'var(--sp-1)' }}>
-        <span style={{ color: images.length === maxImages ? 'var(--success)' : 'var(--text-secondary)' }}>
-          {t('wizard.pairedImageCount', { count: images.length, required: maxImages })}
-        </span>
-      </div>
-      {error && <Alert type="error" message={error} showIcon style={{ marginTop: 'var(--sp-2)', maxWidth: 480 }} />}
+      <input ref={fileInputRef} type="file" multiple accept="image/jpeg,image/png,image/webp" hidden onChange={handleFileChange} />
+      <input ref={cameraInputRef} type="file" accept="image/jpeg,image/png,image/webp" capture="environment" hidden onChange={handleFileChange} />
+      {error && <Alert type="error" message={error} showIcon className="rwAlert" />}
     </div>
   );
 }

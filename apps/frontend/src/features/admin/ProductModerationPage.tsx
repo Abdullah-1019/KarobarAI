@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { Alert, Button, Divider, Drawer, Segmented, Space, Table, Typography, Input } from 'antd';
+import { Alert, Button, Drawer, Input } from 'antd';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { ArrowUpRight, ChevronRight, EyeOff, Info, Package, RotateCcw, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 
-import type { AdminProductListItemDTO } from '@karobarai/shared';
-import { EmptyState, Modal, PageHeader, PriceDisplay, SkeletonLoader, toast } from '../../components';
+import { Modal, PriceDisplay, ProductThumbnail, SkeletonLoader, StatusTag, type StatusVariant, toast } from '../../components';
 import { useAuthStore } from '../../lib/authStore';
+import { getProduct, productQueryKey } from '../catalog/catalogApi';
 import {
   adminModerationQueryKey,
   adminProductDetailQueryKey,
@@ -20,12 +22,21 @@ import { formatAdminError } from './adminErrors';
 type StatusFilter = NonNullable<AdminModerationParams['status']> | 'ALL';
 type PendingAction = { type: 'takedown' | 'restore'; productId: string } | null;
 
-// SCR-AD05 — moderation queue across every seller, filterable by status. No `reported`/flagged
-// filter is exposed — the module doc's own confirmed gap: no product-reporting mechanism exists
-// anywhere in this codebase (no table, no buyer-facing "report" action), so this is deliberately
-// all-products-filterable-by-status only, not a queue of complaints.
+const FILTERS: StatusFilter[] = ['ALL', 'LIVE', 'DRAFT', 'OUT_OF_STOCK', 'REMOVED'];
+const PRODUCT_STATUS_VARIANT: Record<string, StatusVariant> = {
+  LIVE: 'success',
+  DRAFT: 'neutral',
+  OUT_OF_STOCK: 'warning',
+  REMOVED: 'error',
+};
+
+// SCR-AD05 — every listing across every seller, filterable by status, at compact admin density.
+// No `reported`/flagged filter: no product-reporting mechanism exists anywhere in this codebase
+// (no table, no buyer "report" action), so this is all-products-by-status, not a complaints queue.
+// The admin list DTO carries no image, so rows show a status-tinted mark; the drawer tries the
+// public product read for a photo (it 404s for drafts/removed listings, which just keep the mark).
 export function ProductModerationPage() {
-  const { t } = useTranslation(['admin']);
+  const { t } = useTranslation(['admin', 'common']);
   const queryClient = useQueryClient();
   const isAdmin = useAuthStore((s) => s.user?.role === 'ADMIN');
 
@@ -36,7 +47,7 @@ export function ProductModerationPage() {
 
   const params: AdminModerationParams = { status: statusFilter === 'ALL' ? undefined : statusFilter };
 
-  const { data, isPending, isError, error, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
+  const { data, isPending, isError, error, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
     queryKey: adminModerationQueryKey(params),
     queryFn: ({ pageParam }: { pageParam: string | undefined }) => listModerationQueue(params, pageParam),
     initialPageParam: undefined as string | undefined,
@@ -50,6 +61,15 @@ export function ProductModerationPage() {
     queryFn: () => getAdminProductDetail(selectedProductId ?? ''),
     enabled: !!selectedProductId,
   });
+  const product = detail.data;
+  const publicProduct = useQuery({
+    queryKey: productQueryKey(selectedProductId ?? ''),
+    queryFn: () => getProduct(selectedProductId ?? ''),
+    enabled: !!selectedProductId && product?.status !== 'REMOVED' && product?.status !== 'DRAFT' && !!product,
+    retry: false,
+    staleTime: 5 * 60_000,
+  });
+  const photo = publicProduct.data ? [...publicProduct.data.images].sort((a, b) => a.position - b.position)[0]?.url ?? null : null;
 
   const actionMutation = useMutation({
     mutationFn: (input: { type: 'takedown' | 'restore'; productId: string; reason: string }) =>
@@ -64,53 +84,58 @@ export function ProductModerationPage() {
     onError: (err) => toast.error(formatAdminError(t, err)),
   });
 
-  const columns = [
-    { title: t('moderation.columnTitle'), dataIndex: 'titleEn', key: 'titleEn' },
-    { title: t('moderation.columnStore'), dataIndex: 'storeName', key: 'storeName' },
-    { title: t('moderation.columnStatus'), dataIndex: 'status', key: 'status', render: (s: string) => t(`moderation.status.${s}`) },
-    {
-      title: t('moderation.columnCreatedAt'),
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      render: (v: string) => new Date(v).toLocaleDateString(),
-    },
-    {
-      title: '',
-      key: 'actions',
-      render: (_: unknown, record: AdminProductListItemDTO) => (
-        <Button size="small" onClick={() => setSelectedProductId(record.id)}>
-          {t('moderation.view')}
-        </Button>
-      ),
-    },
-  ];
-
   return (
-    <div>
-      <PageHeader title={t('moderation.title')} />
+    <div className="adPage">
+      <header className="adHead">
+        <h1 className="adTitle">{t('moderation.title')}</h1>
+        <p className="adSub">{t('moderation.subtitle')}</p>
+      </header>
 
-      <Segmented
-        style={{ marginBottom: 'var(--sp-4)' }}
-        value={statusFilter}
-        onChange={(v) => setStatusFilter(v as StatusFilter)}
-        options={[
-          { label: t('moderation.statusAll'), value: 'ALL' },
-          { label: t('moderation.status.DRAFT'), value: 'DRAFT' },
-          { label: t('moderation.status.LIVE'), value: 'LIVE' },
-          { label: t('moderation.status.OUT_OF_STOCK'), value: 'OUT_OF_STOCK' },
-          { label: t('moderation.status.REMOVED'), value: 'REMOVED' },
-        ]}
-      />
+      <div className="adPills adPills--bar" role="radiogroup" aria-label={t('moderation.columnStatus')}>
+        {FILTERS.map((value) => (
+          <button key={value} type="button" role="radio" aria-checked={statusFilter === value}
+            className="adPill" onClick={() => setStatusFilter(value)}>
+            {value === 'ALL' ? t('moderation.statusAll') : t(`moderation.status.${value}`)}
+          </button>
+        ))}
+      </div>
 
-      {isPending && <SkeletonLoader rows={4} />}
-      {isError && <Alert type="error" showIcon message={formatAdminError(t, error)} />}
-      {!isPending && !isError && items.length === 0 && <EmptyState title={t('moderation.empty')} />}
+      {isPending && <SkeletonLoader rows={5} />}
+      {isError && (
+        <Alert type="error" showIcon message={formatAdminError(t, error)}
+          action={<Button size="small" shape="round" onClick={() => void refetch()}>{t('common:actions.retry')}</Button>} />
+      )}
+      {!isPending && !isError && items.length === 0 && (
+        <div className="adEmpty">
+          <span className="adEmptyIcon" aria-hidden="true"><Package size={22} /></span>
+          <p>{t('moderation.empty')}</p>
+        </div>
+      )}
       {!isPending && !isError && items.length > 0 && (
         <>
-          <Table rowKey="id" columns={columns} dataSource={items} pagination={false} size="middle" scroll={{ x: true }} />
+          <ul className="adRows" key={statusFilter}>
+            {items.map((item, index) => (
+              <li key={item.id} style={{ animationDelay: `${Math.min(index, 10) * 30}ms` }}>
+                <button type="button" className="adRow adRow--product" onClick={() => setSelectedProductId(item.id)}>
+                  <span className="adMark" data-status={item.status} aria-hidden="true">
+                    {item.status === 'REMOVED' ? <EyeOff size={16} /> : <Package size={16} />}
+                  </span>
+                  <span className="adRowMain">
+                    <span className="adRowName" dir="auto">{item.titleEn}</span>
+                    <span className="adRowMeta" dir="auto">{item.storeName}</span>
+                  </span>
+                  <span className="adRowStatus">
+                    <StatusTag variant={PRODUCT_STATUS_VARIANT[item.status] ?? 'neutral'} label={t(`moderation.status.${item.status}`)} />
+                  </span>
+                  <span className="adRowDate">{t('moderation.added', { date: new Date(item.createdAt).toLocaleDateString() })}</span>
+                  <ChevronRight size={16} className="adChevron" aria-hidden="true" />
+                </button>
+              </li>
+            ))}
+          </ul>
           {hasNextPage && (
-            <div style={{ textAlign: 'center', marginTop: 'var(--sp-4)' }}>
-              <Button loading={isFetchingNextPage} onClick={() => fetchNextPage()}>
+            <div className="adMore">
+              <Button shape="round" loading={isFetchingNextPage} onClick={() => fetchNextPage()}>
                 {t('moderation.loadMore')}
               </Button>
             </div>
@@ -118,63 +143,69 @@ export function ProductModerationPage() {
         </>
       )}
 
-      <Drawer open={!!selectedProductId} onClose={() => setSelectedProductId(null)} title={t('moderation.drawerTitle')} width={420}>
+      <Drawer open={!!selectedProductId} onClose={() => setSelectedProductId(null)} title={t('moderation.drawerTitle')}
+        width={440} className="adDrawer">
         {detail.isPending && <SkeletonLoader rows={5} />}
         {detail.isError && <Alert type="error" showIcon message={formatAdminError(t, detail.error)} />}
-        {detail.isSuccess && (
-          <Space direction="vertical" size={12} style={{ width: '100%' }}>
-            <div>
-              <Typography.Text type="secondary">{t('moderation.columnTitle')}</Typography.Text>
-              <div>{detail.data.titleEn}</div>
-              {detail.data.titleUr && <div dir="rtl">{detail.data.titleUr}</div>}
-            </div>
-            <div>
-              <Typography.Text type="secondary">{t('moderation.columnStore')}</Typography.Text>
-              <div>{detail.data.storeName}</div>
-            </div>
-            <div>
-              <Typography.Text type="secondary">{t('moderation.columnStatus')}</Typography.Text>
-              <div>{t(`moderation.status.${detail.data.status}`)}</div>
-            </div>
-            <div>
-              <Typography.Text type="secondary">{t('moderation.price')}</Typography.Text>
-              <div>
-                <PriceDisplay amount={detail.data.price} size="sm" />
+        {product && (
+          <div className="adDetail">
+            <div className="adProductHead" data-status={product.status}>
+              <ProductThumbnail src={photo} size={88} radius="md" />
+              <div className="adDetailWho">
+                <p className="adDetailName" dir="auto">{product.titleEn}</p>
+                {product.titleUr && <p className="adDetailAlt" dir="rtl">{product.titleUr}</p>}
+                <div className="adDetailTags">
+                  <StatusTag variant={PRODUCT_STATUS_VARIANT[product.status] ?? 'neutral'} label={t(`moderation.status.${product.status}`)} />
+                </div>
               </div>
             </div>
-            <div>
-              <Typography.Text type="secondary">{t('moderation.stock')}</Typography.Text>
-              <div>{detail.data.stock}</div>
-            </div>
-            {detail.data.descriptionEn && (
-              <div>
-                <Typography.Text type="secondary">{t('moderation.description')}</Typography.Text>
-                <div>{detail.data.descriptionEn}</div>
-              </div>
+            {product.status === 'REMOVED' && (
+              <p className="adNote"><EyeOff size={15} aria-hidden="true" /> {t('moderation.removedNote')}</p>
+            )}
+
+            <section className="adFacts">
+              <dl>
+                <div><dt>{t('moderation.columnStore')}</dt><dd dir="auto">{product.storeName}</dd></div>
+                <div><dt>{t('moderation.price')}</dt><dd><PriceDisplay amount={product.price} size="sm" /></dd></div>
+                <div><dt>{t('moderation.stock')}</dt><dd data-hot={product.stock === 0 || undefined}>{t('moderation.inStock', { count: product.stock })}</dd></div>
+                <div><dt>{t('moderation.columnCreatedAt')}</dt><dd>{new Date(product.createdAt).toLocaleDateString()}</dd></div>
+              </dl>
+            </section>
+
+            {product.descriptionEn && (
+              <section className="adFacts">
+                <h3>{t('moderation.description')}</h3>
+                <p className="adDesc" dir="auto">{product.descriptionEn}</p>
+              </section>
+            )}
+
+            {product.status === 'LIVE' && (
+              <Link to={`/product/${product.id}`} target="_blank" rel="noreferrer" className="adGhostLink">
+                {t('moderation.viewOnStore')} <ArrowUpRight size={15} aria-hidden="true" />
+              </Link>
             )}
 
             {isAdmin ? (
-              <>
-                <Divider style={{ margin: 'var(--sp-1) 0' }} />
-                <Typography.Text strong style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-secondary)' }}>
-                  {t('moderation.sectionActions')}
-                </Typography.Text>
-                <Space>
-                {detail.data.status !== 'REMOVED' ? (
-                  <Button danger onClick={() => setPendingAction({ type: 'takedown', productId: detail.data.id })}>
-                    {t('moderation.takedown')}
-                  </Button>
-                ) : (
-                  <Button type="primary" onClick={() => setPendingAction({ type: 'restore', productId: detail.data.id })}>
-                    {t('moderation.restore')}
-                  </Button>
-                )}
-                </Space>
-              </>
+              <section className="adFacts">
+                <h3>{t('moderation.sectionActions')}</h3>
+                <div className="adActions">
+                  {product.status !== 'REMOVED' ? (
+                    <Button shape="round" danger icon={<Trash2 size={16} />}
+                      onClick={() => setPendingAction({ type: 'takedown', productId: product.id })}>
+                      {t('moderation.takedown')}
+                    </Button>
+                  ) : (
+                    <Button shape="round" type="primary" icon={<RotateCcw size={16} />}
+                      onClick={() => setPendingAction({ type: 'restore', productId: product.id })}>
+                      {t('moderation.restore')}
+                    </Button>
+                  )}
+                </div>
+              </section>
             ) : (
-              <Alert style={{ marginTop: 'var(--sp-4)' }} type="info" message={t('supportReadOnly')} />
+              <p className="adNote"><Info size={15} aria-hidden="true" /> {t('moderation.readOnlyNote')}</p>
             )}
-          </Space>
+          </div>
         )}
       </Drawer>
 
@@ -193,6 +224,7 @@ export function ProductModerationPage() {
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           placeholder={t('moderation.reasonRequired')}
+          aria-label={t('moderation.reasonRequired')}
           maxLength={500}
           rows={3}
         />

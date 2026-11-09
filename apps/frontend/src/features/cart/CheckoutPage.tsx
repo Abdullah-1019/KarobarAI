@@ -35,15 +35,17 @@ const PENDING_STRIPE_CHECKOUT_KEY = 'karobarai.pending-stripe-checkout';
 // saved address lands straight on Review. "Continue" is ink; "Place order" is the one persimmon.
 // The order, Stripe and Idempotency-Key logic below is unchanged from the earlier build.
 export function CheckoutPage() {
-  const { t } = useTranslation(['cart']);
+  const { t } = useTranslation(['cart', 'common']);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const { data: cart, isPending: cartPending } = useQuery({ queryKey: CART_QUERY_KEY, queryFn: getCart });
-  const { data: addresses, isPending: addressesPending } = useQuery({
+  const cartQuery = useQuery({ queryKey: CART_QUERY_KEY, queryFn: getCart });
+  const { data: cart, isPending: cartPending } = cartQuery;
+  const addressesQuery = useQuery({
     queryKey: ADDRESSES_QUERY_KEY,
     queryFn: listAddresses,
   });
+  const { data: addresses, isPending: addressesPending } = addressesQuery;
   const { data: paymentConfig } = useQuery({ queryKey: ['payments', 'config'], queryFn: getPaymentConfig });
 
   const [addressId, setAddressId] = useState<string | undefined>(undefined);
@@ -220,6 +222,24 @@ export function CheckoutPage() {
           </div>
           <Skeleton height={260} radius="24px" style={{ display: 'block' }} />
         </div>
+      </div>
+    );
+  }
+
+  // A failed load must not read as "nothing to check out": say so and offer a retry.
+  if (cartQuery.isError || addressesQuery.isError) {
+    return (
+      <div className="pdp-missing">
+        <Alert
+          type="error"
+          showIcon
+          message={formatCartError(t, cartQuery.error ?? addressesQuery.error)}
+          action={
+            <Button variant="secondary" onClick={() => { void cartQuery.refetch(); void addressesQuery.refetch(); }}>
+              {t('common:actions.retry')}
+            </Button>
+          }
+        />
       </div>
     );
   }

@@ -1,6 +1,6 @@
 import { createBrowserRouter } from 'react-router-dom';
 
-import { EmptyState } from '../components';
+import { NotFoundPage } from './NotFoundPage';
 import {
   AdminDashboardPage,
   AdminLayout,
@@ -143,8 +143,8 @@ export const router = createBrowserRouter([
     element: import.meta.env.DEV ? (
       <UiGalleryPage />
     ) : (
-      <EmptyState title="Page not found" description="We couldn't find that." />
+      <NotFoundPage />
     ),
   },
-  { path: '*', element: <EmptyState title="Page not found" description="We couldn't find that." /> },
+  { path: '*', element: <NotFoundPage /> },
 ]);

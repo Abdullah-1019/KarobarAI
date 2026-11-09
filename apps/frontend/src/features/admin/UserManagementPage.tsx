@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Alert, Button, Divider, Drawer, Input, Select, Space, Table, Typography } from 'antd';
+import { Alert, Button, Drawer, Input, Select } from 'antd';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Ban, ChevronRight, Info, PauseCircle, PlayCircle, Search, UserRound } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import type { AdminUserListItemDTO, UserStatus } from '@karobarai/shared';
-import { EmptyState, Modal, PageHeader, SkeletonLoader, StatusTag, type StatusVariant, toast } from '../../components';
+import { Modal, SkeletonLoader, StatusTag, type StatusVariant, toast } from '../../components';
 import { useAuthStore } from '../../lib/authStore';
 import {
   adminUserDetailQueryKey,
@@ -19,10 +20,8 @@ import {
 import { formatAdminError } from './adminErrors';
 
 // Mirrors components/StatusChip.tsx's variant mapping for the same UserStatus enum — but this
-// screen uses admin:userDetail.status.* labels (e.g. plain "Suspended"), not StatusChip's
-// profile:status.* wording ("Suspended — contact support", written for the account owner, not an
-// admin reviewing someone else's account) — so it renders StatusTag directly with the correct
-// label instead of reusing StatusChip verbatim.
+// screen uses admin:userDetail.status.* labels (plain "Suspended"), not StatusChip's
+// profile:status.* wording written for the account owner, so it renders StatusTag directly.
 const USER_STATUS_VARIANT: Record<UserStatus, StatusVariant> = {
   PENDING_VERIFICATION: 'warning',
   ACTIVE: 'success',
@@ -30,15 +29,22 @@ const USER_STATUS_VARIANT: Record<UserStatus, StatusVariant> = {
   BANNED: 'error',
   DEACTIVATED: 'neutral',
 };
+const ROLES = ['BUYER', 'SELLER', 'ADMIN', 'SUPPORT'] as const;
+const STATUSES = ['PENDING_VERIFICATION', 'ACTIVE', 'SUSPENDED', 'BANNED', 'DEACTIVATED'] as const;
 
 type PendingAction = { type: 'suspend' | 'ban' | 'reactivate'; userId: string } | null;
 
-// SCR-AD02 — searchable/filterable user table + detail drawer with suspend/ban/reactivate.
-// Search is blind-index EXACT match only (phone or email, whole value) — the backend's own
-// documented limitation, not something this UI can work around (no fuzzy/partial search over
-// encrypted PII is possible, per F12-admin-panel-backend.md).
+/** The account's readable name: store, then email, then phone. Never the internal id. */
+function primaryName(user: Pick<AdminUserListItemDTO, 'storeName' | 'email' | 'phone'>) {
+  return user.storeName ?? user.email ?? user.phone ?? null;
+}
+
+// SCR-AD02 — searchable/filterable user list + detail drawer with suspend/ban/reactivate, at
+// compact admin density. Search is blind-index EXACT match only (phone or email, whole value) —
+// the backend's documented limitation (no partial search over encrypted PII), so the toolbar says
+// so. Rows open the drawer; actions stay Admin-only, Support sees a read-only note.
 export function UserManagementPage() {
-  const { t } = useTranslation(['admin']);
+  const { t } = useTranslation(['admin', 'common']);
   const queryClient = useQueryClient();
   const isAdmin = useAuthStore((s) => s.user?.role === 'ADMIN');
 
@@ -51,7 +57,7 @@ export function UserManagementPage() {
 
   const params: AdminUserSearchParams = { role, status, search };
 
-  const { data, isPending, isError, error, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
+  const { data, isPending, isError, error, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
     queryKey: adminUsersQueryKey(params),
     queryFn: ({ pageParam }: { pageParam: string | undefined }) => listAdminUsers(params, pageParam),
     initialPageParam: undefined as string | undefined,
@@ -82,77 +88,91 @@ export function UserManagementPage() {
     onError: (err) => toast.error(formatAdminError(t, err)),
   });
 
-  const columns = [
-    { title: t('userDetail.columnRole'), dataIndex: 'role', key: 'role', render: (r: string) => t(`userDetail.role.${r}`) },
-    {
-      title: t('userDetail.columnStatus'),
-      dataIndex: 'status',
-      key: 'status',
-      render: (s: UserStatus) => <StatusTag variant={USER_STATUS_VARIANT[s]} label={t(`userDetail.status.${s}`)} />,
-    },
-    { title: t('userDetail.columnEmail'), dataIndex: 'email', key: 'email', render: (v: string | null) => v ?? '—' },
-    { title: t('userDetail.columnPhone'), dataIndex: 'phone', key: 'phone', render: (v: string | null) => v ?? '—' },
-    { title: t('userDetail.columnStore'), dataIndex: 'storeName', key: 'storeName', render: (v: string | null) => v ?? '—' },
-    {
-      title: t('userDetail.columnCreatedAt'),
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      render: (v: string) => new Date(v).toLocaleDateString(),
-    },
-    {
-      title: '',
-      key: 'actions',
-      render: (_: unknown, record: AdminUserListItemDTO) => (
-        <Button size="small" onClick={() => setSelectedUserId(record.id)}>
-          {t('userDetail.view')}
-        </Button>
-      ),
-    },
-  ];
-
   const isPlaceholder = reason.trim().length === 0 && pendingAction?.type !== 'reactivate';
+  const user = detail.data;
+  const userName = user ? primaryName(user) : null;
 
   return (
-    <div>
-      <PageHeader title={t('userDetail.title')} />
+    <div className="adPage">
+      <header className="adHead">
+        <h1 className="adTitle">{t('userDetail.title')}</h1>
+        <p className="adSub">{t('userDetail.subtitle')}</p>
+      </header>
 
-      <Space style={{ marginBottom: 'var(--sp-4)' }} wrap>
-        <Select
-          allowClear
-          placeholder={t('userDetail.filterRole')}
-          style={{ width: 160 }}
-          value={role}
-          onChange={setRole}
-          options={['BUYER', 'SELLER', 'ADMIN', 'SUPPORT'].map((r) => ({ label: t(`userDetail.role.${r}`), value: r }))}
-        />
-        <Select
-          allowClear
-          placeholder={t('userDetail.filterStatus')}
-          style={{ width: 180 }}
-          value={status}
-          onChange={setStatus}
-          options={['PENDING_VERIFICATION', 'ACTIVE', 'SUSPENDED', 'BANNED', 'DEACTIVATED'].map((s) => ({
-            label: t(`userDetail.status.${s}`),
-            value: s,
-          }))}
-        />
-        <Input.Search
-          placeholder={t('userDetail.searchPlaceholder')}
-          style={{ width: 260 }}
-          allowClear
-          onSearch={(value) => setSearch(value || undefined)}
-        />
-      </Space>
+      <section className="adToolbar">
+        <div className="adSearch">
+          <Input.Search
+            placeholder={t('userDetail.searchPlaceholder')}
+            allowClear
+            prefix={<Search size={15} aria-hidden="true" />}
+            aria-describedby="ad-search-hint"
+            onSearch={(value) => setSearch(value.trim() || undefined)}
+          />
+          <p className="adHint" id="ad-search-hint">{t('userDetail.searchHint')}</p>
+        </div>
+        <div className="adFilters">
+          <div className="adPills" role="radiogroup" aria-label={t('userDetail.filterRole')}>
+            {[undefined, ...ROLES].map((value) => (
+              <button key={value ?? 'all'} type="button" role="radio" aria-checked={role === value}
+                className="adPill" onClick={() => setRole(value)}>
+                {value ? t(`userDetail.role.${value}`) : t('userDetail.allRoles')}
+              </button>
+            ))}
+          </div>
+          <Select
+            allowClear
+            className="adStatusSelect"
+            placeholder={t('userDetail.allStatuses')}
+            aria-label={t('userDetail.filterStatus')}
+            value={status}
+            onChange={setStatus}
+            options={STATUSES.map((s) => ({ label: t(`userDetail.status.${s}`), value: s }))}
+          />
+        </div>
+      </section>
 
-      {isPending && <SkeletonLoader rows={4} />}
-      {isError && <Alert type="error" showIcon message={formatAdminError(t, error)} />}
-      {!isPending && !isError && items.length === 0 && <EmptyState title={t('userDetail.empty')} />}
+      {isPending && <SkeletonLoader rows={5} />}
+      {isError && (
+        <Alert type="error" showIcon message={formatAdminError(t, error)}
+          action={<Button size="small" shape="round" onClick={() => void refetch()}>{t('common:actions.retry')}</Button>} />
+      )}
+      {!isPending && !isError && items.length === 0 && (
+        <div className="adEmpty">
+          <span className="adEmptyIcon" aria-hidden="true"><UserRound size={22} /></span>
+          <p>{t('userDetail.empty')}</p>
+        </div>
+      )}
       {!isPending && !isError && items.length > 0 && (
         <>
-          <Table rowKey="id" columns={columns} dataSource={items} pagination={false} size="middle" scroll={{ x: true }} />
+          <ul className="adRows">
+            {items.map((item, index) => {
+              const name = primaryName(item);
+              const secondary = [item.storeName ? item.email : null, item.phone && name !== item.phone ? item.phone : null]
+                .filter(Boolean).join(' · ');
+              return (
+                <li key={item.id} style={{ animationDelay: `${Math.min(index, 10) * 30}ms` }}>
+                  <button type="button" className="adRow" onClick={() => setSelectedUserId(item.id)}>
+                    <span className="adAvatar" data-role={item.role} aria-hidden="true">
+                      {(name ?? t(`userDetail.role.${item.role}`)).charAt(0).toUpperCase()}
+                    </span>
+                    <span className="adRowMain">
+                      <span className="adRowName" dir="auto">{name ?? t('userDetail.noContact')}</span>
+                      {secondary && <span className="adRowMeta" dir="ltr">{secondary}</span>}
+                    </span>
+                    <span className="adRoleTag" data-role={item.role}>{t(`userDetail.role.${item.role}`)}</span>
+                    <span className="adRowStatus">
+                      <StatusTag variant={USER_STATUS_VARIANT[item.status as UserStatus]} label={t(`userDetail.status.${item.status}`)} />
+                    </span>
+                    <span className="adRowDate">{t('userDetail.joined', { date: new Date(item.createdAt).toLocaleDateString() })}</span>
+                    <ChevronRight size={16} className="adChevron" aria-hidden="true" />
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
           {hasNextPage && (
-            <div style={{ textAlign: 'center', marginTop: 'var(--sp-4)' }}>
-              <Button loading={isFetchingNextPage} onClick={() => fetchNextPage()}>
+            <div className="adMore">
+              <Button shape="round" loading={isFetchingNextPage} onClick={() => fetchNextPage()}>
                 {t('userDetail.loadMore')}
               </Button>
             </div>
@@ -160,117 +180,90 @@ export function UserManagementPage() {
         </>
       )}
 
-      <Drawer open={!!selectedUserId} onClose={() => setSelectedUserId(null)} title={t('userDetail.drawerTitle')} width={420}>
+      <Drawer open={!!selectedUserId} onClose={() => setSelectedUserId(null)} title={t('userDetail.drawerTitle')}
+        width={420} className="adDrawer">
         {detail.isPending && <SkeletonLoader rows={5} />}
         {detail.isError && <Alert type="error" showIcon message={formatAdminError(t, detail.error)} />}
-        {detail.isSuccess && (
-          <Space direction="vertical" size={12} style={{ width: '100%' }}>
-            <Typography.Text strong style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-secondary)' }}>
-              {t('userDetail.sectionAccount')}
-            </Typography.Text>
-            <div>
-              <Typography.Text type="secondary">{t('userDetail.columnRole')}</Typography.Text>
-              <div>{t(`userDetail.role.${detail.data.role}`)}</div>
-            </div>
-            <div>
-              <Typography.Text type="secondary">{t('userDetail.columnStatus')}</Typography.Text>
-              <div>
-                <StatusTag
-                  variant={USER_STATUS_VARIANT[detail.data.status as UserStatus]}
-                  label={t(`userDetail.status.${detail.data.status}`)}
-                />
-              </div>
-            </div>
-            {detail.data.email && (
-              <div>
-                <Typography.Text type="secondary">{t('userDetail.columnEmail')}</Typography.Text>
-                <div>{detail.data.email}</div>
-              </div>
-            )}
-            {detail.data.phone && (
-              <div>
-                <Typography.Text type="secondary">{t('userDetail.columnPhone')}</Typography.Text>
-                <div>{detail.data.phone}</div>
-              </div>
-            )}
-
-            {(detail.data.storeName || detail.data.fraudRate30d !== null || detail.data.commissionRate !== null) && (
-              <>
-                <Divider style={{ margin: 'var(--sp-1) 0' }} />
-                <Typography.Text strong style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-secondary)' }}>
-                  {t('userDetail.sectionSeller')}
-                </Typography.Text>
-                {detail.data.storeName && (
-                  <div>
-                    <Typography.Text type="secondary">{t('userDetail.storeName')}</Typography.Text>
-                    <div>{detail.data.storeName}</div>
-                  </div>
-                )}
-                {detail.data.fraudRate30d !== null && (
-                  <div>
-                    <Typography.Text type="secondary">{t('userDetail.fraudRate')}</Typography.Text>
-                    <div>{detail.data.fraudRate30d.toFixed(1)}%</div>
-                  </div>
-                )}
-                {detail.data.commissionRate !== null && (
-                  <div>
-                    <Typography.Text type="secondary">{t('userDetail.commissionRate')}</Typography.Text>
-                    <div>{(Number(detail.data.commissionRate) * 100).toFixed(1)}%</div>
-                  </div>
-                )}
-              </>
-            )}
-
-            {detail.data.addressCount !== null && (
-              <>
-                <Divider style={{ margin: 'var(--sp-1) 0' }} />
-                <Typography.Text strong style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-secondary)' }}>
-                  {t('userDetail.sectionBuyer')}
-                </Typography.Text>
-                <div>
-                  <Typography.Text type="secondary">{t('userDetail.addressCount')}</Typography.Text>
-                  <div>{detail.data.addressCount}</div>
+        {user && (
+          <div className="adDetail">
+            <div className="adDetailHead">
+              <span className="adAvatar adAvatar--lg" data-role={user.role} aria-hidden="true">
+                {(userName ?? t(`userDetail.role.${user.role}`)).charAt(0).toUpperCase()}
+              </span>
+              <div className="adDetailWho">
+                <p className="adDetailName" dir="auto">{userName ?? t('userDetail.noContact')}</p>
+                <div className="adDetailTags">
+                  <span className="adRoleTag" data-role={user.role}>{t(`userDetail.role.${user.role}`)}</span>
+                  <StatusTag variant={USER_STATUS_VARIANT[user.status as UserStatus]} label={t(`userDetail.status.${user.status}`)} />
                 </div>
-              </>
+              </div>
+            </div>
+
+            <section className="adFacts">
+              <h3>{t('userDetail.sectionAccount')}</h3>
+              <dl>
+                {user.email && <div><dt>{t('userDetail.columnEmail')}</dt><dd dir="ltr">{user.email}</dd></div>}
+                {user.phone && <div><dt>{t('userDetail.columnPhone')}</dt><dd dir="ltr">{user.phone}</dd></div>}
+                <div><dt>{t('userDetail.columnCreatedAt')}</dt><dd>{new Date(user.createdAt).toLocaleDateString()}</dd></div>
+                <div>
+                  <dt>{t('userDetail.lastLoginAt')}</dt>
+                  <dd>{user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString() : t('userDetail.never')}</dd>
+                </div>
+              </dl>
+            </section>
+
+            {(user.storeName || user.fraudRate30d !== null || user.commissionRate !== null) && (
+              <section className="adFacts">
+                <h3>{t('userDetail.sectionSeller')}</h3>
+                <dl>
+                  {user.storeName && <div><dt>{t('userDetail.storeName')}</dt><dd dir="auto">{user.storeName}</dd></div>}
+                  {user.fraudRate30d !== null && (
+                    <div><dt>{t('userDetail.fraudRate')}</dt><dd data-hot={user.fraudRate30d > 0 || undefined}>{user.fraudRate30d.toFixed(1)}%</dd></div>
+                  )}
+                  {user.commissionRate !== null && (
+                    <div><dt>{t('userDetail.commissionRate')}</dt><dd>{(Number(user.commissionRate) * 100).toFixed(1)}%</dd></div>
+                  )}
+                </dl>
+              </section>
             )}
 
-            <Divider style={{ margin: 'var(--sp-1) 0' }} />
-            <Typography.Text strong style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-secondary)' }}>
-              {t('userDetail.sectionActivity')}
-            </Typography.Text>
-            <div>
-              <Typography.Text type="secondary">{t('userDetail.lastLoginAt')}</Typography.Text>
-              <div>{detail.data.lastLoginAt ? new Date(detail.data.lastLoginAt).toLocaleString() : t('userDetail.never')}</div>
-            </div>
+            {user.addressCount !== null && (
+              <section className="adFacts">
+                <h3>{t('userDetail.sectionBuyer')}</h3>
+                <dl>
+                  <div><dt>{t('userDetail.addressCount')}</dt><dd>{user.addressCount}</dd></div>
+                </dl>
+              </section>
+            )}
 
             {isAdmin ? (
-              <>
-                <Divider style={{ margin: 'var(--sp-1) 0' }} />
-                <Typography.Text strong style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-secondary)' }}>
-                  {t('userDetail.sectionActions')}
-                </Typography.Text>
-                <Space wrap>
-                {detail.data.status !== 'SUSPENDED' && detail.data.status !== 'BANNED' && (
-                  <Button onClick={() => setPendingAction({ type: 'suspend', userId: detail.data.id })}>
-                    {t('userDetail.suspend')}
-                  </Button>
-                )}
-                {detail.data.status !== 'BANNED' && (
-                  <Button danger onClick={() => setPendingAction({ type: 'ban', userId: detail.data.id })}>
-                    {t('userDetail.ban')}
-                  </Button>
-                )}
-                {(detail.data.status === 'SUSPENDED' || detail.data.status === 'BANNED') && (
-                  <Button type="primary" onClick={() => setPendingAction({ type: 'reactivate', userId: detail.data.id })}>
-                    {t('userDetail.reactivate')}
-                  </Button>
-                )}
-                </Space>
-              </>
+              <section className="adFacts">
+                <h3>{t('userDetail.sectionActions')}</h3>
+                <div className="adActions">
+                  {user.status !== 'SUSPENDED' && user.status !== 'BANNED' && (
+                    <Button shape="round" icon={<PauseCircle size={16} />}
+                      onClick={() => setPendingAction({ type: 'suspend', userId: user.id })}>
+                      {t('userDetail.suspend')}
+                    </Button>
+                  )}
+                  {user.status !== 'BANNED' && (
+                    <Button shape="round" danger icon={<Ban size={16} />}
+                      onClick={() => setPendingAction({ type: 'ban', userId: user.id })}>
+                      {t('userDetail.ban')}
+                    </Button>
+                  )}
+                  {(user.status === 'SUSPENDED' || user.status === 'BANNED') && (
+                    <Button shape="round" type="primary" icon={<PlayCircle size={16} />}
+                      onClick={() => setPendingAction({ type: 'reactivate', userId: user.id })}>
+                      {t('userDetail.reactivate')}
+                    </Button>
+                  )}
+                </div>
+              </section>
             ) : (
-              <Alert style={{ marginTop: 'var(--sp-4)' }} type="info" message={t('supportReadOnly')} />
+              <p className="adNote"><Info size={15} aria-hidden="true" /> {t('userDetail.readOnlyNote')}</p>
             )}
-          </Space>
+          </div>
         )}
       </Drawer>
 
@@ -289,6 +282,7 @@ export function UserManagementPage() {
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           placeholder={pendingAction?.type === 'reactivate' ? t('userDetail.reasonOptional') : t('userDetail.reasonRequired')}
+          aria-label={pendingAction?.type === 'reactivate' ? t('userDetail.reasonOptional') : t('userDetail.reasonRequired')}
           maxLength={500}
           rows={3}
         />

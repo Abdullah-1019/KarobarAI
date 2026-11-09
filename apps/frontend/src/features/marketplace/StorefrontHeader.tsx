@@ -24,6 +24,62 @@ interface StorefrontHeaderProps {
   onLogout: () => void;
 }
 
+// One glass pill behind the nav tabs: it appears under the hovered (or focused) tab and glides from
+// tab to tab, then fades when the pointer leaves the row.
+function useNavHoverPill() {
+  const navLinksRef = useRef<HTMLDivElement>(null);
+  const navPillRef = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    const row = navLinksRef.current;
+    const pill = navPillRef.current;
+    if (!row || !pill) return undefined;
+    row.dataset.pill = 'true';
+    let shown = false;
+
+    const moveTo = (target: EventTarget | null) => {
+      const tab = (target as Element | null)?.closest?.('.storefront-nav__link');
+      if (!tab || !row.contains(tab)) return;
+      const from = row.getBoundingClientRect();
+      const box = tab.getBoundingClientRect();
+      if (!shown) {
+        // the first tab touched: appear in place instead of gliding in from the old spot
+        pill.style.transition = 'none';
+        pill.style.width = `${box.width}px`;
+        pill.style.transform = `translate3d(${box.left - from.left}px, 0, 0)`;
+        void pill.offsetWidth;
+        pill.style.transition = '';
+      }
+      pill.style.width = `${box.width}px`;
+      pill.style.transform = `translate3d(${box.left - from.left}px, 0, 0)`;
+      pill.dataset.on = 'true';
+      shown = true;
+    };
+    const hide = () => {
+      delete pill.dataset.on;
+      shown = false;
+    };
+    const onOver = (event: PointerEvent) => moveTo(event.target);
+    const onFocus = (event: FocusEvent) => moveTo(event.target);
+    const onBlur = (event: FocusEvent) => {
+      if (!row.contains(event.relatedTarget as Node | null)) hide();
+    };
+
+    row.addEventListener('pointerover', onOver);
+    row.addEventListener('pointerleave', hide);
+    row.addEventListener('focusin', onFocus);
+    row.addEventListener('focusout', onBlur);
+    return () => {
+      row.removeEventListener('pointerover', onOver);
+      row.removeEventListener('pointerleave', hide);
+      row.removeEventListener('focusin', onFocus);
+      row.removeEventListener('focusout', onBlur);
+    };
+  }, []);
+
+  return { navLinksRef, navPillRef };
+}
+
 // The Buyer storefront navbar — Studio Light's floating pill nav (DESIGN-CONSULT §7; the sample
 // Home design). An ink announcement strip scrolls away above a sticky white pill holding the logo,
 // Shop / Sell links, search, the EN/اردو toggle, a round cart button and an ink "Log in" pill.
@@ -34,10 +90,15 @@ export function StorefrontHeader({ user, cartCount, onLogout }: StorefrontHeader
   const { dir } = useLanguage();
   const scrolled = useScrolled(24);
   const { pathname } = useLocation();
-  // On Home the hero's own large search is the primary action; the header copy appears once the
-  // visitor scrolls past it, so the page never shows two search boxes at once.
-  const pastHeroSearch = useScrolled(360);
-  const heroOwnsSearch = pathname === '/' && !pastHeroSearch;
+  // Over the Home hero the navbar shows only a search icon (the hero leads with its calls to
+  // action); the icon expands the search pill in place. Past the hero, and on every other page,
+  // the pill shows as usual.
+  const pastHeroSearch = useScrolled(560);
+  const onHero = pathname === '/' && !pastHeroSearch;
+  const [heroSearchOpen, setHeroSearchOpen] = useState(false);
+  const heroOwnsSearch = onHero && !heroSearchOpen;
+  const searchWrapRef = useRef<HTMLDivElement>(null);
+  const { navLinksRef, navPillRef } = useNavHoverPill();
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [cartPop, setCartPop] = useState(false);
@@ -54,6 +115,18 @@ export function StorefrontHeader({ user, cartCount, onLogout }: StorefrontHeader
   const countPill = (count: number, className: string) =>
     count > 0 ? <span className={className}>{count > 9 ? '9+' : count}</span> : null;
   const menuHasNew = (isBuyer && unreadMessages > 0) || ordersUnread > 0 || returnsUnread > 0;
+
+  // Leaving the hero (or the page) folds the expanded search back into the normal behaviour.
+  useEffect(() => {
+    if (!onHero) setHeroSearchOpen(false);
+  }, [onHero]);
+
+  const openSearch = () => {
+    // Wide screens expand the pill inside the navbar; narrower ones keep the search sheet.
+    if (onHero && window.matchMedia('(min-width: 1100px)').matches) setHeroSearchOpen(true);
+    else setSearchOpen(true);
+  };
+  const closeHeroSearch = () => setHeroSearchOpen(false);
 
   // Cart badge "pop" — only when the count grows (adding an item), not on initial mount.
   useEffect(() => {
@@ -155,7 +228,8 @@ export function StorefrontHeader({ user, cartCount, onLogout }: StorefrontHeader
 
             <StorefrontLogo />
 
-            <div className="storefront-nav__links buyer-desktop">
+            <div className="storefront-nav__links buyer-desktop" ref={navLinksRef}>
+              <span className="storefront-nav__pill" ref={navPillRef} aria-hidden="true" />
               <NavLink to="/search" className="storefront-nav__link">
                 {t('marketplace:nav.shop')}
               </NavLink>
@@ -168,16 +242,33 @@ export function StorefrontHeader({ user, cartCount, onLogout }: StorefrontHeader
               </NavLink>
             </div>
 
-            <div className={`storefront-nav__search${heroOwnsSearch ? ' is-deferred' : ''}`}>
-              <SearchBar />
+            <div
+              ref={searchWrapRef}
+              className={`storefront-nav__search${heroOwnsSearch ? ' is-deferred' : ''}${onHero && heroSearchOpen ? ' is-expanded' : ''}`}
+              onKeyDown={(event) => {
+                if (event.key === 'Escape' && onHero) closeHeroSearch();
+              }}
+              onBlur={(event) => {
+                // Fold back once focus leaves the expanded pill (its suggestion list keeps focus).
+                if (!onHero || !heroSearchOpen) return;
+                const next = event.relatedTarget as Node | null;
+                if (!next || !searchWrapRef.current?.contains(next)) window.setTimeout(closeHeroSearch, 120);
+              }}
+            >
+              <SearchBar
+                key={heroSearchOpen ? 'expanded' : 'resting'}
+                autoFocus={onHero && heroSearchOpen}
+                onSubmitted={onHero ? closeHeroSearch : undefined}
+              />
             </div>
 
             <div className="storefront-nav__actions">
               <button
                 type="button"
-                className={`icon-btn storefront-nav__search-btn${heroOwnsSearch ? ' is-deferred' : ''}`}
-                onClick={() => setSearchOpen(true)}
+                className={`icon-btn storefront-nav__search-btn${onHero ? ' is-hero' : ''}${onHero && heroSearchOpen ? ' is-deferred' : ''}`}
+                onClick={openSearch}
                 aria-label={t('marketplace:nav.openSearch')}
+                aria-expanded={onHero ? heroSearchOpen : undefined}
               >
                 <Search size={20} aria-hidden="true" />
               </button>

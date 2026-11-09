@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
-import { Alert, Button, Card, Col, Input, InputNumber, Row, Space, Tag, Typography } from 'antd';
+import { useEffect, useState, type ReactNode } from 'react';
+import { Alert, Button, Input, InputNumber } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Bot, Info, Lock, Percent, Scale, ShoppingBag, Truck, Undo2, type LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-import { PageHeader, SkeletonLoader, toast } from '../../components';
+import { SkeletonLoader, toast } from '../../components';
 import { useAuthStore } from '../../lib/authStore';
 import { adminConfigQueryKey, listAdminConfig, patchAdminConfig } from './adminApi';
 import { formatAdminError } from './adminErrors';
@@ -16,23 +17,56 @@ interface CourierWeights {
 }
 
 const COURIER_WEIGHT_KEYS: (keyof CourierWeights)[] = ['cost', 'time', 'reliability', 'coverage'];
+const EMPTY_WEIGHTS: CourierWeights = { cost: 0, time: 0, reliability: 0, coverage: 0 };
 
-// SCR-AD06 — one form section per platform_config key (Task 6). `returns_confidence_threshold`
-// is deliberately read-only — its consuming feature (R1.1 ReturnsAI automation) isn't built yet,
-// so the backend rejects any PATCH to it with 403 CONFIG_KEY_NOT_WRITABLE even before this UI's
-// own `writable` check kicks in.
-export function ConfigPanelPage() {
+interface SettingProps {
+  icon: LucideIcon;
+  title: string;
+  help: string;
+  saved: string;
+  dirty: boolean;
+  children: ReactNode;
+  footer?: ReactNode;
+}
+
+function Setting({ icon: Icon, title, help, saved, dirty, children, footer }: SettingProps) {
   const { t } = useTranslation(['admin']);
+  return (
+    <article className="cfSetting" data-dirty={dirty || undefined}>
+      <span className="cfIcon" aria-hidden="true"><Icon size={18} /></span>
+      <div className="cfBody">
+        <div className="cfTitleRow">
+          <h3 className="cfTitle">{title}</h3>
+          {dirty && <span className="cfDirty">{t('config.unsaved')}</span>}
+        </div>
+        <p className="cfHelp">{help}</p>
+        <div className="cfControl">{children}</div>
+        <p className="cfSaved">{saved}</p>
+        {footer}
+      </div>
+    </article>
+  );
+}
+
+// SCR-AD06 — one setting per platform_config key, grouped (money / delivery + returns / AI).
+// Every write needs a reason (it lands in the audit history), so the reason field and Save only
+// appear once a value actually differs from what is saved. `returns_confidence_threshold` stays
+// read-only: its consuming automation (R1.1) isn't built, and the backend rejects any PATCH with
+// 403 CONFIG_KEY_NOT_WRITABLE before this UI's own check. Support sees values, no inputs.
+export function ConfigPanelPage() {
+  const { t } = useTranslation(['admin', 'common']);
   const queryClient = useQueryClient();
   const isAdmin = useAuthStore((s) => s.user?.role === 'ADMIN');
 
-  const { data, isPending, isError, error } = useQuery({ queryKey: adminConfigQueryKey, queryFn: listAdminConfig });
+  const { data, isPending, isError, error, refetch } = useQuery({ queryKey: adminConfigQueryKey, queryFn: listAdminConfig });
 
   const [commissionRate, setCommissionRate] = useState<number | null>(null);
-  const [weights, setWeights] = useState<CourierWeights>({ cost: 0, time: 0, reliability: 0, coverage: 0 });
+  const [weights, setWeights] = useState<CourierWeights>(EMPTY_WEIGHTS);
   const [returnWindowDays, setReturnWindowDays] = useState<number | null>(null);
   const [minOrderValue, setMinOrderValue] = useState<number | null>(null);
   const [reasons, setReasons] = useState<Record<string, string>>({});
+
+  const savedValue = (key: string) => data?.items.find((entry) => entry.key === key)?.value;
 
   useEffect(() => {
     if (!data) return;
@@ -56,7 +90,7 @@ export function ConfigPanelPage() {
 
   if (isPending) {
     return (
-      <div style={{ maxWidth: 720, margin: '0 auto' }}>
+      <div className="adPage cfPage">
         <SkeletonLoader rows={6} />
       </div>
     );
@@ -64,168 +98,145 @@ export function ConfigPanelPage() {
 
   if (isError || !data) {
     return (
-      <div style={{ maxWidth: 720, margin: '0 auto' }}>
-        <Alert type="error" showIcon message={formatAdminError(t, error)} />
+      <div className="adPage cfPage">
+        <Alert type="error" showIcon message={formatAdminError(t, error)}
+          action={<Button size="small" shape="round" onClick={() => void refetch()}>{t('common:actions.retry')}</Button>} />
       </div>
     );
   }
 
   const confidenceEntry = data.items.find((e) => e.key === 'returns_confidence_threshold');
   const weightsSum = COURIER_WEIGHT_KEYS.reduce((acc, k) => acc + (weights[k] ?? 0), 0);
+  const weightsValid = Math.abs(weightsSum - 1) <= 0.001;
+  const savedWeights = (savedValue('courier_weights') as CourierWeights | undefined) ?? EMPTY_WEIGHTS;
 
-  function saveSection(key: string, value: unknown) {
-    const reason = (reasons[key] ?? '').trim();
-    if (!reason) return;
-    patchMutation.mutate({ key, value, reason });
-  }
+  const dirty = {
+    commission_rate_default: commissionRate !== savedValue('commission_rate_default'),
+    courier_weights: COURIER_WEIGHT_KEYS.some((k) => weights[k] !== savedWeights[k]),
+    return_window_days: returnWindowDays !== savedValue('return_window_days'),
+    min_order_value_pkr: minOrderValue !== savedValue('min_order_value_pkr'),
+  };
 
-  function reasonField(key: string) {
+  const pct = (value: unknown) => `${((Number(value) || 0) * 100).toFixed(1)}%`;
+
+  function saveBar(key: keyof typeof dirty, value: unknown, valid = true) {
+    if (!isAdmin || !dirty[key]) return null;
+    const reason = reasons[key] ?? '';
     return (
-      <Input
-        placeholder={t('config.reasonRequired')}
-        value={reasons[key] ?? ''}
-        onChange={(e) => setReasons((prev) => ({ ...prev, [key]: e.target.value }))}
-        maxLength={500}
-        style={{ marginTop: 'var(--sp-2)' }}
-      />
+      <div className="cfSave">
+        <Input
+          placeholder={t('config.reasonRequired')}
+          aria-label={t('config.reasonRequired')}
+          value={reason}
+          onChange={(e) => setReasons((prev) => ({ ...prev, [key]: e.target.value }))}
+          maxLength={500}
+        />
+        <Button type="primary" shape="round" loading={patchMutation.isPending && patchMutation.variables?.key === key}
+          disabled={value === null || !valid || !reason.trim()}
+          onClick={() => patchMutation.mutate({ key, value, reason: reason.trim() })}>
+          {t('config.save')}
+        </Button>
+      </div>
     );
   }
 
   return (
-    <div style={{ maxWidth: 720, margin: '0 auto' }}>
-      <PageHeader title={t('config.title')} />
+    <div className="adPage cfPage">
+      <header className="adHead">
+        <h1 className="adTitle">{t('config.title')}</h1>
+        <p className="adSub">{t('config.subtitle')}</p>
+      </header>
 
-      {!isAdmin && <Alert style={{ marginBottom: 'var(--sp-4)' }} type="info" message={t('supportReadOnly')} />}
+      {!isAdmin && <p className="adNote"><Info size={15} aria-hidden="true" /> {t('config.readOnlyNote')}</p>}
 
-      <Space direction="vertical" size={16} style={{ width: '100%' }}>
-        <Card title={t('config.commissionRateTitle')}>
-          <Typography.Text type="secondary">{t('config.commissionRateHelp')}</Typography.Text>
-          <div style={{ marginTop: 'var(--sp-2)' }}>
-            <InputNumber
-              disabled={!isAdmin}
-              min={0}
-              max={1}
-              step={0.01}
-              style={{ width: 160 }}
-              value={commissionRate}
-              onChange={(v) => setCommissionRate(v)}
-              formatter={(v) => `${((Number(v) || 0) * 100).toFixed(1)}%`}
-              parser={(v) => (Number((v ?? '').replace('%', '')) / 100) as unknown as number}
-            />
-          </div>
-          {isAdmin && reasonField('commission_rate_default')}
-          {isAdmin && (
-            <Button
-              style={{ marginTop: 'var(--sp-2)' }}
-              type="primary"
-              loading={patchMutation.isPending}
-              disabled={commissionRate === null || !(reasons.commission_rate_default ?? '').trim()}
-              onClick={() => saveSection('commission_rate_default', commissionRate)}
-            >
-              {t('config.save')}
-            </Button>
-          )}
-        </Card>
+      <section className="cfGroup">
+        <h2 className="cfGroupTitle">{t('config.sectionMoney')}</h2>
+        <Setting icon={Percent} title={t('config.commissionRateTitle')} help={t('config.commissionRateHelp')}
+          saved={t('config.current', { value: pct(savedValue('commission_rate_default')) })}
+          dirty={dirty.commission_rate_default} footer={saveBar('commission_rate_default', commissionRate)}>
+          <InputNumber
+            disabled={!isAdmin}
+            min={0}
+            max={1}
+            step={0.01}
+            className="cfNumber"
+            aria-label={t('config.commissionRateTitle')}
+            value={commissionRate}
+            onChange={(v) => setCommissionRate(v)}
+            formatter={(v) => `${((Number(v) || 0) * 100).toFixed(1)}%`}
+            parser={(v) => (Number((v ?? '').replace('%', '')) / 100) as unknown as number}
+          />
+        </Setting>
+        <Setting icon={ShoppingBag} title={t('config.minOrderValueTitle')} help={t('config.minOrderValueHelp')}
+          saved={t('config.current', { value: `Rs ${Number(savedValue('min_order_value_pkr') ?? 0).toLocaleString()}` })}
+          dirty={dirty.min_order_value_pkr} footer={saveBar('min_order_value_pkr', minOrderValue)}>
+          <InputNumber
+            disabled={!isAdmin}
+            min={0}
+            step={10}
+            className="cfNumber"
+            aria-label={t('config.minOrderValueTitle')}
+            value={minOrderValue}
+            onChange={(v) => setMinOrderValue(v)}
+            addonBefore="Rs"
+          />
+        </Setting>
+      </section>
 
-        <Card title={t('config.courierWeightsTitle')}>
-          <Typography.Text type="secondary">{t('config.courierWeightsHelp')}</Typography.Text>
-          <Row gutter={12} style={{ marginTop: 'var(--sp-2)' }}>
-            {COURIER_WEIGHT_KEYS.map((k) => (
-              <Col key={k} span={6}>
-                <Typography.Text>{t(`config.weight.${k}`)}</Typography.Text>
+      <section className="cfGroup">
+        <h2 className="cfGroupTitle">{t('config.sectionDelivery')}</h2>
+        <Setting icon={Truck} title={t('config.courierWeightsTitle')} help={t('config.courierWeightsHelp')}
+          saved={t('config.current', { value: COURIER_WEIGHT_KEYS.map((k) => `${t(`config.weight.${k}`)} ${savedWeights[k]}`).join(' · ') })}
+          dirty={dirty.courier_weights} footer={saveBar('courier_weights', weights, weightsValid)}>
+          <div className="cfWeights">
+            {COURIER_WEIGHT_KEYS.map((k, i) => (
+              <label key={k} className="cfWeight">
+                <span><i className="cfSwatch" data-slot={i} aria-hidden="true" />{t(`config.weight.${k}`)}</span>
                 <InputNumber
                   disabled={!isAdmin}
                   min={0}
                   max={1}
-                  step={0.01}
-                  style={{ width: '100%' }}
+                  step={0.05}
                   value={weights[k]}
                   onChange={(v) => setWeights((prev) => ({ ...prev, [k]: v ?? 0 }))}
                 />
-              </Col>
+              </label>
             ))}
-          </Row>
-          <Typography.Text type={Math.abs(weightsSum - 1) > 0.001 ? 'danger' : 'success'} style={{ display: 'block', marginTop: 'var(--sp-2)' }}>
-            {t('config.weightsSum', { sum: weightsSum.toFixed(2) })}
-          </Typography.Text>
-          {isAdmin && reasonField('courier_weights')}
-          {isAdmin && (
-            <Button
-              style={{ marginTop: 'var(--sp-2)' }}
-              type="primary"
-              loading={patchMutation.isPending}
-              disabled={Math.abs(weightsSum - 1) > 0.001 || !(reasons.courier_weights ?? '').trim()}
-              onClick={() => saveSection('courier_weights', weights)}
-            >
-              {t('config.save')}
-            </Button>
-          )}
-        </Card>
-
-        <Card title={t('config.returnWindowTitle')}>
-          <Typography.Text type="secondary">{t('config.returnWindowHelp')}</Typography.Text>
-          <div style={{ marginTop: 'var(--sp-2)' }}>
-            <InputNumber
-              disabled={!isAdmin}
-              min={1}
-              step={1}
-              style={{ width: 160 }}
-              value={returnWindowDays}
-              onChange={(v) => setReturnWindowDays(v)}
-              addonAfter={t('config.days')}
-            />
           </div>
-          {isAdmin && reasonField('return_window_days')}
-          {isAdmin && (
-            <Button
-              style={{ marginTop: 'var(--sp-2)' }}
-              type="primary"
-              loading={patchMutation.isPending}
-              disabled={returnWindowDays === null || !(reasons.return_window_days ?? '').trim()}
-              onClick={() => saveSection('return_window_days', returnWindowDays)}
-            >
-              {t('config.save')}
-            </Button>
-          )}
-        </Card>
-
-        <Card title={t('config.minOrderValueTitle')}>
-          <Typography.Text type="secondary">{t('config.minOrderValueHelp')}</Typography.Text>
-          <div style={{ marginTop: 'var(--sp-2)' }}>
-            <InputNumber
-              disabled={!isAdmin}
-              min={0}
-              step={10}
-              style={{ width: 160 }}
-              value={minOrderValue}
-              onChange={(v) => setMinOrderValue(v)}
-              addonBefore="Rs."
-            />
+          <div className="cfMix" aria-hidden="true">
+            {COURIER_WEIGHT_KEYS.map((k, i) => (
+              <span key={k} data-slot={i} style={{ flexGrow: Math.max(weights[k], 0) }} />
+            ))}
           </div>
-          {isAdmin && reasonField('min_order_value_pkr')}
-          {isAdmin && (
-            <Button
-              style={{ marginTop: 'var(--sp-2)' }}
-              type="primary"
-              loading={patchMutation.isPending}
-              disabled={minOrderValue === null || !(reasons.min_order_value_pkr ?? '').trim()}
-              onClick={() => saveSection('min_order_value_pkr', minOrderValue)}
-            >
-              {t('config.save')}
-            </Button>
-          )}
-        </Card>
+          <p className="cfSum" data-ok={weightsValid || undefined} role="status">
+            <Scale size={14} aria-hidden="true" /> {t('config.weightsSum', { sum: weightsSum.toFixed(2) })}
+          </p>
+        </Setting>
+        <Setting icon={Undo2} title={t('config.returnWindowTitle')} help={t('config.returnWindowHelp')}
+          saved={t('config.current', { value: `${savedValue('return_window_days') ?? '—'} ${t('config.days')}` })}
+          dirty={dirty.return_window_days} footer={saveBar('return_window_days', returnWindowDays)}>
+          <InputNumber
+            disabled={!isAdmin}
+            min={1}
+            step={1}
+            className="cfNumber"
+            aria-label={t('config.returnWindowTitle')}
+            value={returnWindowDays}
+            onChange={(v) => setReturnWindowDays(v)}
+            addonAfter={t('config.days')}
+          />
+        </Setting>
+      </section>
 
-        {confidenceEntry && (
-          <Card title={t('config.confidenceThresholdTitle')}>
-            <Space direction="vertical">
-              <Tag>{t('config.readOnly')}</Tag>
-              <Typography.Text type="secondary">{t('config.confidenceThresholdHelp')}</Typography.Text>
-              <Typography.Text strong>{String(confidenceEntry.value)}</Typography.Text>
-            </Space>
-          </Card>
-        )}
-      </Space>
+      {confidenceEntry && (
+        <section className="cfGroup">
+          <h2 className="cfGroupTitle">{t('config.sectionAi')}</h2>
+          <Setting icon={Bot} title={t('config.confidenceThresholdTitle')} help={t('config.confidenceThresholdHelp')}
+            saved={t('config.current', { value: String(confidenceEntry.value) })} dirty={false}>
+            <span className="cfLocked"><Lock size={13} aria-hidden="true" /> {t('config.readOnly')}</span>
+          </Setting>
+        </section>
+      )}
     </div>
   );
 }

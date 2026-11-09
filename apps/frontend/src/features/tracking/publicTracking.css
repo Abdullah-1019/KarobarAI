@@ -1,0 +1,119 @@
+/* Public, login-free tracking (/t/:publicToken). Standalone page on top of orders.css (od*, tr*). */
+.ptShell {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  min-height: 100dvh;
+  background: var(--bg-canvas);
+}
+.ptTop {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px clamp(16px, 4vw, 40px);
+  border-block-end: 1px solid var(--border);
+  background: var(--header-blur-bg);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+.ptMain {
+  width: 100%;
+  padding: clamp(20px, 4vw, 40px) clamp(16px, 4vw, 40px);
+  align-content: start;
+}
+.ptFoot {
+  display: flex;
+  justify-content: center;
+  padding: 24px 16px 32px;
+}
+
+.ptLive {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0 0;
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+}
+.ptLiveDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--success);
+  animation: ptPulse 1.6s var(--ease) infinite;
+}
+@keyframes ptPulse {
+  50% {
+    opacity: 0.35;
+    transform: scale(0.7);
+  }
+}
+
+/* No product photo on the public DTO: a parcel mark in the same tilted tile. */
+.ptParcel {
+  display: grid;
+  place-items: center;
+  color: var(--brand-ink);
+}
+
+/* Invalid / expired link */
+.ptMissing {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  max-width: 440px;
+  margin: clamp(24px, 8vh, 80px) auto 0;
+  padding: 36px 28px;
+  border-radius: 28px;
+  background: var(--wash-lilac);
+  text-align: center;
+  animation: odNextIn 420ms var(--ease-soft) both;
+}
+.ptMissingIcon {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  margin-block-end: 6px;
+  border-radius: 20px;
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-md);
+  transform: rotate(-4deg);
+}
+.ptMissingTitle {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 24px;
+  font-weight: 600;
+}
+.ptMissingBody,
+.ptMissingHint {
+  margin: 0;
+  color: var(--text-secondary);
+}
+.ptMissingHint {
+  font-size: var(--fs-sm);
+}
+
+[dir='rtl'] .ptMissingTitle {
+  font-family: var(--font-urdu);
+  line-height: 1.9;
+}
+[dir='rtl'] .ptLive,
+[dir='rtl'] .ptMissingBody,
+[dir='rtl'] .ptMissingHint {
+  font-family: var(--font-urdu-ui);
+}
+[dir='rtl'] .ptMissingIcon {
+  transform: rotate(4deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ptLiveDot,
+  .ptMissing {
+    animation: none;
+  }
+}

@@ -1,5 +1,6 @@
-import { Alert, Button, Card, Space, Tag, Typography } from 'antd';
+import { Button } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { AlertTriangle, CheckCircle2, Info, Loader2, Truck, XCircle, type LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import type { CourierQuoteDTO } from '@karobarai/shared';
@@ -10,32 +11,64 @@ import { autoSelectCourier, courierSelectionQueryKey, getCourierSelection, track
 
 type Breakdown = { factors?: Record<string, number>; weights?: Record<string, number>;
   contributions?: Record<string, number>; total?: number };
+type Tone = 'success' | 'warning' | 'error' | 'info';
 
-function QuoteComparison({ quote }: { quote: CourierQuoteDTO }) {
-  const { t } = useTranslation(['orders']);
-  const breakdown = quote.breakdown && typeof quote.breakdown === 'object' ? quote.breakdown as Breakdown : null;
+const TONE_ICON: Record<Tone, LucideIcon> = { success: CheckCircle2, warning: AlertTriangle, error: XCircle, info: Info };
+const FACTORS = ['cost', 'speed', 'sla', 'rating'] as const;
+const FACTOR_LABEL: Record<(typeof FACTORS)[number], string> = {
+  cost: 'courier.cost', speed: 'courier.eta', sla: 'courier.sla', rating: 'courier.rating',
+};
+
+function Note({ tone, children }: { tone: Tone; children: React.ReactNode }) {
+  const Icon = TONE_ICON[tone];
   return (
-    <div style={{ border: '1px solid var(--color-border)', borderRadius: 8, padding: 'var(--sp-3)' }}>
-      <Space>
-        <Typography.Text strong>{t(`courierNames.${quote.courier}`)}</Typography.Text>
-        {quote.selected && <Tag color="blue">{t('courier.selected')}</Tag>}
-      </Space>
-      <div>{t('courier.cost')}: {quote.cost == null ? '—' : <PriceDisplay amount={quote.cost} size="sm" />} · {t('courier.eta')}: {quote.etaHours == null ? '—' : `${quote.etaHours}h`}</div>
-      <div>SLA: {quote.slaScore == null ? '—' : `${Math.round(quote.slaScore * 100)}%`} · {t('courier.rating')}: {quote.ratingScore == null ? '—' : `${Math.round(quote.ratingScore * 100)}%`}</div>
-      <Typography.Text>{t('courier.score')}: {quote.score ?? '—'}</Typography.Text>
-      {breakdown?.factors && breakdown.weights && breakdown.contributions && (
-        <details>
-          <summary>{t('courier.whySelected')}</summary>
-          {(['cost', 'speed', 'sla', 'rating'] as const).map((factor) => (
-            <div key={factor}>{factor}: {breakdown.factors?.[factor]?.toFixed(3)} × {breakdown.weights?.[factor]?.toFixed(2)} = {breakdown.contributions?.[factor]?.toFixed(3)}</div>
-          ))}
-          <strong>{t('courier.score')}: {breakdown.total?.toFixed(3)}</strong>
-        </details>
-      )}
+    <div className="crNote" data-tone={tone} role={tone === 'error' ? 'alert' : 'status'}>
+      <Icon size={16} aria-hidden="true" />
+      <div>{children}</div>
     </div>
   );
 }
 
+function QuoteComparison({ quote }: { quote: CourierQuoteDTO }) {
+  const { t } = useTranslation(['orders']);
+  const breakdown = quote.breakdown && typeof quote.breakdown === 'object' ? quote.breakdown as Breakdown : null;
+  const pct = (v: number | null | undefined) => (v == null ? '—' : `${Math.round(v * 100)}%`);
+  return (
+    <li className="crQuote" data-selected={quote.selected || undefined}>
+      <div className="crQuoteHead">
+        <span className="crQuoteName">{t(`courierNames.${quote.courier}`)}</span>
+        {quote.selected && <span className="crChip">{t('courier.selected')}</span>}
+        <span className="crScore">{t('courier.score')} <strong>{quote.score ?? '—'}</strong></span>
+      </div>
+      <dl className="crStats">
+        <div><dt>{t('courier.cost')}</dt><dd>{quote.cost == null ? '—' : <PriceDisplay amount={quote.cost} size="sm" />}</dd></div>
+        <div><dt>{t('courier.eta')}</dt><dd>{quote.etaHours == null ? '—' : t('courier.etaHours', { hours: quote.etaHours })}</dd></div>
+        <div><dt>{t('courier.sla')}</dt><dd>{pct(quote.slaScore)}</dd></div>
+        <div><dt>{t('courier.rating')}</dt><dd>{pct(quote.ratingScore)}</dd></div>
+      </dl>
+      {breakdown?.factors && breakdown.weights && breakdown.contributions && (
+        <details className="crWhy">
+          <summary>{t('courier.whySelected')}</summary>
+          <ul>
+            {FACTORS.map((factor) => (
+              <li key={factor}>
+                <span>{t(FACTOR_LABEL[factor])}</span>
+                <span dir="ltr">
+                  {breakdown.factors?.[factor]?.toFixed(3)} × {breakdown.weights?.[factor]?.toFixed(2)} = {breakdown.contributions?.[factor]?.toFixed(3)}
+                </span>
+              </li>
+            ))}
+            <li className="crWhyTotal"><span>{t('courier.score')}</span><span dir="ltr">{breakdown.total?.toFixed(3)}</span></li>
+          </ul>
+        </details>
+      )}
+    </li>
+  );
+}
+
+// The seller's courier step inside the order detail's "next step" card: simulated-booking notice,
+// the current booking state, each scored quote (cost / ETA / SLA / rating, with the weighted
+// breakdown behind "Why this courier?"), and the one auto-select action. Logic is unchanged.
 export function CourierRecommendationCard({ orderId, eligible }: { orderId: string; eligible: boolean }) {
   const { t } = useTranslation(['orders']);
   const queryClient = useQueryClient();
@@ -55,32 +88,51 @@ export function CourierRecommendationCard({ orderId, eligible }: { orderId: stri
   const status = selection?.shipment.status;
   const booked = status != null && ['BOOKED', 'PICKED_UP', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'DELIVERED'].includes(status);
   const canSubmit = eligible && !selectionQuery.isLoading && (!status || status === 'FAILED');
+
   return (
-    <Card title={t('courier.cardTitle')}>
-      <Alert type="info" showIcon message={t('courier.simulatedNotice')} style={{ marginBottom: 'var(--sp-3)' }} />
-      {selectionQuery.isError && <Alert type="error" showIcon message={formatOrdersError(t, selectionQuery.error)} />}
+    <div className="crCard">
+      <div className="crHead">
+        <span className="crIcon" aria-hidden="true"><Truck size={16} /></span>
+        <h3 className="crTitle">{t('courier.cardTitle')}</h3>
+        <span className="crSim">{t('courier.simulatedBadge')}</span>
+      </div>
+      <p className="crHint">{t('courier.simulatedNotice')}</p>
+
+      {selectionQuery.isError && <Note tone="error">{formatOrdersError(t, selectionQuery.error)}</Note>}
       {booked ? (
-        <Alert type="success" showIcon message={`${t('courier.selected')}: ${selection?.shipment.courier ?? ''}`}
-          description={`${t('courier.bookingReference')}: ${selection?.shipment.bookingReference ?? '—'} · ${t('tracking.trackingNo')}: ${selection?.shipment.trackingId ?? '—'}`} />
+        <Note tone="success">
+          <strong>{t('courier.selected')}: {selection?.shipment.courier ?? ''}</strong>
+          <span className="crNoteSub">
+            {t('courier.bookingReference')}: <span dir="ltr">{selection?.shipment.bookingReference ?? '—'}</span>
+            {' · '}{t('tracking.trackingNo')}: <span dir="ltr">{selection?.shipment.trackingId ?? '—'}</span>
+          </span>
+        </Note>
       ) : status === 'UNCERTAIN' || status === 'BOOKING' || status === 'EVALUATING' ? (
-        <Alert type="warning" showIcon message={t('courier.uncertain')} />
+        <Note tone="warning">{t('courier.uncertain')}</Note>
       ) : !eligible && !status ? (
-        <Alert type="info" showIcon message={t('courier.alreadyBooked')} />
+        <Note tone="info">{t('courier.alreadyBooked')}</Note>
       ) : status === 'FAILED' ? (
-        <Alert type="error" showIcon message={selection?.shipment.failureCode === 'NO_VALID_COURIER_QUOTES'
-          ? t('orders:errors.NO_VALID_COURIER_QUOTES') : t('courier.bookingFailed')} />
+        <Note tone="error">
+          {selection?.shipment.failureCode === 'NO_VALID_COURIER_QUOTES' ? t('orders:errors.NO_VALID_COURIER_QUOTES') : t('courier.bookingFailed')}
+        </Note>
       ) : null}
-      {mutation.isError && <Alert type="error" showIcon style={{ marginTop: 'var(--sp-3)' }}
-        message={formatOrdersError(t, mutation.error)} />}
+      {mutation.isError && <Note tone="error">{formatOrdersError(t, mutation.error)}</Note>}
+
       {selection?.quotes.length ? (
-        <Space direction="vertical" style={{ width: '100%', marginTop: 'var(--sp-3)' }}>
+        <ul className="crQuotes">
           {selection.quotes.map((quote) => <QuoteComparison key={quote.courier} quote={quote} />)}
-        </Space>
+        </ul>
       ) : null}
-      {canSubmit && <Button type="primary" loading={mutation.isPending} disabled={mutation.isPending}
-        onClick={() => mutation.mutate()}
-        style={{ marginTop: 'var(--sp-3)' }}>{t('courier.autoSelect')}</Button>}
-      {mutation.isPending && <Typography.Text style={{ display: 'block' }}>{t('courier.evaluating')}</Typography.Text>}
-    </Card>
+
+      {canSubmit && (
+        <Button type="primary" shape="round" block icon={<Truck size={16} />} loading={mutation.isPending}
+          disabled={mutation.isPending} onClick={() => mutation.mutate()}>
+          {t('courier.autoSelect')}
+        </Button>
+      )}
+      {mutation.isPending && (
+        <p className="crBusy" role="status"><Loader2 size={14} className="crSpin" aria-hidden="true" /> {t('courier.evaluating')}</p>
+      )}
+    </div>
   );
 }

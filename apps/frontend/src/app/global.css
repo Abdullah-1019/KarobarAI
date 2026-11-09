@@ -212,6 +212,23 @@
   /* The floating nav pill: translucent white at rest, nearly solid once scrolled. */
   --nav-pill-bg: rgba(255, 255, 255, 0.86);
   --nav-pill-bg-scrolled: rgba(255, 255, 255, 0.96);
+  /* The storefront navbar's glass: see-through over the hero, frostier once content scrolls under it. */
+  --nav-glass-bg: rgba(255, 255, 255, 0.38);
+  --nav-glass-bg-scrolled: rgba(255, 255, 255, 0.64);
+  --nav-glass-edge: rgba(255, 255, 255, 0.75);
+  --nav-glass-blur: saturate(1.9) blur(26px);
+  /* No drop shadow on navbars: one hairline in the lightest grey, plus a faint top sheen. */
+  --nav-border: rgba(23, 23, 26, 0.08);
+  --nav-sheen: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  /* Nav tab hover: a lilac-tinted pill under ink text; the current tab carries a persimmon dot. */
+  --nav-link-hover-bg: rgba(108, 99, 214, 0.1);
+  --nav-pill-glass: linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(236, 234, 250, 0.5));
+  --nav-pill-edge: rgba(255, 255, 255, 0.9);
+  --nav-pill-shine: inset 0 1px 0 rgba(255, 255, 255, 0.95), 0 4px 14px -6px rgba(66, 58, 150, 0.32);
+  --nav-link-hover-fg: var(--text-primary);
+  --nav-link-dot: var(--studio-persimmon);
+  --nav-row-h: 58px;
+  --nav-gap-top: 12px;
   /* Destructive fill under white text (the red text colour is lighter in dark mode). */
   --danger-fill: var(--studio-red);
   /* Small ink pills on cards and icons (✓ add state, cart count): ink in light, inverted in dark. */
@@ -279,6 +296,16 @@
   --header-blur-bg: rgba(27, 27, 31, 0.86);
   --nav-pill-bg: rgba(27, 27, 31, 0.86);
   --nav-pill-bg-scrolled: rgba(27, 27, 31, 0.96);
+  --nav-glass-bg: rgba(27, 27, 31, 0.42);
+  --nav-glass-bg-scrolled: rgba(27, 27, 31, 0.68);
+  --nav-glass-edge: rgba(255, 255, 255, 0.1);
+  --nav-border: rgba(255, 255, 255, 0.12);
+  --nav-sheen: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --nav-link-hover-bg: rgba(170, 164, 255, 0.14);
+  --nav-pill-glass: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(170, 164, 255, 0.1));
+  --nav-pill-edge: rgba(255, 255, 255, 0.16);
+  --nav-pill-shine: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  --nav-link-dot: #f08a5d;
   --danger-fill: #c4483a;
   --pill-ink-bg: #f4f3f1;
   --pill-ink-fg: #111113;
@@ -1329,36 +1356,91 @@ html[lang='ur'] .empty-state__title {
   inset-block-start: calc(-1 * var(--announce-h));
 }
 
-/* Announcement strip — ink, one line, dismissible per session. */
+/* Announcement strip — an ink news ticker, dismissible per session. The track holds the run
+   twice and slides by one run's width, so the loop never shows a seam; the ends fade into the ink. */
 .announce {
-  background: var(--announce-bg);
-  color: var(--announce-fg);
-}
-.announce__inner {
   position: relative;
   display: flex;
   align-items: center;
-  justify-content: center;
   height: var(--announce-h);
+  background: var(--announce-bg);
+  color: var(--announce-fg);
 }
-.announce__text {
-  margin: 0;
+.announce__viewport {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
   overflow: hidden;
-  padding-inline: var(--sp-8);
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 6%, #000 calc(100% - 64px), transparent calc(100% - 44px));
+  mask-image: linear-gradient(to right, transparent, #000 6%, #000 calc(100% - 64px), transparent calc(100% - 44px));
+}
+[dir='rtl'] .announce__viewport {
+  -webkit-mask-image: linear-gradient(to left, transparent, #000 6%, #000 calc(100% - 64px), transparent calc(100% - 44px));
+  mask-image: linear-gradient(to left, transparent, #000 6%, #000 calc(100% - 64px), transparent calc(100% - 44px));
+}
+.announce__track {
+  display: flex;
+  width: max-content;
+  height: 100%;
+  /* about 7s per message keeps a calm reading pace at any count */
+  animation: announce-run calc(var(--announce-items, 5) * 7s) linear infinite;
+}
+.announce:hover .announce__track,
+.announce:focus-within .announce__track {
+  animation-play-state: paused;
+}
+[dir='rtl'] .announce__track {
+  animation-name: announce-run-rtl;
+}
+@keyframes announce-run {
+  to {
+    translate: -50% 0;
+  }
+}
+@keyframes announce-run-rtl {
+  to {
+    translate: 50% 0;
+  }
+}
+.announce__run {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  /* a run never narrower than the screen, so a short list still loops without a gap */
+  justify-content: space-around;
+  min-width: 100vw;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.announce__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  padding-inline-end: 44px;
   font-size: 13px;
   font-weight: 500;
+  letter-spacing: 0.01em;
   white-space: nowrap;
-  text-overflow: ellipsis;
-  animation: announce-in var(--dur-slow) var(--ease-soft);
 }
-@keyframes announce-in {
-  from {
-    transform: translateY(6px);
+html[lang='ur'] .announce__item {
+  font-family: var(--font-urdu-ui);
+}
+.announce__dot {
+  width: 5px;
+  height: 5px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--studio-ai);
+}
+@media (prefers-reduced-motion: reduce) {
+  .announce__track {
+    animation: none;
   }
 }
 .announce__close {
   position: absolute;
-  inset-inline-end: var(--sp-4);
+  inset-inline-end: var(--sp-3);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1380,35 +1462,68 @@ html[lang='ur'] .empty-state__title {
 .announce__close:hover {
   background: rgba(250, 249, 247, 0.14);
 }
+.announce__close:focus-visible {
+  outline: 2px solid var(--studio-ai);
+  outline-offset: 1px;
+}
 
 /* The pill floats 12px under the strip and sits on nothing: no full-width bar behind it. */
 .storefront-nav {
-  padding-block-start: var(--sp-3);
+  padding-block-start: var(--nav-gap-top);
 }
 .storefront-nav__row {
   display: flex;
   align-items: center;
   gap: var(--sp-3);
-  height: 64px;
-  padding-inline: 20px var(--sp-2);
-  border: 1px solid var(--border);
+  height: var(--nav-row-h);
+  padding-inline: 20px 8px;
+  border: 1px solid var(--nav-border);
   border-radius: var(--radius-pill);
-  background: var(--nav-pill-bg);
-  -webkit-backdrop-filter: saturate(1.4) blur(14px);
-  backdrop-filter: saturate(1.4) blur(14px);
-  box-shadow: var(--shadow-sm);
-  transition:
-    background-color var(--dur-base) var(--ease),
-    box-shadow var(--dur-base) var(--ease);
+  /* glass: a see-through pill that blurs what passes under it; a hairline edge, no drop shadow */
+  background: var(--nav-glass-bg);
+  -webkit-backdrop-filter: var(--nav-glass-blur);
+  backdrop-filter: var(--nav-glass-blur);
+  box-shadow: var(--nav-sheen);
+  transition: background-color var(--dur-base) var(--ease);
 }
 .storefront-header.is-scrolled .storefront-nav__row {
-  background: var(--nav-pill-bg-scrolled);
-  box-shadow: var(--shadow-md);
+  background: var(--nav-glass-bg-scrolled);
 }
 .storefront-nav__links {
+  position: relative;
   display: flex;
   align-items: center;
   gap: var(--sp-1);
+}
+/* The glass pill that glides between the tabs (useNavHoverPill sets its width and position). */
+.storefront-nav__pill {
+  position: absolute;
+  inset-block-start: calc(50% - 20px);
+  left: 0;
+  height: 40px;
+  border: 1px solid var(--nav-pill-edge);
+  border-radius: var(--radius-pill);
+  background: var(--nav-pill-glass);
+  -webkit-backdrop-filter: saturate(1.8) blur(14px);
+  backdrop-filter: saturate(1.8) blur(14px);
+  box-shadow: var(--nav-pill-shine);
+  opacity: 0;
+  scale: 0.94;
+  pointer-events: none;
+  transition:
+    transform 420ms cubic-bezier(0.22, 1.2, 0.36, 1),
+    width 420ms cubic-bezier(0.22, 1.2, 0.36, 1),
+    opacity 200ms var(--ease),
+    scale 260ms var(--ease-soft);
+}
+.storefront-nav__pill[data-on] {
+  opacity: 1;
+  scale: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .storefront-nav__pill {
+    transition: opacity 120ms linear;
+  }
 }
 .storefront-nav__link {
   display: inline-flex;
@@ -1425,13 +1540,41 @@ html[lang='ur'] .empty-state__title {
     color var(--dur-fast) var(--ease),
     background-color var(--dur-fast) var(--ease);
 }
+.storefront-nav__link {
+  position: relative;
+}
 .storefront-nav__link:hover {
-  color: var(--text-primary);
-  background: var(--bg-sunken);
+  color: var(--nav-link-hover-fg);
+}
+/* with the gliding pill in place (it needs JS) a tab paints nothing of its own */
+.storefront-nav__links:not([data-pill]) .storefront-nav__link:hover {
+  background: var(--nav-link-hover-bg);
+}
+.storefront-nav__links > .storefront-nav__link,
+.storefront-nav__links > * .storefront-nav__link {
+  z-index: 1;
+}
+.storefront-nav__link:focus-visible {
+  outline: 2px solid var(--brand-ring);
+  outline-offset: 2px;
 }
 .storefront-nav__link.active {
   color: var(--text-primary);
   font-weight: 600;
+}
+.storefront-nav__link.active::after {
+  content: '';
+  position: absolute;
+  inset-block-end: 5px;
+  inset-inline-start: 50%;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--nav-link-dot);
+  translate: -50% 0;
+}
+[dir='rtl'] .storefront-nav__link.active::after {
+  translate: 50% 0;
 }
 .storefront-nav__link--menu {
   gap: 2px;
@@ -1444,8 +1587,9 @@ html[lang='ur'] .empty-state__title {
   transition: transform var(--dur-base) var(--ease-soft);
 }
 .storefront-nav__link--menu[aria-expanded='true'] {
-  color: var(--text-primary);
-  background: var(--bg-sunken);
+  color: var(--nav-link-hover-fg);
+  background: var(--nav-pill-glass);
+  box-shadow: var(--nav-pill-shine), inset 0 0 0 1px var(--nav-pill-edge);
 }
 .storefront-nav__link--menu[aria-expanded='true'] svg {
   transform: rotate(180deg);
@@ -1516,6 +1660,46 @@ html[lang='ur'] .empty-state__title {
   .icon-btn.storefront-nav__search-btn {
     display: none;
   }
+  /* Over the Home hero the pill rests as this icon; it gives way once the pill is expanded. */
+  .icon-btn.storefront-nav__search-btn.is-hero {
+    display: inline-flex;
+  }
+  .icon-btn.storefront-nav__search-btn.is-hero.is-deferred {
+    display: none;
+  }
+}
+/* The hero's search icon opens the pill in place: it unrolls from the icon's side (clip, not
+   scale, so the text never stretches). */
+.storefront-nav__search.is-expanded {
+  animation: nav-search-in 360ms var(--ease-soft) both;
+}
+[dir='rtl'] .storefront-nav__search.is-expanded {
+  animation-name: nav-search-in-rtl;
+}
+@keyframes nav-search-in {
+  from {
+    opacity: 0;
+    clip-path: inset(0 0 0 70% round 999px);
+  }
+  to {
+    opacity: 1;
+    clip-path: inset(-8px -8px -8px -8px round 999px);
+  }
+}
+@keyframes nav-search-in-rtl {
+  from {
+    opacity: 0;
+    clip-path: inset(0 70% 0 0 round 999px);
+  }
+  to {
+    opacity: 1;
+    clip-path: inset(-8px -8px -8px -8px round 999px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .storefront-nav__search.is-expanded {
+    animation: none;
+  }
 }
 @media (max-width: 1099px) {
   .storefront-nav__search {
@@ -1523,11 +1707,11 @@ html[lang='ur'] .empty-state__title {
   }
 }
 @media (max-width: 767px) {
-  .storefront-nav {
-    padding-block-start: var(--sp-2);
+  :root {
+    --nav-row-h: 56px;
+    --nav-gap-top: 8px;
   }
   .storefront-nav__row {
-    height: 60px;
     gap: var(--sp-1);
     padding-inline: var(--sp-1);
   }
@@ -1817,11 +2001,11 @@ html[lang='ur'] .empty-state__title {
   display: inline-flex;
   align-items: center;
   flex-shrink: 0;
-  height: 44px;
-  padding-inline: 20px;
+  height: 40px;
+  padding-inline: 18px;
   border-radius: var(--radius-pill);
-  background: var(--brand-ink);
-  color: var(--text-on-dark);
+  background: var(--brand-primary);
+  color: var(--text-on-brand);
   font-size: var(--fs-sm);
   font-weight: 600;
   white-space: nowrap;
@@ -1835,9 +2019,8 @@ html[lang='ur'] .empty-state__title {
   display: none;
 }
 .account-guest:hover {
-  background: var(--brand-ink-2);
-  color: var(--text-on-dark);
-  box-shadow: var(--shadow-sm);
+  background: var(--brand-primary-hover);
+  color: var(--text-on-brand);
 }
 .account-guest:active {
   transform: scale(0.97);
@@ -1845,12 +2028,15 @@ html[lang='ur'] .empty-state__title {
 }
 @media (max-width: 767px) {
   .account-guest {
+    height: 44px;
     padding: 0;
     background: transparent;
+    color: var(--text-primary);
   }
   .account-guest:hover {
     background: transparent;
     box-shadow: none;
+    color: var(--text-primary);
   }
   .account-guest .account-avatar {
     display: inline-grid;
@@ -1858,6 +2044,55 @@ html[lang='ur'] .empty-state__title {
   .account-guest__label {
     display: none;
   }
+}
+
+/* The hero's second call to action: an ink pill with a hairline, in both themes (the stage behind
+   it is dark in both). */
+.hero__actions .btn--secondary {
+  border-color: rgb(255 255 255 / 0.26);
+  background: var(--studio-ink);
+  color: var(--studio-warm-white);
+}
+.hero__actions .btn--secondary:hover {
+  border-color: rgb(255 255 255 / 0.5);
+  background: #0b0b0d;
+  color: var(--studio-warm-white);
+  box-shadow: none;
+}
+
+/* "Skip to shops" lands with the section clear of the sticky navbar. */
+.home-shops-anchor {
+  scroll-margin-block-start: calc(var(--nav-gap-top) + var(--nav-row-h) + 24px);
+}
+
+/* The navbar while it is over the Home night stage (Hero.tsx sets the attribute): the same glass
+   gone dark, with light text and controls, in either theme. The search field is left out on
+   purpose, so it stays a normal readable field when it opens here. */
+.storefront-header[data-over-hero] .storefront-nav__row {
+  --nav-glass-bg: rgb(10 10 14 / 0.34);
+  --nav-glass-bg-scrolled: rgb(10 10 14 / 0.34);
+  --nav-border: rgb(255 255 255 / 0.16);
+  --nav-sheen: inset 0 1px 0 rgb(255 255 255 / 0.05);
+}
+.storefront-header[data-over-hero] .storefront-nav__row > :not(.storefront-nav__search) {
+  --text-primary: #fff;
+  --text-secondary: rgb(255 255 255 / 0.86);
+  --border: rgb(255 255 255 / 0.16);
+  --border-strong: rgb(255 255 255 / 0.36);
+  --bg-surface: rgb(255 255 255 / 0.14);
+  --bg-sunken: rgb(255 255 255 / 0.09);
+  --nav-link-hover-fg: #fff;
+  --nav-link-hover-bg: rgb(255 255 255 / 0.14);
+  --nav-link-dot: #f08a5d;
+  --nav-pill-glass: linear-gradient(180deg, rgb(255 255 255 / 0.2), rgb(255 255 255 / 0.1));
+  --nav-pill-edge: rgb(255 255 255 / 0.2);
+  --nav-pill-shine: inset 0 1px 0 rgb(255 255 255 / 0.18);
+}
+.storefront-header[data-over-hero] .storefront-logo__ai {
+  color: #f08a5d;
+}
+.storefront-header[data-over-hero] .account-avatar {
+  color: #fff;
 }
 
 /* Seller/Admin header brand — the same lockup as the storefront, plus a small role pill. */
@@ -2066,242 +2301,7 @@ html[lang='ur'] .hero__title {
   color: var(--text-secondary);
 }
 
-/* The big search box: a white 28px panel floating on --shadow-xl-ish depth, holding the search row
-   (leading magnifier, field, photo button, persimmon "Search") and the real category chips. */
-.hero__search {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-2);
-  width: 100%;
-  max-width: 760px;
-  margin-block-start: var(--sp-2);
-  padding: 10px;
-  border: 1px solid var(--border);
-  border-radius: 28px;
-  background: var(--bg-surface);
-  box-shadow: 0 24px 60px rgb(var(--shadow-ink) / 0.08), 0 4px 10px rgb(var(--shadow-ink) / 0.04);
-  text-align: start;
-}
-.storefront-search--hero .ant-input-affix-wrapper {
-  height: 56px;
-  padding-inline: var(--sp-4) 4px;
-  border: 0;
-  border-radius: 20px;
-  background: transparent;
-  box-shadow: none;
-}
-.storefront-search--hero .ant-input-affix-wrapper .ant-input {
-  font-size: 17px;
-}
-.storefront-search--hero .ant-input-affix-wrapper:not(.ant-input-affix-wrapper-focused):hover {
-  background: transparent;
-}
-.storefront-search--hero .ant-input-affix-wrapper-focused,
-.storefront-search--hero .ant-input-affix-wrapper:focus-within {
-  background: transparent;
-  box-shadow: none;
-}
-/* Focus shows on the whole search card, so nothing inside it changes size or colour on click. */
-.hero__search {
-  transition:
-    border-color var(--dur-fast) var(--ease),
-    box-shadow var(--dur-fast) var(--ease);
-}
-.hero__search:focus-within {
-  border-color: var(--brand-ink);
-  box-shadow:
-    0 0 0 3px var(--brand-ring),
-    0 24px 60px rgb(var(--shadow-ink) / 0.08);
-}
-.storefront-search__lead {
-  margin-inline-end: var(--sp-2);
-  color: var(--text-tertiary);
-}
-.storefront-search--hero .storefront-search__icon {
-  width: 40px;
-  height: 40px;
-  border: 1px solid var(--border);
-  background: var(--bg-canvas);
-  color: var(--text-primary);
-}
-.storefront-search--hero .storefront-search__suffix {
-  gap: var(--sp-2);
-}
-.storefront-search__go {
-  --btn-height: 40px;
-  padding-inline: 18px;
-  font-size: var(--fs-sm);
-}
-.hero__try {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-  padding: 0 var(--sp-2) var(--sp-1);
-  min-width: 0;
-}
-.hero__try-label {
-  flex-shrink: 0;
-  font-size: 13px;
-  color: var(--text-tertiary);
-}
-.hero__chips {
-  display: flex;
-  flex-wrap: nowrap;
-  gap: var(--sp-2);
-  min-width: 0;
-  margin: 0;
-  padding: 0;
-  overflow-x: auto;
-  list-style: none;
-  scrollbar-width: none;
-}
-.hero__chips::-webkit-scrollbar {
-  display: none;
-}
-.hero__chip {
-  display: inline-flex;
-  align-items: center;
-  height: 36px;
-  padding-inline: 14px;
-  border-radius: var(--radius-pill);
-  background: var(--bg-sunken);
-  color: var(--text-primary);
-  font-size: 13.5px;
-  font-weight: 500;
-  white-space: nowrap;
-  text-decoration: none;
-  transition:
-    background-color var(--dur-fast) var(--ease),
-    color var(--dur-fast) var(--ease);
-}
-/* 36px drawn, 44px to the finger. */
-.hero__chip {
-  position: relative;
-}
-.hero__chip::before {
-  content: '';
-  position: absolute;
-  inset: -4px 0;
-}
-.hero__chip:hover {
-  background: var(--brand-ink);
-  color: var(--text-on-dark);
-}
 
-/* ── The curved product ticker (the page's signature moment) ─────────────────
-   Fixed-size cards glide along a shallow arch; Hero.tsx positions each card every frame (x, drop
-   and tilt from the curve's slope). Photos are cropped into a fixed square so no image can stretch
-   its card. The edges fade out so cards enter and leave softly. */
-.hero-ticker {
-  position: relative;
-  width: 100vw;
-  margin-inline: calc(50% - 50vw);
-  padding: 56px 0 var(--sp-8);
-}
-.hero-ticker__track {
-  position: relative;
-  height: 400px;
-  overflow: hidden;
-  -webkit-mask-image: linear-gradient(to right, transparent, #000 12%, #000 88%, transparent);
-  mask-image: linear-gradient(to right, transparent, #000 12%, #000 88%, transparent);
-}
-.hero-ticker__card {
-  position: absolute;
-  top: 24px;
-  left: 0;
-  display: flex;
-  flex-direction: column;
-  width: 200px;
-  padding: 8px 8px 12px;
-  border-radius: 22px;
-  background: var(--bg-surface);
-  box-shadow: var(--shadow-lg);
-  color: var(--text-primary);
-  text-align: start;
-  text-decoration: none;
-  transform-origin: 50% 100%;
-  will-change: transform;
-  transition: box-shadow var(--dur-base) var(--ease-soft);
-}
-.hero-ticker__card--art {
-  padding-block-end: 8px;
-}
-.hero-ticker__card:hover {
-  box-shadow: var(--shadow-xl);
-}
-a.hero-ticker__card:focus-visible {
-  outline: none;
-  box-shadow: var(--shadow-lg), 0 0 0 3px var(--brand-ring);
-}
-.hero-ticker__art {
-  display: block;
-  overflow: hidden;
-  width: 100%;
-  aspect-ratio: 1 / 1;
-  border-radius: 16px;
-}
-.hero-ticker__art img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  user-select: none;
-}
-.hero-ticker__title {
-  overflow: hidden;
-  padding: 10px 6px 0;
-  font-size: var(--fs-sm);
-  font-weight: 600;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-html[lang='ur'] .hero-ticker__title {
-  font-family: var(--font-urdu-ui);
-}
-.hero-ticker__price {
-  --price-fs: 16px;
-  padding: 2px 6px 0;
-}
-
-/* Floating tags pinned over the middle of the ticker — platform facts. */
-.hero-tag {
-  position: absolute;
-  z-index: 4;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
-  border-radius: var(--radius-pill);
-  font-size: 12.5px;
-  font-weight: 600;
-  line-height: 1.2;
-  white-space: nowrap;
-}
-.hero-tag--ai {
-  inset-block-start: 40px;
-  inset-inline-start: 52%;
-  background: var(--brand-ink);
-  color: var(--text-on-dark);
-  box-shadow: 0 12px 24px rgb(var(--shadow-ink) / 0.25);
-  transform: rotate(calc(3deg * var(--fan-dir)));
-}
-.hero-tag--cod {
-  inset-block-start: 40px;
-  inset-inline-end: 52%;
-  border: 1px solid var(--border);
-  background: var(--bg-surface);
-  color: var(--text-primary);
-  box-shadow: var(--shadow-sm);
-}
-
-@media (max-width: 991px) {
-  .hero-ticker__card {
-    width: 170px;
-  }
-  .hero-ticker__track {
-    height: 360px;
-  }
-}
 @media (max-width: 767px) {
   .hero {
     padding-block-start: var(--sp-8);
@@ -2311,65 +2311,6 @@ html[lang='ur'] .hero-ticker__title {
   }
   .hero__sub {
     font-size: var(--fs-base);
-  }
-  .hero__search {
-    padding: 6px;
-    border-radius: 24px;
-  }
-  .storefront-search--hero .ant-input-affix-wrapper {
-    height: 52px;
-    padding-inline: var(--sp-3) 4px;
-  }
-  .storefront-search--hero .ant-input-affix-wrapper .ant-input {
-    font-size: var(--fs-base);
-  }
-  /* The photo button steps aside on phones; the persimmon Search stays. */
-  .storefront-search--hero .storefront-search__suffix > span:first-child {
-    display: none;
-  }
-  .storefront-search__go {
-    --btn-height: 40px;
-    padding-inline: var(--sp-3);
-  }
-  /* Chips: one swipeable row, nothing wraps into a wall of pills. */
-  .hero__chips {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    scrollbar-width: none;
-    margin-inline-end: -6px;
-    padding-inline-end: 6px;
-  }
-  .hero__chips::-webkit-scrollbar {
-    display: none;
-  }
-  .hero__chips {
-    -webkit-mask-image: linear-gradient(to left, transparent, #000 28px);
-    mask-image: linear-gradient(to left, transparent, #000 28px);
-  }
-  [dir='rtl'] .hero__chips {
-    -webkit-mask-image: linear-gradient(to right, transparent, #000 28px);
-    mask-image: linear-gradient(to right, transparent, #000 28px);
-  }
-  .hero-ticker {
-    padding-block-start: var(--sp-10);
-  }
-  .hero-ticker__card {
-    width: 140px;
-  }
-  .hero-ticker__track {
-    height: 290px;
-    -webkit-mask-image: linear-gradient(to right, transparent, #000 6%, #000 94%, transparent);
-    mask-image: linear-gradient(to right, transparent, #000 6%, #000 94%, transparent);
-  }
-  .hero-tag {
-    padding: 6px 10px;
-    font-size: 11.5px;
-  }
-}
-@media (max-width: 420px) {
-  /* Narrow phones: the sticker starts further in so its overhang never reaches the screen edge. */
-  .hero-tag--ai {
-    font-size: 11px;
   }
 }
 

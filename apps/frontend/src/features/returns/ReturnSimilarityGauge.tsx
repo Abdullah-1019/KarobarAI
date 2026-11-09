@@ -25,7 +25,7 @@ function asFraction(value: number | undefined, fallback: number): number {
 
 // The seller detail page's AI moment: one stored visual-similarity observation drawn as a half
 // gauge with the policy's three zones; the needle swings to the score and the figure counts up.
-// Same data and caveats as ReturnSimilarityScale (kept for admin) — a similarity indicator, not a
+// Used on the seller and admin return detail. A similarity indicator, not a
 // probability or proof of identity, so the copy says "match", never "confidence".
 export function ReturnSimilarityGauge({ inspection }: { inspection: Inspection }) {
   const { t } = useTranslation(['returns']);

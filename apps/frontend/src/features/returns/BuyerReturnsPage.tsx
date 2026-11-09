@@ -71,9 +71,9 @@ export function BuyerReturnsPage() {
                 <Link to={`/orders/${item.orderId}/return/${item.id}/status`} className="rtRow" aria-label={t('buyerList.viewReturn')}>
                   <ProductThumbnail src={item.productImage ?? null} size={52} radius="md" />
                   <span className="olMain">
-                    <span className="rtRowTitle">{item.productName ?? (item.orderNumber ? `#${item.orderNumber}` : item.orderId)}</span>
+                    <span className="rtRowTitle">{item.productName ?? `#${item.orderNumber ?? '…'}`}</span>
                     <span className="olMeta">
-                      {item.orderNumber ? `#${item.orderNumber}` : t('buyerList.orderLabel', { id: item.orderId.slice(0, 8) })} ·{' '}
+                      {item.orderNumber && <>#{item.orderNumber} · </>}
                       {t('buyerList.requested', { date: new Date(item.createdAt).toLocaleDateString() })}
                     </span>
                     <span className="rtReason">{reasonLabel(t, item.reason)}</span>

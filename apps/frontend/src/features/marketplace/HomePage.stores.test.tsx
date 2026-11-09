@@ -11,8 +11,7 @@ import { getFeaturedStores } from './storeApi';
 
 vi.mock('./storeApi', () => ({ getFeaturedStores: vi.fn(), getPublicStorefront: () => new Promise(() => {}) }));
 vi.mock('./marketplaceApi', () => ({ HOME_FEED_QUERY_KEY: ['marketplace', 'home'], getHomeFeed: () => new Promise(() => {}) }));
-vi.mock('./Hero', () => ({ Hero: () => <div /> }));
-vi.mock('./TrustStrip', () => ({ TrustStrip: () => <div /> }));
+vi.mock('./HomeStory', () => ({ HomeStory: () => <div /> }));
 vi.mock('./ProductGridSkeleton', () => ({ ProductGridSkeleton: () => <div /> }));
 vi.mock('./CategoryGrid', () => ({ CategoryGrid: () => <div /> }));
 vi.mock('./FeaturedProducts', () => ({ FeaturedProducts: () => <div /> }));

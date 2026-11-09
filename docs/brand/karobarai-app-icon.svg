@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="KarobarAI">
+  <!-- Studio Light app icon (docs/frontend/DESIGN-CONSULT.md): an ink tile (#17171A) carrying the
+       BrandLogo mark — the shopping bag in warm white (#FAF9F7) and the AI spark in the AI accent
+       (#F2A27E). Same geometry as src/components/BrandLogo.tsx, scaled 14× from its 32px viewBox. -->
+  <rect width="512" height="512" rx="112" fill="#17171A"/>
+  <g transform="translate(16 32) scale(14)" fill="none" stroke="#FAF9F7" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M8.5 11.5h15l-1.1 14.1a2 2 0 0 1-2 1.9H11.6a2 2 0 0 1-2-1.9L8.5 11.5Z"/>
+    <path d="M12.5 11.5V8.8a3.5 3.5 0 0 1 7 0v2.7"/>
+  </g>
+  <path transform="translate(16 32) scale(14)" d="M24.5 3.2l1.05 2.7 2.7 1.05-2.7 1.05L24.5 10.7l-1.05-2.7-2.7-1.05 2.7-1.05L24.5 3.2Z" fill="#F2A27E"/>
+</svg>

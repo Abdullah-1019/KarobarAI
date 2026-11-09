@@ -55,9 +55,9 @@ export function CheckoutConfirmationPage() {
   const isCod = orders.every((o) => o.paymentMethod === 'COD');
   const grandTotal = orders.reduce((sum, o) => sum + Number(o.totalAmount), 0);
   const single = orders.length === 1 ? orders[0] : null;
-  const numberFor = (index: number, order: CreatedOrderDTO) => {
+  const numberFor = (index: number) => {
     const n = details[index]?.data?.orderNumber;
-    return n ? String(n) : order.id.slice(0, 8).toUpperCase();
+    return n ? String(n) : '…';
   };
 
   return (
@@ -102,7 +102,7 @@ export function CheckoutConfirmationPage() {
                 <StoreMonogram name={order.storeName} size={40} />
                 <div>
                   <h2 id={`order-${order.id}`} className="confirm-order__no">
-                    {t('flow.orderNo', { number: numberFor(index, order) })}
+                    {t('flow.orderNo', { number: numberFor(index) })}
                   </h2>
                   <span className="confirm-order__store" dir="auto">
                     {order.storeName}

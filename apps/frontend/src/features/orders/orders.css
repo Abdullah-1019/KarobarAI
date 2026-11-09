@@ -893,3 +893,212 @@
   text-align: center;
   font-variant-numeric: tabular-nums;
 }
+
+/* ── Courier step (CourierRecommendationCard, inside the seller's next-step card) ─────────── */
+.crCard {
+  display: grid;
+  gap: 10px;
+  padding-block-start: 12px;
+  border-block-start: 1px solid var(--border);
+}
+.crHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.crIcon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  background: var(--wash-lilac);
+}
+.crTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+.crSim {
+  margin-inline-start: auto;
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-sunken);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+}
+.crHint {
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: var(--fs-xs);
+}
+.crNote {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--info-soft);
+  font-size: var(--fs-sm);
+}
+.crNote > svg {
+  flex-shrink: 0;
+  margin-block-start: 2px;
+  color: var(--info);
+}
+.crNote[data-tone="success"] {
+  background: var(--success-soft);
+}
+.crNote[data-tone="success"] > svg {
+  color: var(--success);
+}
+.crNote[data-tone="warning"] {
+  background: var(--warning-soft);
+}
+.crNote[data-tone="warning"] > svg {
+  color: var(--warning);
+}
+.crNote[data-tone="error"] {
+  background: var(--error-soft);
+}
+.crNote[data-tone="error"] > svg {
+  color: var(--error);
+}
+.crNoteSub {
+  display: block;
+  margin-block-start: 2px;
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+}
+.crQuotes {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.crQuote {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--bg-canvas);
+}
+.crQuote[data-selected] {
+  border-color: var(--brand-ink);
+  background: var(--wash-lilac);
+}
+.crQuoteHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+}
+.crQuoteName {
+  font-weight: 600;
+}
+.crChip {
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--brand-ink);
+  color: var(--text-on-dark);
+  font-size: 11px;
+  font-weight: 600;
+}
+.crScore {
+  margin-inline-start: auto;
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+}
+.crScore strong {
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.crStats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+}
+.crStats div {
+  display: grid;
+  gap: 1px;
+}
+.crStats dt {
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+.crStats dd {
+  margin: 0;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.crWhy summary {
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  cursor: pointer;
+}
+.crWhy summary:focus-visible {
+  outline: 3px solid var(--brand-ring);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.crWhy ul {
+  display: grid;
+  gap: 2px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--fs-xs);
+}
+.crWhy li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--text-secondary);
+}
+.crWhyTotal {
+  padding-block-start: 4px;
+  border-block-start: 1px dashed var(--border-strong);
+  color: var(--text-primary) !important;
+  font-weight: 600;
+}
+.crBusy {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+}
+.crSpin {
+  animation: crSpin 900ms linear infinite;
+}
+@keyframes crSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+[dir="rtl"] .crTitle,
+[dir="rtl"] .crHint,
+[dir="rtl"] .crNote,
+[dir="rtl"] .crStats,
+[dir="rtl"] .crWhy,
+[dir="rtl"] .crBusy {
+  font-family: var(--font-urdu-ui);
+}
+@media (max-width: 479px) {
+  .crStats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .crSpin {
+    animation: none;
+  }
+}

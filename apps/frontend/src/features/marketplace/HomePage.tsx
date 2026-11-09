@@ -5,8 +5,7 @@ import { Link, useNavigate } from 'react-router-dom';
 
 import { ArrowIcon, Button, EmptyState, Section, Skeleton } from '../../components';
 import { useLanguage } from '../../hooks';
-import { Hero } from './Hero';
-import { TrustStrip } from './TrustStrip';
+import { HomeStory } from './HomeStory';
 import { ProductGridSkeleton } from './ProductGridSkeleton';
 import { CategoryGrid } from './CategoryGrid';
 import { FeaturedProducts } from './FeaturedProducts';
@@ -54,10 +53,15 @@ export function HomePage() {
   const newArrivals = splitFeed ? feedList.slice(half) : freshArrivals;
 
   return (
-    <div>
-      <Hero categories={data?.categories} products={data ? [...data.featured, ...data.newArrivals] : undefined} />
-      <TrustStrip />
+    <div className="home-page">
+      <HomeStory
+        products={data ? [...data.featured, ...data.newArrivals] : undefined}
+        stores={stores.data}
+        storesLoading={stores.isPending}
+        skipTargetId="home-shops"
+      />
 
+      <div id="home-shops" className="home-shops-anchor" />
       <Section>
         {stores.isPending && (
           <>

@@ -1,0 +1,1038 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>KarobarAI Story</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Nastaliq+Urdu:wght@500&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --canvas: #faf9f7;
+    --ink: #17171a;
+    --persimmon: #bf4a1f;
+    --night: 10 10 14;
+    --dim: 0.34; /* darkness of the photos at the sides; the middle is always deep */
+    --ticker-h: 36px;
+    --arch: 64px;
+    --tile-h: calc((100svh - var(--ticker-h)) / 2.72);
+    --tile-w: calc(var(--tile-h) * 0.8);
+    --tile-gap: 12px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { background: var(--canvas); color: var(--ink); font-family: Inter, system-ui, sans-serif; overflow-x: clip; }
+  a { color: inherit; text-decoration: none; }
+  button { font: inherit; }
+
+  /* ticker */
+  .ticker { position: relative; height: var(--ticker-h); overflow: hidden; background: var(--ink); color: #faf9f7; }
+  .ticker__run { display: flex; width: max-content; height: 100%; align-items: center; animation: run 42s linear infinite; }
+  .ticker span { display: inline-flex; align-items: center; gap: 14px; padding-inline-end: 44px; font-size: 13px; font-weight: 500; white-space: nowrap; }
+  .ticker i { width: 5px; height: 5px; border-radius: 50%; background: #f2a27e; }
+  @keyframes run { to { translate: -50% 0; } }
+
+  /* the stage: its bottom edge arches up in the middle, the curve of the reference strip */
+  .hero {
+    position: relative;
+    height: calc(100svh - var(--ticker-h));
+    min-height: 560px;
+    overflow: hidden;
+    isolation: isolate;
+    background: #0e0e11;
+    color: #fff;
+    cursor: grab;
+    user-select: none;
+    touch-action: pan-y;
+    -webkit-mask:
+      linear-gradient(#000, #000) top / 100% calc(100% - var(--arch) + 1px) no-repeat,
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 64' preserveAspectRatio='none'%3E%3Cpath d='M0 0H1440V64C1440 64 1200 0 720 0C240 0 0 64 0 64Z'/%3E%3C/svg%3E") bottom / 100% var(--arch) no-repeat;
+    mask:
+      linear-gradient(#000, #000) top / 100% calc(100% - var(--arch) + 1px) no-repeat,
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 64' preserveAspectRatio='none'%3E%3Cpath d='M0 0H1440V64C1440 64 1200 0 720 0C240 0 0 64 0 64Z'/%3E%3C/svg%3E") bottom / 100% var(--arch) no-repeat;
+  }
+  .hero[data-dragging] { cursor: grabbing; }
+
+  /* the wall: rows of small tiles, each row turning its own way */
+  .wall { position: absolute; inset: 0; z-index: 0; display: flex; flex-direction: column; justify-content: center; gap: var(--tile-gap); }
+  .row { display: flex; flex: none; gap: var(--tile-gap); width: max-content; height: var(--tile-h); will-change: transform; }
+  .tile { flex: none; width: var(--tile-w); height: var(--tile-h); overflow: hidden; border-radius: 16px; background: #1b1b1f; }
+  .tile img { display: block; width: 100%; height: 100%; object-fit: cover; pointer-events: none; opacity: 0; transition: opacity 500ms ease; }
+  .tile img[data-loaded] { opacity: 1; }
+  .tile img[data-trim] { scale: 1.16; transform-origin: 50% 12%; }
+
+  /* the veil: deep behind the copy, opening up so the products keep their colour at the sides */
+  .scrim {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background:
+      radial-gradient(ellipse min(640px, 56vw) 68% at 50% 54%, rgb(var(--night) / 0.92) 0%, rgb(var(--night) / 0.88) 44%, rgb(var(--night) / 0.5) 74%, rgb(var(--night) / 0) 100%),
+      linear-gradient(180deg, rgb(var(--night) / 0.6) 0, rgb(var(--night) / 0) 118px),
+      rgb(var(--night) / var(--dim));
+  }
+
+  /* the glow lives in the dark middle, where it reads as clean colour instead of tinting photos */
+  .glow { position: absolute; z-index: 2; border-radius: 50%; pointer-events: none; mix-blend-mode: screen; will-change: translate, scale; }
+  .glow--peach { width: min(560px, 44vw); height: min(560px, 44vw); left: calc(50% + 10px); top: 12%; background: radial-gradient(circle, rgb(240 128 78 / 0.46) 0%, rgb(240 128 78 / 0.16) 42%, transparent 68%); animation: drift 20s ease-in-out infinite alternate; }
+  .glow--lilac { width: min(540px, 42vw); height: min(540px, 42vw); right: calc(50% + 10px); top: 26%; background: radial-gradient(circle, rgb(124 122 255 / 0.5) 0%, rgb(124 122 255 / 0.18) 42%, transparent 68%); animation: drift 24s ease-in-out infinite alternate-reverse; }
+  @keyframes drift { to { transform: translate(28px, 22px); } }
+
+  /* navbar */
+  .nav {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: min(1232px, calc(100% - 32px));
+    height: 58px;
+    padding-inline: 20px 8px;
+    border: 1px solid rgb(255 255 255 / 0.16);
+    border-radius: 999px;
+    background: rgb(var(--night) / 0.34);
+    -webkit-backdrop-filter: saturate(1.7) blur(26px);
+    backdrop-filter: saturate(1.7) blur(26px);
+    translate: -50% 0;
+    cursor: default;
+  }
+  .logo { display: inline-flex; align-items: center; font-family: Outfit, sans-serif; font-size: 20px; font-weight: 700; letter-spacing: -0.02em; }
+  .logo svg { margin-inline-end: 8px; color: #f08a5d; }
+  .logo b { color: #f08a5d; font-weight: 700; }
+  .links { display: flex; gap: 4px; margin-inline-start: 8px; }
+  .links a { padding: 9px 12px; border-radius: 999px; color: rgb(255 255 255 / 0.86); font-size: 14.5px; font-weight: 500; transition: background 180ms ease, color 180ms ease; }
+  .links a:hover { background: rgb(255 255 255 / 0.14); color: #fff; }
+  .tools { display: flex; align-items: center; gap: 8px; margin-inline-start: auto; }
+  .round { display: grid; place-items: center; width: 40px; height: 40px; border: 1px solid rgb(255 255 255 / 0.16); border-radius: 50%; background: rgb(255 255 255 / 0.08); color: #fff; }
+  .lang { display: flex; padding: 3px; border-radius: 999px; background: rgb(255 255 255 / 0.1); font-size: 13px; font-weight: 600; }
+  .lang span { padding: 6px 13px; border-radius: 999px; }
+  .lang span:first-child { background: rgb(255 255 255 / 0.92); color: var(--ink); }
+  .login { display: inline-flex; align-items: center; height: 40px; padding-inline: 18px; border-radius: 999px; background: var(--persimmon); color: #fff; font-size: 14px; font-weight: 600; }
+
+  /* copy, in three groups: the claim, the promise, the actions */
+  .copy {
+    position: absolute;
+    inset: 70px 16px var(--arch);
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    pointer-events: none;
+  }
+  .badge { display: inline-flex; align-items: center; gap: 8px; margin: 0 0 clamp(12px, 2.4svh, 22px); padding: 4px 14px 4px 4px; border: 1px solid rgb(255 255 255 / 0.16); border-radius: 999px; background: rgb(255 255 255 / 0.07); color: rgb(255 255 255 / 0.92); font-size: 13px; font-weight: 500; }
+  .badge em { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: rgb(255 255 255 / 0.12); color: #f2a27e; font-style: normal; font-size: 13px; }
+  h1 { max-width: 13ch; margin: 0; font-family: Outfit, sans-serif; font-size: min(clamp(44px, 6.4vw, 84px), 11svh); font-weight: 600; line-height: 1.02; letter-spacing: -0.035em; text-wrap: balance; }
+  .twin { margin: clamp(2px, 0.8svh, 8px) 0 0; color: rgb(255 255 255 / 0.8); font-family: 'Noto Nastaliq Urdu', serif; font-size: min(24px, 3.4svh); line-height: 1.9; }
+  .sub { margin: clamp(4px, 1svh, 10px) 0 0; color: rgb(255 255 255 / 0.84); font-size: max(15px, min(18px, 2.7svh)); line-height: 1.5; }
+  .cta { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: clamp(14px, 3svh, 28px); pointer-events: auto; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; height: 44px; padding-inline: 24px; border: 1px solid transparent; border-radius: 999px; font-size: 15px; font-weight: 600; cursor: pointer; transition: translate 180ms ease, background 180ms ease, border-color 180ms ease; }
+  .btn:hover { translate: 0 -1px; }
+  .btn svg { transition: translate 220ms ease; }
+  .btn--cta { background: var(--persimmon); color: #fff; }
+  .btn--cta:hover { background: #a93f18; }
+  .btn--cta:hover svg { translate: 3px 0; }
+  .btn--ink { border-color: rgb(255 255 255 / 0.26); background: var(--ink); color: #fff; }
+  .btn--ink:hover { border-color: rgb(255 255 255 / 0.5); background: #0b0b0d; }
+
+  .pause { position: absolute; right: 16px; bottom: 22px; z-index: 4; display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 1px solid rgb(255 255 255 / 0.2); border-radius: 50%; background: rgb(var(--night) / 0.6); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); color: #fff; cursor: pointer; }
+
+  /* sample-only control */
+  .panel { position: absolute; left: 16px; bottom: calc(var(--arch) + 10px); z-index: 6; display: flex; align-items: center; gap: 10px; padding: 8px 14px; border: 1px solid rgb(255 255 255 / 0.18); border-radius: 999px; background: rgb(14 14 17 / 0.76); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); color: #fff; font-size: 12.5px; cursor: default; }
+  .panel input { width: 130px; accent-color: #f08a5d; }
+  .panel output { min-width: 34px; font-variant-numeric: tabular-nums; }
+
+  /* the page carrying on below, to judge the join */
+  .trust { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; max-width: 1232px; margin: 12px auto 64px; padding-inline: 16px; }
+  .trust div { padding: 20px; border-radius: 24px; background: #fff; box-shadow: 0 1px 2px rgb(23 23 26 / 0.05), 0 12px 28px -14px rgb(23 23 26 / 0.14); }
+  .trust b { display: block; font-size: 16px; font-weight: 600; }
+  .trust small { color: #5f5d58; font-size: 13.5px; }
+
+  @media (max-width: 900px) {
+    .links, .lang { display: none; }
+    .trust { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 600px) {
+    :root { --arch: 40px; --tile-h: calc((100svh - var(--ticker-h)) / 4.7); --tile-gap: 8px; }
+    .tile { border-radius: 12px; }
+    .nav { height: 56px; padding-inline: 16px 8px; }
+    .badge { font-size: 11.5px; }
+    .scrim {
+      background:
+        radial-gradient(ellipse 96vw 44% at 50% 52%, rgb(var(--night) / 0.94) 0%, rgb(var(--night) / 0.9) 60%, rgb(var(--night) / 0) 100%),
+        linear-gradient(180deg, rgb(var(--night) / 0.6) 0, rgb(var(--night) / 0) 110px),
+        rgb(var(--night) / var(--dim));
+    }
+    .glow--peach { width: 300px; height: 300px; left: 40%; top: 30%; }
+    .glow--lilac { width: 280px; height: 280px; right: 40%; top: 40%; }
+    .panel { left: 8px; bottom: calc(var(--arch) + 8px); padding: 6px 10px; }
+    .panel input { width: 76px; }
+    .pause { right: 10px; bottom: 14px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ticker__run, .glow { animation: none; }
+  }
+
+  /* header as in the app */
+  .site-head { position: sticky; top: calc(-1 * var(--ticker-h)); z-index: 50; }
+  .nav { position: relative; top: auto; left: auto; translate: none; margin: 12px auto 0; transition: background 240ms ease, border-color 240ms ease; }
+  .site-head[data-over] .nav { color: #fff; }
+  .site-head:not([data-over]) .nav { border-color: rgb(23 23 26 / 0.08); background: rgb(255 255 255 / 0.72); color: var(--ink); }
+  .site-head:not([data-over]) .links a { color: rgb(23 23 26 / 0.74); }
+  .site-head:not([data-over]) .links a:hover { background: rgb(108 99 214 / 0.1); color: var(--ink); }
+  .site-head:not([data-over]) .round { border-color: rgb(23 23 26 / 0.08); background: #fff; color: var(--ink); }
+  .site-head:not([data-over]) .lang { background: rgb(23 23 26 / 0.06); }
+  .site-head:not([data-over]) .lang span:first-child { background: #fff; }
+  .site-head:not([data-over]) .logo svg, .site-head:not([data-over]) .logo b { color: var(--persimmon); }
+
+  /* the hero holds still while the find comes forward */
+  .hero-track { position: relative; z-index: 2; height: calc(100svh - var(--ticker-h) + 70svh); margin-top: -70px; }
+  .hero { position: sticky; top: 0; }
+  .hero-dim { position: absolute; inset: 0; z-index: 2; background: rgb(8 8 12 / 0.74); opacity: 0; pointer-events: none; }
+  .wall { will-change: transform; }
+  .found { position: absolute; left: 0; right: 0; bottom: 74px; z-index: 3; margin: 0; color: #fff; opacity: 0; text-align: center; pointer-events: none; }
+  .found b { display: block; font-family: Outfit, sans-serif; font-size: clamp(32px, 3.6vw, 52px); font-weight: 600; letter-spacing: -0.03em; line-height: 1.05; }
+  .found span { display: block; margin-top: 4px; color: rgb(255 255 255 / 0.8); font-size: 15px; }
+
+  /* the same two circles everywhere on this page: one state, drawn in the hero, on the page and in each card */
+  :root { --gw: min(560px, 44vw); }
+  .g { position: absolute; left: 0; top: 0; width: var(--gw); height: var(--gw); margin: calc(var(--gw) / -2) 0 0 calc(var(--gw) / -2); border-radius: 50%; pointer-events: none; will-change: transform; }
+  .g--peach { background: radial-gradient(circle, rgb(240 128 78 / 0.46) 0%, rgb(240 128 78 / 0.17) 42%, transparent 68%); }
+  .g--lilac { background: radial-gradient(circle, rgb(124 122 255 / 0.48) 0%, rgb(124 122 255 / 0.18) 42%, transparent 68%); }
+  .glow { position: fixed; left: 0; top: 0; right: auto; width: var(--gw); height: var(--gw); margin: calc(var(--gw) / -2) 0 0 calc(var(--gw) / -2); animation: none; }
+  .brand-glows { position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+
+  /* the one photo that travels */
+  #actor { position: fixed; left: 0; top: 0; z-index: 30; overflow: hidden; opacity: 0; background: #1b1b1f; box-shadow: 0 30px 60px -24px rgb(10 10 14 / 0.55); pointer-events: none; will-change: transform, width, height; transition: box-shadow 320ms ease; }
+  #actor[data-docked] { box-shadow: 0 6px 16px -8px rgb(10 10 14 / 0.35); }
+  #actor[data-riding]::after { content: ''; position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 0 0 3px #bf4a1f; animation: ride 1500ms ease-out infinite; }
+  @keyframes ride { 60%, 100% { opacity: 0; scale: 1.14; } }
+  #actor img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .slot { display: block; overflow: hidden; background: rgb(127 127 127 / 0.14); }
+  .slot img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .story-on .slot img { visibility: hidden; }
+
+  .features { position: relative; z-index: 3; max-width: 1264px; margin: -30px auto 0; padding: 0 16px; }
+  .features__head { position: relative; z-index: 1; margin-bottom: clamp(20px, 3.4svh, 36px); text-align: center; }
+  .features__head h2 { margin: 0; font-family: Outfit, sans-serif; font-size: clamp(30px, 3.4vw, 48px); font-weight: 600; letter-spacing: -0.03em; line-height: 1.08; }
+  .features__head p { margin: 2px 0 0; color: #5f5d58; font-family: 'Noto Nastaliq Urdu', serif; font-size: 18px; line-height: 2; }
+  .marker { height: 0; }
+
+  .fcard {
+    --p: 0; --e: 0;
+    position: sticky;
+    top: 82px;
+    display: grid;
+    grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr);
+    align-items: stretch;
+    gap: clamp(24px, 3.4vw, 56px);
+    height: clamp(500px, calc(100svh - 118px), 720px);
+    margin-bottom: var(--hold, 30svh);
+    padding: clamp(18px, 2.2vw, 28px) clamp(18px, 2.2vw, 28px) clamp(18px, 2.2vw, 28px) clamp(32px, 4.2vw, 64px);
+    overflow: hidden;
+    isolation: isolate;
+    border-radius: 36px;
+    box-shadow: inset 0 0 0 1px var(--edge), 0 34px 64px -30px rgb(23 23 26 / 0.42), 0 10px 22px -12px rgb(23 23 26 / 0.22);
+    transform-origin: 50% 0;
+    transform: perspective(1500px) rotateX(calc(var(--e) * 8deg)) scale(calc(1 - var(--p) * 0.055));
+    will-change: transform;
+  }
+  .fcard--flip { grid-template-columns: minmax(0, 1.18fr) minmax(0, 0.82fr); padding: clamp(18px, 2.2vw, 28px) clamp(32px, 4.2vw, 64px) clamp(18px, 2.2vw, 28px) clamp(18px, 2.2vw, 28px); }
+  .fcard--flip .fcopy { order: 2; }
+  .fcard:last-of-type { margin-bottom: 0; }
+  .features__rest { height: 30svh; }
+  .fcard::after { content: ''; position: absolute; inset: 0; z-index: 4; background: #0a0a0e; opacity: calc(var(--p) * 0.26); pointer-events: none; }
+  .fcard .g { z-index: -1; }
+  .fcard--ink { --cbg: #17171a; --edge: rgb(255 255 255 / 0.14); --hl: #f08a5d; background: var(--cbg); color: #fff; --muted: rgb(255 255 255 / 0.78); }
+  .fcard--peach { --cbg: #f3cfba; --edge: #dfa684; --hl: #bf4a1f; background: var(--cbg); color: var(--ink); --muted: #4f3d33; }
+  .fcard--lilac { --cbg: #c9cef0; --edge: #9fa6dc; --hl: #a83e17; background: var(--cbg); color: var(--ink); --muted: #373c55; }
+  .fcard--orange { --cbg: #bf4a1f; --edge: #94370f; --hl: #ffd9c4; background: var(--cbg); color: #fff; --muted: #fff; }
+  /* a clean white demo panel on every card, so the product UI stands off the colour */
+  .fcard { --panel: #fff; --line: rgb(23 23 26 / 0.1); --sheet: #f5f2ec; }
+  .fcard .demo { --muted: #5f5d58; color: var(--ink); box-shadow: 0 18px 40px -24px rgb(23 23 26 / 0.45); }
+  /* the circles stop short of the edge, so the card keeps a crisp outline */
+  .fcard::before { content: ''; position: absolute; inset: 0; z-index: 0; border-radius: inherit; box-shadow: inset 0 0 44px 22px var(--cbg); pointer-events: none; }
+  .word.hl { color: var(--hl); }
+
+  .fcopy { align-self: center; }
+  .fcopy h3 { margin: 0; font-family: Outfit, sans-serif; font-size: clamp(38px, min(4.6vw, 9svh), 68px); font-weight: 600; letter-spacing: -0.035em; line-height: 1.04; }
+  .word { display: inline-block; opacity: 0; translate: 0 22px; transition: opacity 520ms ease, translate 620ms cubic-bezier(0.2, 0.9, 0.25, 1); transition-delay: calc(var(--w) * 60ms); }
+  .fcard.is-in .word { opacity: 1; translate: 0 0; }
+  .fcopy .ur { margin: 12px 0 0; color: var(--muted); font-family: 'Noto Nastaliq Urdu', serif; font-size: clamp(16px, 1.5vw, 21px); line-height: 2; text-align: left; }
+  .fcopy .body { max-width: 38ch; margin: 12px 0 0; color: var(--muted); font-size: clamp(15px, 1.2vw, 17.5px); line-height: 1.55; }
+
+  .demo { position: relative; min-width: 0; min-height: 0; border: 1px solid var(--line); border-radius: 24px; background: var(--panel); overflow: hidden; }
+  [data-at] { opacity: 0; translate: 0 18px; scale: 0.98; transition: opacity 420ms ease, translate 520ms cubic-bezier(0.2, 0.9, 0.25, 1), scale 520ms cubic-bezier(0.2, 0.9, 0.25, 1); }
+  [data-at].on { opacity: 1; translate: 0 0; scale: 1; }
+
+  /* 1 · ask the seller */
+  .chat { display: flex; flex-direction: column; height: 100%; }
+  .chat__head { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+  .av { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: var(--persimmon); color: #fff; font-family: Outfit, sans-serif; font-weight: 700; }
+  .chat__head b { display: block; font-size: 14.5px; font-weight: 600; }
+  .chat__head small { color: var(--muted); font-size: 12px; }
+  .chip { margin-inline-start: auto; padding: 3px 10px; border-radius: 999px; background: var(--line); color: var(--muted); font-size: 11.5px; font-weight: 500; white-space: nowrap; }
+  .chat__log { display: flex; flex: 1; flex-direction: column; justify-content: flex-end; gap: 7px; min-height: 0; padding: 12px 14px; overflow: hidden; }
+  .msg { max-width: 76%; padding: 8px 13px; border-radius: 16px; font-size: 14px; line-height: 1.4; }
+  .msg--me { align-self: flex-end; border-end-end-radius: 4px; background: var(--persimmon); color: #fff; }
+  .msg--them { align-self: flex-start; border-end-start-radius: 4px; background: var(--sheet); color: inherit; }
+  .msg[lang='ur'] { font-family: 'Noto Nastaliq Urdu', serif; font-size: 14px; line-height: 2; padding-block: 3px 6px; }
+  .slot--chat { align-self: flex-end; width: clamp(104px, 21svh, 170px); aspect-ratio: 1; border-radius: 16px; }
+  .typing { display: inline-flex; gap: 4px; align-self: flex-start; padding: 11px 13px; border-radius: 16px; background: var(--sheet); }
+  .typing i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: 0.5; animation: bob 1.1s ease-in-out infinite; }
+  .typing i:nth-child(2) { animation-delay: 140ms; } .typing i:nth-child(3) { animation-delay: 280ms; }
+  @keyframes bob { 50% { translate: 0 -4px; opacity: 1; } }
+  .composer { display: flex; align-items: center; justify-content: space-between; margin: 0 12px 12px; padding: 9px 9px 9px 16px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: 13.5px; }
+  .composer i { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--persimmon); color: #fff; font-style: normal; }
+
+  /* 2 · cash on delivery */
+  .order { position: relative; display: grid; align-items: center; grid-template-columns: 0.82fr 1fr; gap: 14px; height: 100%; padding: 14px; }
+  .slot--order { width: 100%; aspect-ratio: 1 / 1.08; border-radius: 18px; }
+  .order__col { display: flex; flex-direction: column; gap: 10px; height: 100%; min-height: 0; }
+  .toast { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-radius: 14px; background: var(--ink); color: #fff; font-size: 13px; font-weight: 500; }
+  .toast i { display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: #f08a5d; color: #17171a; font-size: 11px; font-style: normal; }
+  .rcpt { padding: 12px 14px; border-radius: 16px; background: var(--sheet); font-size: 13.5px; }
+  .rcpt div { display: flex; justify-content: space-between; gap: 10px; padding: 5px 0; }
+  .rcpt span { color: var(--muted); }
+  .rcpt b { font-weight: 600; text-align: end; }
+  .rcpt .total { margin-top: 5px; padding-top: 10px; border-top: 1px dashed var(--line); }
+  .rcpt .total b { font-family: Outfit, sans-serif; font-size: 21px; }
+  .ticks { display: grid; gap: 6px; margin: 0; padding: 12px 14px; border-radius: 16px; background: var(--sheet); list-style: none; font-size: 13.5px; font-weight: 500; }
+  .ticks li { display: flex; align-items: center; gap: 9px; }
+  .ticks i { display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--persimmon); color: #fff; font-size: 11px; font-style: normal; }
+  .notes { position: relative; flex: 1; min-height: 34px; }
+  .note { position: absolute; left: 50%; bottom: 0; width: 66%; height: 62%; max-height: 66px; margin-left: -33%; border: 1px solid rgb(148 55 15 / 0.35); border-radius: 8px; background: linear-gradient(120deg, #f8d3bd, #ef9d73); }
+  .note::after { content: 'Rs'; position: absolute; left: 12px; top: 50%; translate: 0 -50%; color: #8f3a18; font-family: Outfit, sans-serif; font-weight: 700; }
+  .notes.on .note { animation: floaty 3.2s ease-in-out infinite; }
+  .notes.on .note:nth-child(2) { animation-delay: 300ms; } .notes.on .note:nth-child(3) { animation-delay: 600ms; }
+  @keyframes floaty { 50% { translate: 0 -5px; } }
+  .note:nth-child(1) { rotate: -5deg; } .note:nth-child(2) { rotate: 3deg; bottom: 6px; } .note:nth-child(3) { rotate: -1deg; bottom: 13px; }
+  .paybar { display: flex; align-items: center; justify-content: center; height: 48px; border-radius: 999px; background: var(--persimmon); color: #fff; font-size: 15px; font-weight: 600; transition: background 300ms ease; }
+  .paybar.is-paid { background: var(--ink); }
+
+  /* 3 · tracking */
+  .map { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .map .road { fill: none; stroke: var(--line); stroke-width: 9; stroke-linecap: round; opacity: 0.8; }
+  .map .block { fill: rgb(23 23 26 / 0.035); }
+  .map .base { fill: none; stroke: rgb(23 23 26 / 0.18); stroke-width: 5; stroke-linecap: round; stroke-dasharray: 2 11; }
+  .map .done { fill: none; stroke: var(--persimmon); stroke-width: 6; stroke-linecap: round; }
+  .map .pin { fill: var(--ink); stroke: #fff; stroke-width: 3; }
+  .map text { fill: var(--ink); font: 600 14px Inter, sans-serif; }
+  .tl { position: absolute; left: 14px; bottom: 14px; display: grid; gap: 2px; width: 196px; margin: 0; padding: 10px 12px; border-radius: 16px; background: #fff; box-shadow: 0 12px 26px -14px rgb(23 23 26 / 0.45), inset 0 0 0 1px rgb(23 23 26 / 0.07); list-style: none; font-size: 13px; }
+  .tl li { display: flex; align-items: center; gap: 9px; padding: 4px 0; color: var(--muted); transition: color 240ms ease; }
+  .tl i { width: 11px; height: 11px; border: 2px solid var(--line); border-radius: 50%; transition: background 240ms ease, border-color 240ms ease; }
+  .tl li.on-s { color: var(--ink); font-weight: 600; }
+  .tl li.on-s i { border-color: var(--persimmon); background: var(--persimmon); }
+  .mB { display: none; }
+  @media (min-width: 768px) {
+    .mA { display: none; }
+    .mB { display: block; }
+    .fcard--full { display: block; }
+    .fcard--full .fcopy { position: relative; z-index: 2; display: flex; flex-direction: column; justify-content: center; width: 42%; height: 100%; }
+    .fcard--full .demo { position: absolute; inset: 0; z-index: 1; border: 0; border-radius: inherit; background: transparent; box-shadow: none; }
+    .fcard--full .map .block { fill: rgb(255 255 255 / 0.3); }
+    .fcard--full .map .road { stroke: rgb(255 255 255 / 0.72); }
+    .fcard--full .demo::after { content: ''; position: absolute; inset: 0 48% 0 0; background: linear-gradient(90deg, color-mix(in srgb, var(--cbg) 88%, transparent) 62%, transparent); pointer-events: none; }
+    .fcard--full .tl { left: auto; right: 28px; bottom: 28px; }
+    .fcard--full .note-pop { left: 46%; right: auto; top: 26px; }
+  }
+  .note-pop { position: absolute; right: 14px; top: 14px; display: flex; align-items: center; gap: 10px; max-width: 280px; padding: 9px 13px; border-radius: 16px; background: var(--ink); color: #fff; font-size: 13px; box-shadow: 0 16px 30px -16px rgb(23 23 26 / 0.6); }
+  .note-pop b { display: block; font-weight: 600; }
+  .note-pop small { color: rgb(255 255 255 / 0.7); font-size: 12px; }
+  .note-pop.bump { animation: bump 420ms cubic-bezier(0.2, 1.3, 0.4, 1); }
+  @keyframes bump { from { translate: 0 -10px; opacity: 0.2; } }
+
+  /* 4 · return ai */
+  .ret { display: grid; grid-template-columns: 0.92fr 1fr 0.92fr; align-items: center; gap: 12px; height: 100%; padding: 14px; }
+  .ret__a small { display: block; margin-bottom: 6px; color: var(--muted); font-size: 12.5px; font-weight: 600; text-align: center; }
+  .slot--ret { position: relative; width: 100%; aspect-ratio: 1; border-radius: 18px; }
+  .gaugebox { padding: 12px 10px; border-radius: 18px; background: var(--sheet); box-shadow: inset 0 0 0 1px var(--line); text-align: center; }
+  .gaugebox svg { display: block; width: 100%; height: auto; margin: 0 auto; }
+  .outcome { margin: 6px 0 4px; font-size: 13.5px; font-weight: 600; line-height: 1.3; }
+  .gaugebox em { padding: 1px 8px; border-radius: 999px; background: rgb(23 23 26 / 0.07); color: var(--muted); font-size: 11px; font-style: normal; }
+  .fcard--orange .demo { box-shadow: 0 0 0 4px rgb(255 255 255 / 0.2), 0 18px 40px -24px rgb(23 23 26 / 0.45); }
+  .needle { transform-origin: 120px 120px; transform: rotate(calc(var(--g, 0) * 154.8deg - 90deg)); }
+  .gaugebox b { font-family: Outfit, sans-serif; font-size: 22px; font-weight: 600; }
+  .gaugebox small { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 1px; color: var(--muted); font-size: 12.5px; }
+  .gaugebox em { padding: 1px 8px; border-radius: 999px; background: rgb(23 23 26 / 0.07); font-size: 11px; font-style: normal; }
+  .phone { position: relative; height: 100%; overflow: hidden; border: 7px solid var(--ink); border-radius: 30px; background: #111; }
+  .phone img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: 50% 58%; scale: 1.24; rotate: -5deg; filter: saturate(0.84) brightness(0.93) contrast(1.03); }
+  .phone__tag { position: absolute; left: 50%; top: 12px; z-index: 3; padding: 4px 12px; border-radius: 999px; background: rgb(10 10 14 / 0.66); color: #fff; font-size: 12px; font-weight: 600; white-space: nowrap; translate: -50% 0; }
+  .corners { position: absolute; inset: 18% 14%; z-index: 2; animation: breathe 2.6s ease-in-out infinite; background:
+    linear-gradient(#fff, #fff) 0 0 / 24px 2px no-repeat, linear-gradient(#fff, #fff) 0 0 / 2px 24px no-repeat,
+    linear-gradient(#fff, #fff) 100% 0 / 24px 2px no-repeat, linear-gradient(#fff, #fff) 100% 0 / 2px 24px no-repeat,
+    linear-gradient(#fff, #fff) 0 100% / 24px 2px no-repeat, linear-gradient(#fff, #fff) 0 100% / 2px 24px no-repeat,
+    linear-gradient(#fff, #fff) 100% 100% / 24px 2px no-repeat, linear-gradient(#fff, #fff) 100% 100% / 2px 24px no-repeat; }
+  @keyframes breathe { 50% { scale: 0.96; } }
+  .flash { position: absolute; inset: 0; z-index: 4; background: #fff; opacity: 0; pointer-events: none; }
+  .flash.go { animation: flash 460ms ease-out; }
+  @keyframes flash { 12% { opacity: 0.95; } }
+  .scanline { position: absolute; left: 0; right: 0; top: 0; z-index: 3; height: 3px; background: #8884ee; box-shadow: 0 0 20px 6px rgb(136 132 238 / 0.65); opacity: 0; }
+  .is-scan .scanline { opacity: 1; animation: scanl 1900ms ease-in-out infinite alternate; }
+  @keyframes scanl { to { top: calc(100% - 3px); } }
+  .shutter { position: absolute; left: 50%; bottom: 14px; z-index: 3; width: 44px; height: 44px; border: 3px solid #fff; border-radius: 50%; background: rgb(255 255 255 / 0.3); translate: -50% 0; }
+
+  .story-bar { position: fixed; left: clamp(10px, 1.8vw, 26px); top: 50%; z-index: 28; display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; list-style: none; opacity: 0; translate: 0 -50%; transition: opacity 260ms ease; pointer-events: none; }
+  .story-bar.show { opacity: 1; }
+  .story-bar img { display: none; }
+  .story-bar li { display: flex; align-items: center; gap: 8px; padding: 7px 0; color: #5f5d58; font-size: 12.5px; font-weight: 500; transition: color 240ms ease; }
+  .story-bar i { width: 9px; height: 9px; border-radius: 50%; background: rgb(23 23 26 / 0.18); transition: background 240ms ease, scale 240ms ease; }
+  .story-bar li.on-b { color: var(--ink); font-weight: 600; }
+  .story-bar li.on-b i { background: var(--persimmon); scale: 1.3; }
+  .story-bar span { display: none; }
+  @media (min-width: 1400px) { .story-bar span { display: inline; } }
+  @media (max-width: 1099px) and (min-width: 768px) { .story-bar { display: none; } }
+  .features__skip { display: inline-block; margin-top: 4px; color: #5f5d58; font-size: 13.5px; font-weight: 500; text-decoration: underline; text-underline-offset: 3px; }
+  .features__skip:hover { color: var(--ink); }
+  .closing { position: relative; z-index: 3; display: flex; flex-direction: column; align-items: center; padding: 32px 16px clamp(56px, 10svh, 96px); text-align: center; }
+  .slot--close { width: clamp(180px, 34svh, 300px); aspect-ratio: 1 / 1.03; border-radius: 26px; }
+  .closing h2 { margin: 22px 0 0; font-family: Outfit, sans-serif; font-size: clamp(36px, min(4.8vw, 9svh), 68px); font-weight: 600; letter-spacing: -0.035em; line-height: 1.04; }
+  .closing h2 b { color: var(--persimmon); font-weight: 600; }
+  .closing .ur { margin: 10px 0 0; color: #5f5d58; font-family: 'Noto Nastaliq Urdu', serif; font-size: 20px; line-height: 2; }
+  .closing .btn { margin-top: 18px; }
+  .next { position: relative; z-index: 3; max-width: 1232px; margin: 0 auto 96px; padding-inline: 16px; }
+  .next h2 { margin: 0; font-family: Outfit, sans-serif; font-size: clamp(30px, 3.4vw, 44px); font-weight: 600; letter-spacing: -0.03em; }
+  .next p { margin: 4px 0 0; color: #5f5d58; }
+
+  @media (max-width: 767px) {
+    .hero-track { height: auto; }
+    .hero { position: relative; }
+    .fcard, .fcard--flip {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: auto minmax(0, 1fr);
+      gap: 12px;
+      top: 124px;
+      height: clamp(500px, calc(100svh - 196px), 640px);
+      margin-bottom: 14svh;
+      padding: 20px 14px 14px;
+      border-radius: 28px;
+    }
+    .fcard--flip .fcopy { order: 0; }
+    .fcard:last-of-type { margin-bottom: 0; }
+    .features__rest { height: 14svh; }
+    .fcopy h3 { font-size: 34px; }
+    .fcopy .body { font-size: 14.5px; margin-top: 6px; }
+    .fcopy .ur { font-size: 15px; line-height: 1.8; margin-top: 6px; }
+    .tl { display: none; }
+    .phone__tag { max-width: 90%; font-size: 10.5px; line-height: 1.25; text-align: center; white-space: normal; }
+    .story-bar { position: sticky; top: 72px; left: auto; z-index: 25; flex-direction: row; align-items: center; justify-content: space-between; gap: 4px; margin: 0 auto 8px; padding: 6px 10px 6px 6px; border-radius: 999px; background: rgb(255 255 255 / 0.92); box-shadow: 0 8px 20px -12px rgb(23 23 26 / 0.4), inset 0 0 0 1px rgb(23 23 26 / 0.06); opacity: 1; translate: none; }
+    .story-bar img { display: block; width: 30px; height: 30px; border-radius: 50%; object-fit: cover; }
+    .story-bar li { padding: 0; gap: 5px; }
+    .story-bar span { display: inline; font-size: 12.5px; }
+    .fcard--full .demo { min-height: 0; }
+    .ret { grid-template-columns: 1fr 1fr; grid-template-rows: auto minmax(0, 1fr); gap: 10px; }
+    .ret .phone { grid-column: 2; grid-row: 1 / span 2; }
+    .ret__a { grid-column: 1; grid-row: 1; }
+    .gaugebox { grid-column: 1; grid-row: 2; align-self: start; }
+    .rcpt { font-size: 12.5px; padding: 10px 12px; }
+    .rcpt .total b { font-size: 17px; white-space: nowrap; }
+    .ticks { display: none; }
+    .paybar { font-size: 13.5px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .fcard { transform: none; }
+    .fcard::after { opacity: 0; }
+    .word, [data-at] { opacity: 1; translate: none; scale: none; transition: none; }
+    .typing i, .is-scan .scanline { animation: none; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="brand-glows" aria-hidden="true"><span class="g g--peach" data-glow="0"></span><span class="g g--lilac" data-glow="1"></span></div>
+  <div id="actor" aria-hidden="true"><img src="https://br-sparkling-dust-b3o2wulz.storage.c-4.ap-southeast-1.aws.neon.tech/karobarai-media/products/catalog/glow-beauty-by-hira/perfume-for-women.webp" alt="" /></div>
+  <div class="site-head" id="siteHead" data-over="true">
+  <div class="ticker" aria-label="Announcements">
+    <div class="ticker__run" id="ticker"></div>
+  </div>
+    <nav class="nav" aria-label="Main">
+      <a class="logo" href="#"><svg width="20" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8h12l1 13H5L6 8Z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg>Karobar<b>AI</b></a>
+      <div class="links"><a href="#">Shop</a><a href="#">Categories</a><a href="#">All Stores</a><a href="#">Sell on KarobarAI</a></div>
+      <div class="tools">
+        <a class="round" href="#" aria-label="Search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></a>
+        <div class="lang"><span>EN</span><span>اردو</span></div>
+        <a class="round" href="#" aria-label="Cart"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8h12l1 12H5L6 8Z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg></a>
+        <a class="login" href="#">Log in</a>
+      </div>
+    </nav>
+  </div>
+
+  <div class="hero-track" id="heroTrack"><section class="hero" id="hero" aria-labelledby="t">
+    <div class="wall" id="wall" role="img" aria-label="Photos of products from KarobarAI stores"></div>
+    <div class="scrim"></div>
+    <span class="glow glow--peach" id="peach"></span>
+    <span class="glow glow--lilac" id="lilac"></span>
+
+
+    <div class="copy">
+      <p class="badge"><em aria-hidden="true">✦</em>Wrong item? Return AI checks your photos.</p>
+      <h1 id="t">The bazaar, at your doorstep.</h1>
+      <p class="twin" lang="ur" dir="rtl">بازار، آپ کی دہلیز پر۔</p>
+      <p class="sub">Pay cash on delivery, and track every order to your door.</p>
+      <div class="cta">
+        <a class="btn btn--cta" href="#">Shop now <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+        <a class="btn btn--ink" href="#"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9l1.5-5h13L20 9"/><path d="M5 9v11h14V9"/><path d="M4 9a2.7 2.7 0 0 0 5.3 0 2.7 2.7 0 0 0 5.4 0A2.7 2.7 0 0 0 20 9"/></svg>Discover stores</a>
+      </div>
+    </div>
+
+    <button class="pause" id="pause" type="button" aria-pressed="false" aria-label="Pause the photos"></button>
+    <input id="dim" type="range" value="34" hidden /><output id="dimOut" hidden></output>
+
+    <div class="hero-dim" id="heroDim"></div>
+    <p class="found" id="found"><b>Found it.</b><span>Perfume for Women, Rs. 2,499</span></p>
+  </section></div>
+
+
+  <section class="features" aria-labelledby="f-title">
+    <header class="features__head">
+      <h2 id="f-title">Shop without the worry.</h2>
+      <p lang="ur" dir="rtl">بے فکر خریداری</p>
+      <a class="features__skip" href="#shops" id="skipLink">Skip to shops</a>
+    </header>
+    <ol class="story-bar" id="storyBar" aria-hidden="true"><img src="https://br-sparkling-dust-b3o2wulz.storage.c-4.ap-southeast-1.aws.neon.tech/karobarai-media/products/catalog/glow-beauty-by-hira/perfume-for-women.webp" alt="" /><li><i></i><span>Ask</span></li><li><i></i><span>Pay</span></li><li><i></i><span>Track</span></li><li><i></i><span>Return</span></li></ol>
+
+    <div class="marker"></div>
+    <article class="fcard fcard--ink" style="--i:0">
+      <span class="g g--peach" data-glow="0"></span><span class="g g--lilac" data-glow="1"></span>
+      <div class="fcopy">
+        <h3 data-accent="1">Ask before you buy.</h3>
+        <p class="ur" lang="ur" dir="rtl">خریدنے سے پہلے پوچھیں</p>
+        <p class="body">Message the seller right here on KarobarAI, in Urdu or English. No need to go anywhere else.</p>
+      </div>
+      <div class="demo" aria-hidden="true"><div class="chat">
+        <header class="chat__head"><span class="av">G</span><div><b>Glow Beauty By Hira</b><small>Seller</small></div><span class="chip">Example chat</span></header>
+        <div class="chat__log">
+          <span class="slot slot--chat" data-slot="0" data-at="0.02"><img src="https://br-sparkling-dust-b3o2wulz.storage.c-4.ap-southeast-1.aws.neon.tech/karobarai-media/products/catalog/glow-beauty-by-hira/perfume-for-women.webp" alt="" /></span>
+          <p class="msg msg--me" lang="ur" dir="rtl" style="margin:0" data-at="0.24">کیا یہ اسٹاک میں ہے؟</p>
+          <p class="msg msg--them" lang="ur" dir="rtl" style="margin:0" data-at="0.4">جی ہاں، دستیاب ہے۔</p>
+          <p class="msg msg--me" style="margin:0" data-at="0.56">Can I pay on delivery?</p>
+          <p class="msg msg--them" style="margin:0" data-at="0.72">Yes, cash on delivery.</p>
+          <span class="typing" data-at="0.86"><i></i><i></i><i></i></span>
+        </div>
+        <div class="composer"><span>Write a message…</span><i>↑</i></div>
+      </div></div>
+    </article>
+
+    <div class="marker"></div>
+    <article class="fcard fcard--peach fcard--flip" style="--i:1">
+      <span class="g g--peach" data-glow="0"></span><span class="g g--lilac" data-glow="1"></span>
+      <div class="fcopy">
+        <h3 data-accent="1">Pay when it arrives.</h3>
+        <p class="ur" lang="ur" dir="rtl">سامان ملنے پر ادائیگی</p>
+        <p class="body">No card and no advance. You pay in cash when the parcel reaches your door.</p>
+      </div>
+      <div class="demo" aria-hidden="true"><div class="order">
+        <span class="slot slot--order" data-slot="1"><img src="https://br-sparkling-dust-b3o2wulz.storage.c-4.ap-southeast-1.aws.neon.tech/karobarai-media/products/catalog/glow-beauty-by-hira/perfume-for-women.webp" alt="" /></span>
+        <div class="order__col">
+          <div class="toast" data-at="0.1"><i>✓</i>Order placed</div>
+          <div class="rcpt" data-at="0.26">
+            <div><span>Item</span><b>Perfume for Women</b></div>
+            <div><span>Payment</span><b>Cash on Delivery</b></div>
+            <div class="total"><span>Total</span><b>Rs. 2,499</b></div>
+          </div>
+          <ol class="ticks" data-at="0.4"><li><i>✓</i>Shipped</li><li><i>✓</i>Out for delivery</li><li><i>✓</i>At your door</li></ol>
+          <div class="notes" data-at="0.52"><span class="note"></span><span class="note"></span><span class="note"></span></div>
+          <div class="paybar" id="payBar" data-at="0.62">Pay Rs. 2,499 in cash</div>
+        </div>
+      </div></div>
+    </article>
+
+    <div class="marker"></div>
+    <article class="fcard fcard--lilac fcard--full" style="--i:2;--hold:42svh" data-route>
+      <span class="g g--peach" data-glow="0"></span><span class="g g--lilac" data-glow="1"></span>
+      <div class="fcopy">
+        <h3 data-accent="2">Know where it is, every step.</h3>
+        <p class="ur" lang="ur" dir="rtl">ہر قدم کی خبر</p>
+        <p class="body">Courier updates follow your order from the store to your door.</p>
+      </div>
+      <div class="demo" aria-hidden="true" id="mapBox">
+        <svg class="map" id="mapSvg" viewBox="0 0 1280 600" preserveAspectRatio="xMidYMid slice">
+          <g class="mA">
+            <rect class="block" x="40" y="30" width="150" height="110" rx="14"/><rect class="block" x="230" y="20" width="170" height="130" rx="14"/><rect class="block" x="450" y="60" width="160" height="110" rx="14"/><rect class="block" x="60" y="190" width="130" height="130" rx="14"/><rect class="block" x="250" y="210" width="150" height="110" rx="14"/><rect class="block" x="450" y="220" width="170" height="120" rx="14"/><rect class="block" x="250" y="380" width="170" height="120" rx="14"/><rect class="block" x="470" y="400" width="150" height="100" rx="14"/>
+            <path class="road" d="M-20 170H660M-20 360H660M210 -20V540M430 -20V540M-20 40C200 80 400 30 660 190"/>
+            <circle class="pin" cx="300" cy="480" r="10"/><circle class="pin" cx="520" cy="130" r="10"/><text x="322" y="486">Store</text><text x="538" y="116">Your door</text>
+          </g>
+          <g class="mB">
+            <rect class="block" x="560" y="24" width="170" height="130" rx="16"/><rect class="block" x="770" y="30" width="190" height="120" rx="16"/><rect class="block" x="1000" y="150" width="240" height="130" rx="16"/><rect class="block" x="560" y="200" width="170" height="130" rx="16"/><rect class="block" x="780" y="400" width="190" height="150" rx="16"/><rect class="block" x="1010" y="340" width="230" height="110" rx="16"/><rect class="block" x="520" y="440" width="150" height="130" rx="16"/><rect class="block" x="60" y="30" width="400" height="120" rx="16"/><rect class="block" x="60" y="470" width="360" height="110" rx="16"/>
+            <path class="road" d="M-20 180H1300M-20 370H1300M750 -20V620M990 -20V620M500 -20V620M-20 60C300 110 800 20 1300 240"/>
+            <circle class="pin" cx="720" cy="540" r="11"/><circle class="pin" cx="1180" cy="110" r="11"/><text x="744" y="546">Store</text><text x="1120" y="86">Your door</text>
+          </g>
+          <path class="base" id="routeBase"/>
+          <path class="done" id="routeDone"/>
+        </svg>
+        <div class="note-pop" id="notePop"><div><b id="noteT">Confirmed</b><small id="noteS">Your order is confirmed.</small></div></div>
+        <ol class="tl" id="tl"><li><i></i>Confirmed</li><li><i></i>Shipped</li><li><i></i>Out for delivery</li><li><i></i>Delivered</li></ol>
+      </div>
+    </article>
+
+    <div class="marker"></div>
+    <article class="fcard fcard--orange fcard--flip" style="--i:3" id="retCard">
+      <span class="g g--peach" data-glow="0"></span><span class="g g--lilac" data-glow="1"></span>
+      <div class="fcopy">
+        <h3 data-accent="2">Need to return it? Show us.</h3>
+        <p class="ur" lang="ur" dir="rtl">تصویر بھیجیں، Return AI جانچے گا</p>
+        <p class="body">Report within 24 hours with photos. Return AI compares them with the listing.</p>
+      </div>
+      <div class="demo" aria-hidden="true"><div class="ret">
+        <div class="ret__a"><small>Listing</small><span class="slot slot--ret" data-slot="3"><img src="https://br-sparkling-dust-b3o2wulz.storage.c-4.ap-southeast-1.aws.neon.tech/karobarai-media/products/catalog/glow-beauty-by-hira/perfume-for-women.webp" alt="" /></span></div>
+        <div class="phone" id="phoneBox" data-at="0.08">
+          <img src="https://br-sparkling-dust-b3o2wulz.storage.c-4.ap-southeast-1.aws.neon.tech/karobarai-media/products/catalog/glow-beauty-by-hira/perfume-for-women.webp" alt="" /><span class="phone__tag">Your photo, within 24 hours</span><span class="corners"></span><span class="scanline"></span><span class="shutter"></span><span class="flash" id="flash"></span>
+        </div>
+        <div class="gaugebox" data-at="0.5">
+          <svg viewBox="0 0 240 132"><path d="M26 120A94 94 0 0 1 90.9 30.6" fill="none" stroke="#e0a79a" stroke-width="14" stroke-linecap="round"/><path d="M97.3 28.8A94 94 0 0 1 174.9 43.6" fill="none" stroke="#e8c98a" stroke-width="14"/><path d="M180.4 48A94 94 0 0 1 214 120" fill="none" stroke="#2f8f6b" stroke-width="14" stroke-linecap="round"/><g class="needle"><line x1="120" y1="120" x2="120" y2="44" stroke="currentColor" stroke-width="4" stroke-linecap="round"/><circle cx="120" cy="120" r="8" fill="currentColor"/></g></svg>
+          <p class="outcome" id="matchL">Comparing with the listing</p><em>Example</em>
+        </div>
+      </div></div>
+    </article>
+    <div class="features__rest" aria-hidden="true"></div>
+  </section>
+
+  <section class="closing" id="closing" aria-labelledby="c-title">
+    <span class="slot slot--close" id="closeSlot"><img src="https://br-sparkling-dust-b3o2wulz.storage.c-4.ap-southeast-1.aws.neon.tech/karobarai-media/products/catalog/glow-beauty-by-hira/perfume-for-women.webp" alt="" /></span>
+    <h2 id="c-title">Your next find is <b>here.</b></h2>
+    <p class="ur" lang="ur" dir="rtl">آپ کی اگلی پسند یہیں ہے</p>
+    <a class="btn btn--cta" href="#">Shop now <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+  </section>
+
+  <div class="next" id="shops"><h2>Shop by Store</h2><p>Meet the shops behind the products.</p></div>
+
+<script src="https://cdn.jsdelivr.net/npm/lenis@1.1.14/dist/lenis.min.js"></script>
+<script>
+  const PHOTOS = [{"url": "https://br-sparkling-dust-b3o2wulz.storage.c-4.ap-southeast-1.aws.neon.tech/karobarai-media/products/peshawar-shoe-palacet/women-s-khussa-embroidered-490d32b1c90f.jpg"}, {"url": "https://br-sparkling-dust-b3o2wulz.storage.c-4.ap-southeast-1.aws.neon.tech/karobarai-media/products/catalog/glow-beauty-by-hira/perfume-for-women.webp"}, {"url": "https://br-sparkling-dust-b3o2wulz.storage.c-4.ap-southeast-1.aws.neon.tech/karobarai-media/products/a-one-decorations-house/wall-clock-wooden-28f6b9e96b3c.jpg"}, {"url": "https://br-sparkling-dust-b3o2wulz.storage.c-4.ap-southeast-1.aws.neon.tech/karobarai-media/products/catalog/glow-beauty-by-hira/gel-nail-polish-cherry-red.webp"}, {"url": "https://br-sparkling-dust-b3o2wulz.storage.c-4.ap-southeast-1.aws.neon.tech/karobarai-media/products/a-one-decorations-house/fairy-lights-10-m-349f46bf3549.jpg", "trim": true}, {"url": "https://br-sparkling-dust-b3o2wulz.storage.c-4.ap-southeast-1.aws.neon.tech/karobarai-media/products/peshawar-shoe-palacet/peshawari-chappal-brown-8f4f1fa3ad56.jpg"}, {"url": "https://br-sparkling-dust-b3o2wulz.storage.c-4.ap-southeast-1.aws.neon.tech/karobarai-media/products/a-one-decorations-house/artificial-flowers-with-vase-9e623a88dc9d.jpg"}, {"url": "https://br-sparkling-dust-b3o2wulz.storage.c-4.ap-southeast-1.aws.neon.tech/karobarai-media/products/catalog/glow-beauty-by-hira/hair-serum.jpg"}, {"url": "https://br-sparkling-dust-b3o2wulz.storage.c-4.ap-southeast-1.aws.neon.tech/karobarai-media/products/peshawar-shoe-palacet/men-s-loafer-846fcd951b80.jpg"}, {"url": "https://br-sparkling-dust-b3o2wulz.storage.c-4.ap-southeast-1.aws.neon.tech/karobarai-media/products/a-one-decorations-house/curtains-blackout-pair-57c1162b736a.jpg"}, {"url": "https://br-sparkling-dust-b3o2wulz.storage.c-4.ap-southeast-1.aws.neon.tech/karobarai-media/products/a-one-decorations-house/decorative-tray-ae0e5661a731.jpg"}, {"url": "https://br-sparkling-dust-b3o2wulz.storage.c-4.ap-southeast-1.aws.neon.tech/karobarai-media/products/peshawar-shoe-palacet/women-s-heels-block-ceb5b781a91b.jpg"}, {"url": "https://br-sparkling-dust-b3o2wulz.storage.c-4.ap-southeast-1.aws.neon.tech/karobarai-media/products/a-one-decorations-house/islamic-wall-art-ayat-ul-kursi-3ed5ea6a0b54.jpg"}, {"url": "https://br-sparkling-dust-b3o2wulz.storage.c-4.ap-southeast-1.aws.neon.tech/karobarai-media/products/catalog/glow-beauty-by-hira/hair-mask-keratin.jpg"}, {"url": "https://br-sparkling-dust-b3o2wulz.storage.c-4.ap-southeast-1.aws.neon.tech/karobarai-media/products/peshawar-shoe-palacet/leather-wallet-men-dac5c47d9845.jpg"}, {"url": "https://br-sparkling-dust-b3o2wulz.storage.c-4.ap-southeast-1.aws.neon.tech/karobarai-media/products/a-one-decorations-house/prayer-mat-jai-namaz-0e4062634861.jpg"}, {"url": "https://br-sparkling-dust-b3o2wulz.storage.c-4.ap-southeast-1.aws.neon.tech/karobarai-media/products/peshawar-shoe-palacet/bridal-khussa-golden-6de1f9fea44b.jpg"}, {"url": "https://br-sparkling-dust-b3o2wulz.storage.c-4.ap-southeast-1.aws.neon.tech/karobarai-media/products/catalog/glow-beauty-by-hira/moisturizing-cream.webp"}, {"url": "https://br-sparkling-dust-b3o2wulz.storage.c-4.ap-southeast-1.aws.neon.tech/karobarai-media/products/a-one-decorations-house/wall-mirror-round-b4679545ebc5.jpg"}, {"url": "https://br-sparkling-dust-b3o2wulz.storage.c-4.ap-southeast-1.aws.neon.tech/karobarai-media/products/peshawar-shoe-palacet/slippers-home-wear-f5fca02cf58f.jpg"}, {"url": "https://br-sparkling-dust-b3o2wulz.storage.c-4.ap-southeast-1.aws.neon.tech/karobarai-media/products/catalog/glow-beauty-by-hira/argan.jpg"}, {"url": "https://br-sparkling-dust-b3o2wulz.storage.c-4.ap-southeast-1.aws.neon.tech/karobarai-media/products/peshawar-shoe-palacet/men-s-sports-sneakers-841dc7ec3f32.jpg"}, {"url": "https://br-sparkling-dust-b3o2wulz.storage.c-4.ap-southeast-1.aws.neon.tech/karobarai-media/products/hamza-mobile-hub/silicone-back-cover-7dd305813180.jpg"}, {"url": "https://br-sparkling-dust-b3o2wulz.storage.c-4.ap-southeast-1.aws.neon.tech/karobarai-media/products/hamza-mobile-hub/transparent-shockproof-case-2a6b8bfa01cf.jpg"}, {"url": "https://br-sparkling-dust-b3o2wulz.storage.c-4.ap-southeast-1.aws.neon.tech/karobarai-media/products/a-one-decorations-house/bedsheet-king-size-cotton-646300fcd862.jpg"}, {"url": "https://br-sparkling-dust-b3o2wulz.storage.c-4.ap-southeast-1.aws.neon.tech/karobarai-media/products/peshawar-shoe-palacet/kids-sandals-e618302479bb.jpg"}, {"url": "https://br-sparkling-dust-b3o2wulz.storage.c-4.ap-southeast-1.aws.neon.tech/karobarai-media/products/catalog/glow-beauty-by-hira/face-wash-neem.webp"}];
+  const messages = ['Cash on Delivery available across Pakistan', 'Track every order to your door', 'Eligible returns within 24 hours of confirmed receipt', 'Ask any store’s AI assistant, day or night', 'Shop and sell in Urdu or English'];
+  const line = messages.map((m) => `<span><i></i>${m}</span>`).join('');
+  document.getElementById('ticker').innerHTML = line + line + line + line;
+
+  const hero = document.getElementById('hero');
+  const wall = document.getElementById('wall');
+  const phone = matchMedia('(max-width: 600px)');
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+  const FRAME = 1000 / 60;
+  // each row: its own direction and pace, so the wall has depth instead of sliding as one sheet
+  const PACES = [{ dir: -1, speed: 34 }, { dir: 1, speed: 24 }, { dir: -1, speed: 42 }, { dir: 1, speed: 30 }, { dir: -1, speed: 38 }];
+  let rows = [];
+
+  function build() {
+    const count = phone.matches ? 5 : 3;
+    wall.textContent = '';
+    rows = Array.from({ length: count }, (_, r) => {
+      const list = PHOTOS.filter((_, i) => i % count === r);
+      // one run overfills any screen; drawn twice for the seamless wrap
+      const run = [...list, ...list];
+      const el = document.createElement('div');
+      el.className = 'row';
+      [...run, ...run].forEach((p) => {
+        const tile = document.createElement('span');
+        tile.className = 'tile';
+        const img = document.createElement('img');
+        img.alt = '';
+        img.draggable = false;
+        img.decoding = 'async';
+        if (p.trim) img.dataset.trim = 'true';
+        img.onload = () => { img.dataset.loaded = 'true'; };
+        img.src = p.url;
+        tile.append(img);
+        el.append(tile);
+      });
+      wall.append(el);
+      return { el, runLength: run.length, period: 0, offset: -((r + 1) * 137), pace: PACES[r] };
+    });
+    measure();
+    rows.forEach(paint);
+  }
+  function measure() {
+    rows.forEach((row) => { row.period = row.el.children[row.runLength].offsetLeft - row.el.children[0].offsetLeft; });
+  }
+  function paint(row) {
+    if (row.period > 0) {
+      while (row.offset <= -row.period) row.offset += row.period;
+      while (row.offset > 0) row.offset -= row.period;
+    }
+    row.el.style.transform = `translate3d(${row.offset.toFixed(2)}px,0,0)`;
+  }
+
+  let dragging = false, paused = false, velocity = 0, lastX = 0, lastT = 0, prev = null;
+  function tick(now) {
+    if (prev === null) prev = now;
+    const dt = Math.min(now - prev, 100);
+    prev = now;
+    if (!dragging) {
+      if (Math.abs(velocity) > 0.1) {
+        const f = dt / FRAME;
+        rows.forEach((row) => { row.offset += velocity * f * -row.pace.dir; paint(row); });
+        velocity *= 0.95 ** f;
+      } else {
+        velocity = 0;
+        if (!paused && !reduce.matches) rows.forEach((row) => { row.offset += row.pace.dir * row.pace.speed * (dt / 1000); paint(row); });
+      }
+    }
+    requestAnimationFrame(tick);
+  }
+
+  hero.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0 || e.target.closest('a, button, input, label')) return;
+    dragging = true; velocity = 0; lastX = e.clientX; lastT = e.timeStamp;
+    hero.setPointerCapture(e.pointerId);
+    hero.dataset.dragging = 'true';
+  });
+  hero.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    const dx = e.clientX - lastX, dt = e.timeStamp - lastT;
+    if (dt > 0) velocity = (dx / dt) * FRAME;
+    lastX = e.clientX; lastT = e.timeStamp;
+    rows.forEach((row) => { row.offset += dx * -row.pace.dir; paint(row); });
+  });
+  const end = () => { dragging = false; delete hero.dataset.dragging; };
+  hero.addEventListener('pointerup', end);
+  hero.addEventListener('pointercancel', end);
+  addEventListener('resize', measure);
+  phone.addEventListener('change', build);
+  document.addEventListener('visibilitychange', () => { prev = null; });
+  build();
+  requestAnimationFrame(tick);
+
+  const pause = document.getElementById('pause');
+  const ICON = {
+    pause: '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>',
+    play: '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12-7.5a1 1 0 0 0 0-1.72l-12-7.5A1 1 0 0 0 7 4.5Z"/></svg>',
+  };
+  pause.innerHTML = ICON.pause;
+  pause.addEventListener('click', () => {
+    paused = !paused;
+    pause.innerHTML = paused ? ICON.play : ICON.pause;
+    pause.setAttribute('aria-pressed', String(paused));
+    pause.setAttribute('aria-label', paused ? 'Play the photos' : 'Pause the photos');
+  });
+
+  const dim = document.getElementById('dim');
+  const dimOut = document.getElementById('dimOut');
+  dim.addEventListener('input', () => {
+    document.documentElement.style.setProperty('--dim', dim.value / 100);
+    dimOut.textContent = dim.value + '%';
+  });
+
+  {
+
+  // ── the story ───────────────────────────────────────────────────────────────
+  const head = document.getElementById('siteHead');
+  const heroTrack = document.getElementById('heroTrack');
+  const actor = document.getElementById('actor');
+  const heroCopy = hero.querySelector('.copy');
+  const heroDim = document.getElementById('heroDim');
+  const found = document.getElementById('found');
+  const wallEl = document.getElementById('wall');
+  const cards = [...document.querySelectorAll('.fcard')];
+  const markers = [...document.querySelectorAll('.marker')];
+  const PHOTO = "https://br-sparkling-dust-b3o2wulz.storage.c-4.ap-southeast-1.aws.neon.tech/karobarai-media/products/catalog/glow-beauty-by-hira/perfume-for-women.webp";
+  const compactStory = matchMedia('(max-width: 767px)');
+  const storyOn = !reduce.matches && !compactStory.matches;
+  document.documentElement.classList.toggle('story-on', storyOn);
+
+  const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+  const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
+
+  // split each headline into words for the reveal
+  cards.forEach((card) => {
+    const h = card.querySelector('h3');
+    const words = h.textContent.trim().split(' ');
+    h.textContent = '';
+    words.forEach((w, i) => {
+      const s = document.createElement('span');
+      s.className = 'word';
+      s.style.setProperty('--w', i);
+      if (i >= words.length - Number(h.dataset.accent || 0)) s.classList.add('hl');
+      s.textContent = w;
+      h.append(s, ' ');
+    });
+  });
+
+  // Smooth scrolling (desktop)
+  let lenis = null;
+  if (storyOn && window.Lenis) {
+    lenis = new window.Lenis({ duration: 1.15, smoothWheel: true });
+    window.__lenis = lenis;
+  }
+
+  // ── layout: where every card and slot rests when its card is pinned ──
+  let L = null;
+  const routeBase = document.getElementById('routeBase');
+  const routeDone = document.getElementById('routeDone');
+  // the wide route for the full-card map; phones keep a compact map in a panel
+  const wideMap = !compactStory.matches;
+  const ROUTE_D = wideMap ? 'M720 540C720 470 640 470 640 400C640 320 860 380 960 300C1060 230 1010 130 1180 110' : 'M300 480C300 400 210 410 210 360C210 300 330 360 430 300C510 250 430 170 520 130';
+  const VB = wideMap ? [1280, 600] : [640, 520];
+  routeBase.setAttribute('d', ROUTE_D);
+  routeDone.setAttribute('d', ROUTE_D);
+  document.getElementById('mapSvg').setAttribute('viewBox', `0 0 ${VB[0]} ${VB[1]}`);
+  const routeLen = routeBase.getTotalLength();
+  routeDone.style.strokeDasharray = `${routeLen} ${routeLen}`;
+
+  function offsetIn(el, root) {
+    let x = 0, y = 0, n = el;
+    while (n && n !== root) { x += n.offsetLeft; y += n.offsetTop; n = n.offsetParent; }
+    return { x, y };
+  }
+  function measureStory() {
+    const sy = window.scrollY;
+    const vh = innerHeight;
+    const scenes = cards.map((card, i) => {
+      const m = markers[i].getBoundingClientRect();
+      const top = parseFloat(getComputedStyle(card).top);
+      const s = m.top + sy - top;
+      return { card, top, s, left: m.left, h: card.offsetHeight, hold: parseFloat(getComputedStyle(card).marginBottom) || 0 };
+    });
+    scenes[scenes.length - 1].hold = document.querySelector('.features__rest').offsetHeight;
+    const slot = (i, sel) => {
+      const el = cards[i].querySelector(sel);
+      const o = offsetIn(el, cards[i]);
+      return { x: scenes[i].left + o.x, y: scenes[i].top + o.y, w: el.offsetWidth, h: el.offsetHeight };
+    };
+    const heroH = hero.offsetHeight;
+    const pinLen = heroTrack.offsetHeight - heroH;
+    const frontH = Math.min(vh * 0.56, 460);
+    const frontW = frontH * 1.03;
+    const front = { x: innerWidth / 2 - frontW / 2, y: heroH / 2 - frontH / 2 - 34, w: frontW, h: frontH };
+    const map = cards[2].querySelector('#mapBox');
+    const mo = offsetIn(map, cards[2]);
+    const mapR = { x: scenes[2].left + mo.x, y: scenes[2].top + mo.y, w: map.offsetWidth, h: map.offsetHeight };
+    L = { scenes, pinLen, heroH, front, map: mapR, slots: [slot(0, '[data-slot="0"]'), slot(1, '[data-slot="1"]'), null, slot(3, '[data-slot="3"]')], trackTop: heroTrack.getBoundingClientRect().top + sy };
+    const closeEl = document.getElementById('closeSlot');
+    const cr = closeEl.getBoundingClientRect();
+    L.close = { x: cr.left, docY: cr.top + sy, w: closeEl.offsetWidth, h: closeEl.offsetHeight };
+    L.closeS = Math.min(L.close.docY - (vh - L.close.h) / 2, document.documentElement.scrollHeight - vh);
+  }
+
+  // the point on the road, in screen space (viewBox 640×520, slice-fitted to the map box)
+  function routeRect(f, size) {
+    const k = Math.max(L.map.w / VB[0], L.map.h / VB[1]);
+    const ox = (L.map.w - VB[0] * k) / 2, oy = (L.map.h - VB[1] * k) / 2;
+    const p = routeBase.getPointAtLength(routeLen * f);
+    return { x: L.map.x + ox + p.x * k - size / 2, y: L.map.y + oy + p.y * k - size / 2, w: size, h: size };
+  }
+
+  // the wall tile the photo grows out of
+  let sourceTile = null;
+  function findTile() {
+    const cx = innerWidth / 2;
+    let best = null, bd = 1e9;
+    document.querySelectorAll('.tile img').forEach((img) => {
+      if (img.src !== PHOTO) return;
+      const r = img.parentElement.getBoundingClientRect();
+      if (r.right < 0 || r.left > innerWidth) return;
+      const d = Math.abs(r.left + r.width / 2 - cx);
+      if (d < bd) { bd = d; best = img.parentElement; }
+    });
+    return best;
+  }
+
+  const lerp = (a, b, t) => a + (b - a) * t;
+  function mix(a, b, t) { return { x: lerp(a.x, b.x, t), y: lerp(a.y, b.y, t), w: lerp(a.w, b.w, t), h: lerp(a.h, b.h, t) }; }
+  const CHIP = 84;
+
+  function actorAt(y) {
+    const { scenes: S, pinLen, front, slots } = L;
+    const pin = pinLen;
+    const toFront = pin * 0.42, leave = pin * 0.72;
+    let rect, radius = 18, op = 1;
+    const docked = (y >= S[0].s && y < S[0].s + S[0].hold) || (y >= S[1].s && y < S[1].s + S[1].hold) || (y >= S[3].s && y < S[3].s + S[3].hold);
+    const riding = y >= S[2].s && y < S[2].s + S[2].hold;
+    actor.toggleAttribute('data-docked', docked || riding);
+    actor.toggleAttribute('data-riding', riding);
+    if (y < toFront) {
+      if (y < 2) sourceTile = null;
+      if (!sourceTile) sourceTile = findTile();
+      const b = sourceTile ? sourceTile.getBoundingClientRect() : front;
+      const t = ease(clamp(y / toFront));
+      rect = mix({ x: b.left ?? b.x, y: b.top ?? b.y, w: b.width ?? b.w, h: b.height ?? b.h }, front, t);
+      op = clamp(y / (pin * 0.05));
+      radius = lerp(16, 26, t);
+    } else if (y < leave) {
+      rect = front; radius = 26;
+    } else if (y < S[0].s) {
+      rect = mix(front, slots[0], ease(clamp((y - leave) / (S[0].s - leave))));
+      radius = lerp(26, 16, clamp((y - leave) / (S[0].s - leave)));
+    } else if (y < S[0].s + S[0].hold) {
+      rect = slots[0]; radius = 16;
+    } else if (y < S[1].s) {
+      rect = mix(slots[0], slots[1], ease(clamp((y - S[0].s - S[0].hold) / (S[1].s - S[0].s - S[0].hold))));
+    } else if (y < S[1].s + S[1].hold) {
+      rect = slots[1];
+    } else if (y < S[2].s) {
+      const t = ease(clamp((y - S[1].s - S[1].hold) / (S[2].s - S[1].s - S[1].hold)));
+      rect = mix(slots[1], routeRect(0, CHIP), t);
+      radius = lerp(18, 22, t);
+    } else if (y < S[2].s + S[2].hold) {
+      rect = routeRect(clamp((y - S[2].s) / S[2].hold), CHIP);
+      radius = 22;
+    } else if (y < S[3].s) {
+      const t = ease(clamp((y - S[2].s - S[2].hold) / (S[3].s - S[2].s - S[2].hold)));
+      rect = mix(routeRect(1, CHIP), slots[3], t);
+      radius = lerp(22, 18, t);
+    } else {
+      const end = S[3].s + S[3].hold;
+      const over = Math.max(0, y - end);
+      const from = { ...slots[3], y: slots[3].y - over };
+      const to = { x: L.close.x, y: L.close.docY - y, w: L.close.w, h: L.close.h };
+      const t = ease(clamp((y - end) / Math.max(1, L.closeS - end)));
+      rect = mix(from, to, t);
+      radius = lerp(18, 26, t);
+    }
+    actor.style.width = `${rect.w.toFixed(1)}px`;
+    actor.style.height = `${rect.h.toFixed(1)}px`;
+    actor.style.transform = `translate3d(${rect.x.toFixed(1)}px,${rect.y.toFixed(1)}px,0)`;
+    actor.style.borderRadius = `${radius.toFixed(1)}px`;
+    actor.style.opacity = op.toFixed(3);
+    actor.style.visibility = rect.y + rect.h < -40 ? 'hidden' : 'visible';
+  }
+
+  // ── what each scene shows as you scroll ──
+  const tlItems = [...document.querySelectorAll('#tl li')];
+  const NOTES = [['Confirmed', 'Your order is confirmed.'], ['Shipped', 'Your parcel is on its way.'], ['Out for delivery', 'Your order is out for delivery.'], ['Delivered', 'Your order has been delivered.']];
+  let lastStage = -1;
+  const payBar = document.getElementById('payBar');
+  const payText = payBar.textContent;
+  const retCard = document.getElementById('retCard');
+  const flash = document.getElementById('flash');
+  const phoneBox = document.getElementById('phoneBox');
+  let flashed = false;
+
+  const bar = document.getElementById('storyBar');
+  const barItems = [...bar.querySelectorAll('li')];
+  document.getElementById('skipLink').addEventListener('click', (e) => {
+    e.preventDefault();
+    const to = document.getElementById('shops');
+    if (lenis) lenis.scrollTo(to, { offset: -100 });
+    else to.scrollIntoView({ behavior: reduce.matches ? 'auto' : 'smooth', block: 'start' });
+  });
+
+  function scenes(y) {
+    L.scenes.forEach((sc, i) => {
+      const run = sc.h * 0.55;
+      const g = clamp((y - (sc.s - run)) / (run + sc.hold));
+      sc.card.classList.toggle('is-in', y > sc.s - sc.h * 0.62);
+      sc.card.querySelectorAll('[data-at]').forEach((el) => { el.classList.toggle('on', g >= Number(el.dataset.at)); });
+      const next = L.scenes[i + 1];
+      const e = clamp((sc.s - y) / sc.h);
+      sc.card.style.setProperty('--e', e.toFixed(3));
+      if (next) {
+        sc.card.style.setProperty('--p', clamp(1 - (next.s - y) / next.h).toFixed(3));
+        // once the next card has fully landed this one is gone, so no old edges or text show
+        const gone = clamp((y - next.s - 10) / 90);
+        sc.card.style.opacity = (1 - gone).toFixed(3);
+        sc.card.style.visibility = gone >= 1 ? 'hidden' : 'visible';
+      }
+    });
+    // story progress
+    let active = -1;
+    L.scenes.forEach((sc, i) => { if (y >= sc.s - sc.h * 0.5) active = i; });
+    barItems.forEach((li, i) => li.classList.toggle('on-b', i === active));
+    const last = L.scenes[L.scenes.length - 1];
+    bar.classList.toggle('show', y >= L.scenes[0].s - L.scenes[0].h * 0.5 && y < last.s + last.hold);
+    // tracking
+    const t3 = L.scenes[2];
+    const f = clamp((y - t3.s) / t3.hold);
+    routeDone.style.strokeDashoffset = String(routeLen * (1 - f));
+    const stage = f >= 0.98 ? 3 : f >= 0.62 ? 2 : f >= 0.3 ? 1 : 0;
+    if (stage !== lastStage) {
+      lastStage = stage;
+      tlItems.forEach((li, i) => li.classList.toggle('on-s', i <= stage));
+      document.getElementById('noteT').textContent = NOTES[stage][0];
+      document.getElementById('noteS').textContent = NOTES[stage][1];
+      const pop = document.getElementById('notePop');
+      pop.classList.remove('bump'); void pop.offsetWidth; pop.classList.add('bump');
+    }
+    // cash
+    const t2 = L.scenes[1];
+    const paid = y > t2.s + t2.hold * 0.72;
+    payBar.classList.toggle('is-paid', paid);
+    payBar.textContent = paid ? '✓ Paid at your door' : payText;
+    // return
+    const t4 = L.scenes[3];
+    const g4 = clamp((y - (t4.s - t4.h * 0.3)) / (t4.h * 0.3 + t4.hold));
+    if (g4 > 0.22 && !flashed) { flashed = true; flash.classList.remove('go'); void flash.offsetWidth; flash.classList.add('go'); }
+    if (g4 < 0.18) flashed = false;
+    phoneBox.classList.toggle('is-scan', g4 > 0.3 && g4 < 0.72);
+    const m = ease(clamp((g4 - 0.5) / 0.4));
+    retCard.style.setProperty('--g', (m * 0.86).toFixed(3));
+    document.getElementById('matchL').textContent = m >= 0.99 ? 'Your photos match the listing' : 'Comparing with the listing';
+  }
+
+  function heroScene(y) {
+    const p = clamp(y / L.pinLen);
+    heroCopy.style.opacity = (1 - clamp(p / 0.26)).toFixed(3);
+    heroCopy.style.translate = `0 ${(-p * 90).toFixed(1)}px`;
+    heroDim.style.opacity = clamp(p / 0.4).toFixed(3);
+    wallEl.style.transform = `scale(${(1 - clamp(p / 0.6) * 0.07).toFixed(4)})`;
+    const f = clamp((p - 0.36) / 0.14) * (1 - clamp((p - 0.74) / 0.14));
+    found.style.opacity = f.toFixed(3);
+    found.style.translate = `0 ${((1 - clamp((p - 0.36) / 0.14)) * 20).toFixed(1)}px`;
+  }
+
+  function overHero() {
+    const row = head.querySelector('.nav').getBoundingClientRect();
+    if (hero.getBoundingClientRect().bottom - 48 > row.bottom) head.dataset.over = 'true';
+    else delete head.dataset.over;
+  }
+
+  // ── the same two circles, everywhere ──
+  const rail = { peach: { bx: 0.62, by: 0.36, r: 0.4, lag: 3.2, x: 0, y: 0 }, lilac: { bx: 0.36, by: 0.52, r: 0.28, lag: 1.9, x: 0, y: 0 } };
+  const G = [rail.peach, rail.lilac];
+  let px = 0, py = 0;
+  const fine = matchMedia('(hover: hover) and (pointer: fine)').matches && !reduce.matches;
+  if (fine) addEventListener('pointermove', (e) => { px = e.clientX - innerWidth / 2; py = e.clientY - innerHeight / 2; }, { passive: true });
+  G.forEach((g) => { g.x = g.bx * innerWidth; g.y = g.by * innerHeight; });
+  const heroGlows = [document.getElementById('peach'), document.getElementById('lilac')];
+  const pageGlows = [...document.querySelectorAll('.brand-glows .g')];
+  const cardGlows = cards.map((c) => [...c.querySelectorAll(':scope > .g')]);
+
+  function drawGlows(now, dt) {
+    G.forEach((g, i) => {
+      const k = 1 - Math.exp(-g.lag * dt);
+      const drift = reduce.matches ? 0 : Math.sin(now / (3200 + i * 900) + i) * 34;
+      g.x += (g.bx * innerWidth + px * g.r + drift - g.x) * k;
+      g.y += (g.by * innerHeight + py * g.r + Math.cos(now / (3800 + i * 700)) * 26 - g.y) * k;
+      const m = `translate3d(${g.x.toFixed(1)}px,${g.y.toFixed(1)}px,0)`;
+      heroGlows[i].style.transform = m;
+      pageGlows[i].style.transform = m;
+      cardGlows.forEach((set, c) => {
+        const r = cards[c].getBoundingClientRect();
+        if (r.bottom < -200 || r.top > innerHeight + 200) return;
+        set[i].style.transform = `translate3d(${(g.x - r.left).toFixed(1)}px,${(g.y - r.top).toFixed(1)}px,0)`;
+      });
+    });
+  }
+
+  function frame() {
+    const y = window.scrollY;
+    overHero();
+    if (L) {
+      scenes(y);
+      if (storyOn) { heroScene(y); actorAt(y); }
+    }
+  }
+
+  let storyPrev = null;
+  function storyLoop(now) {
+    if (lenis) lenis.raf(now);
+    const dt = storyPrev === null ? 1 / 60 : Math.min((now - storyPrev) / 1000, 0.05);
+    storyPrev = now;
+    frame();
+    drawGlows(now, dt);
+    requestAnimationFrame(storyLoop);
+  }
+
+  function boot() { measureStory(); frame(); }
+  addEventListener('resize', boot);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(boot);
+  addEventListener('load', boot);
+  boot();
+  requestAnimationFrame(storyLoop);
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,685 @@
+/* Buyer return wizard (rw*) and return status (rs*). Loaded on top of orders.css + returns.css. */
+
+/* ══ Wizard (/orders/:id/return) ══════════════════════════════════════════════════════════ */
+.rwPage {
+  display: grid;
+  gap: 18px;
+  max-width: 760px;
+  margin-inline: auto;
+}
+.rwSteps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.rwStep {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding-block-start: 10px;
+  border-block-start: 3px solid var(--border);
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+  transition:
+    border-color var(--dur-base) var(--ease),
+    color var(--dur-base) var(--ease);
+}
+.rwStep[data-state='current'] {
+  border-color: var(--brand-ink);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.rwStep[data-state='done'] {
+  border-color: var(--success);
+  color: var(--text-primary);
+}
+.rwStepDot {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--bg-sunken);
+  font-size: 12px;
+  font-weight: 700;
+}
+.rwStep[data-state='current'] .rwStepDot {
+  background: var(--brand-ink);
+  color: var(--text-on-dark);
+}
+.rwStep[data-state='done'] .rwStepDot {
+  background: var(--success);
+  color: var(--text-on-brand);
+  animation: rwPop 360ms var(--ease-spring);
+}
+.rwStepLabel {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+@keyframes rwPop {
+  from {
+    transform: scale(0.5);
+  }
+}
+
+.rwCard {
+  padding: clamp(18px, 3vw, 28px);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  background: var(--bg-surface);
+  animation: rwIn 280ms var(--ease-soft) both;
+}
+@keyframes rwIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+.rwStepTitle {
+  margin: 0 0 4px;
+  font-family: var(--font-heading);
+  font-size: 21px;
+  font-weight: 600;
+  letter-spacing: var(--tracking-title);
+}
+.rwStepHelp {
+  max-width: 60ch;
+  margin: 0 0 18px;
+  color: var(--text-secondary);
+}
+.rwAlert {
+  margin-block-end: 14px;
+}
+
+/* Selectable tiles (item + reason): radio semantics, card look. */
+.rwItems,
+.rwReasons {
+  display: grid;
+  gap: 10px;
+}
+.rwReasons {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.rwItem,
+.rwReason {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 64px;
+  padding: 12px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: 18px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition:
+    border-color var(--dur-fast) var(--ease),
+    background var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
+}
+.rwItem:hover:not(:disabled),
+.rwReason:hover {
+  border-color: var(--border-strong);
+}
+.rwItem[aria-checked='true'],
+.rwReason[aria-checked='true'] {
+  border-color: var(--brand-ink);
+  background: var(--wash-lilac);
+  box-shadow: var(--shadow-sm);
+}
+.rwItem:focus-visible,
+.rwReason:focus-visible {
+  outline: 3px solid var(--brand-ring);
+  outline-offset: 2px;
+}
+.rwItem:disabled {
+  background: var(--bg-canvas);
+  cursor: not-allowed;
+}
+.rwItem:disabled > :not(.rwItemMain),
+.rwItem:disabled .rwItemTitle,
+.rwItem:disabled .rwItemMeta {
+  opacity: 0.55;
+}
+.rwItemMain,
+.rwReasonText {
+  display: grid;
+  flex: 1;
+  gap: 3px;
+  min-width: 0;
+}
+.rwItemTitle,
+.rwReasonLabel {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.rwItemMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+}
+.rwItemNote,
+.rwReasonHint {
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+}
+.rwReasonIcon {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--bg-sunken);
+  color: var(--text-primary);
+  transition:
+    background var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
+}
+.rwReason[aria-checked='true'] .rwReasonIcon {
+  background: var(--brand-ink);
+  color: var(--text-on-dark);
+}
+.rwCheck {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 50%;
+  color: var(--text-on-dark);
+}
+[aria-checked='true'] > .rwCheck {
+  border-color: var(--brand-ink);
+  background: var(--brand-ink);
+  animation: rwPop 300ms var(--ease-spring);
+}
+.rwEmptyNote {
+  margin: 14px 0 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--bg-sunken);
+  color: var(--text-secondary);
+}
+.rwOther {
+  display: grid;
+  gap: 6px;
+  margin-block-start: 16px;
+}
+.rwOther label {
+  font-size: var(--fs-sm);
+  font-weight: 500;
+}
+
+/* Photo slots: each listing view beside the buyer's matching photo. */
+.rwSlots {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.rwSlot {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--bg-canvas);
+  transition: border-color var(--dur-base) var(--ease);
+}
+.rwSlot[data-filled] {
+  border-color: color-mix(in srgb, var(--success) 40%, var(--border));
+}
+.rwSlotHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+.rwSlotNum {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--bg-surface);
+  font-size: 11px;
+  font-weight: 700;
+}
+.rwSlotPair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.rwSlotPair[data-single] {
+  grid-template-columns: minmax(0, 1fr);
+}
+.rwSlotRef {
+  position: relative;
+  margin: 0;
+}
+.rwSlotRef img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  object-fit: contain;
+}
+.rwSlotRef figcaption {
+  position: absolute;
+  inset-block-end: 6px;
+  inset-inline-start: 6px;
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--pill-ink-bg);
+  color: var(--pill-ink-fg);
+  font-size: 11px;
+  font-weight: 600;
+}
+.rwSlotMine {
+  position: relative;
+  animation: rwPop 320ms var(--ease-spring);
+}
+.rwSlotTick {
+  position: absolute;
+  inset-block-start: 6px;
+  inset-inline-start: 6px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--success);
+  color: var(--text-on-brand);
+  box-shadow: var(--shadow-sm);
+}
+.rwSlotRemove {
+  position: absolute;
+  inset-block-start: 4px;
+  inset-inline-end: 4px;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+}
+.rwSlotRemove:hover:not(:disabled) {
+  color: var(--error);
+}
+.rwSlotRemove:focus-visible,
+.rwSlotEmpty:focus-visible {
+  outline: 3px solid var(--brand-ring);
+  outline-offset: 2px;
+}
+.rwSlotEmpty {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 6px;
+  width: 100%;
+  aspect-ratio: 1;
+  border: 1.5px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-tertiary);
+  font: inherit;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  cursor: not-allowed;
+}
+.rwSlotEmpty[data-next] {
+  border-color: color-mix(in srgb, var(--brand-ink) 45%, var(--border));
+  background: var(--wash-lilac);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition:
+    transform var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
+}
+.rwSlotEmpty[data-next]:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+.rwSpin {
+  animation: rwSpin 900ms linear infinite;
+}
+@keyframes rwSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.rwPhotoBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-block: 16px 4px;
+}
+.rwMeter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.rwMeterDots {
+  display: flex;
+  gap: 4px;
+}
+.rwMeterDots span {
+  width: 18px;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--border);
+  transition: background var(--dur-base) var(--ease);
+}
+.rwMeterDots span[data-on] {
+  background: var(--success);
+}
+.rwMeterText {
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+}
+.rwMeterText[data-done] {
+  color: var(--success);
+  font-weight: 600;
+}
+.rwPhotoActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Review */
+.rwSummary {
+  display: grid;
+  margin: 14px 0 0;
+}
+.rwSummary > div {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding-block: 12px;
+}
+.rwSummary > div + div {
+  border-block-start: 1px solid var(--border);
+}
+.rwSummary dt {
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+}
+.rwSummary dd {
+  margin: 0;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.rwSummaryItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.rwSummaryPhotos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.rwAfter {
+  margin-block-start: 16px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  background: var(--wash-lilac);
+}
+.rwAfter h3 {
+  margin: 0 0 10px;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+.rwAfter ol {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: rwAfter;
+}
+.rwAfter li {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: var(--fs-sm);
+  counter-increment: rwAfter;
+}
+.rwAfter li::before {
+  content: counter(rwAfter);
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--bg-surface);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* Sticky glass action bar */
+.rwBar {
+  position: sticky;
+  inset-block-end: 16px;
+  z-index: var(--z-sticky);
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--header-blur-bg);
+  box-shadow: var(--shadow-lg);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+/* ══ Status (/orders/:id/return/:returnId/status) ═════════════════════════════════════════ */
+.rsNote {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+}
+.rsLive {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+}
+.rsLiveDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ai-accent);
+  animation: rsPulse 1.4s var(--ease) infinite;
+}
+@keyframes rsPulse {
+  50% {
+    opacity: 0.35;
+    transform: scale(0.7);
+  }
+}
+.rsHint {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--bg-sunken);
+  color: var(--text-primary);
+  font-size: var(--fs-sm);
+  text-decoration: underline;
+  text-decoration-color: var(--border-strong);
+  text-underline-offset: 3px;
+}
+.rsHint svg {
+  flex-shrink: 0;
+  margin-block-start: 3px;
+}
+.rsHint:hover {
+  color: var(--text-primary);
+  text-decoration-color: currentColor;
+}
+.rsHint:focus-visible {
+  outline: 3px solid var(--brand-ring);
+  outline-offset: 2px;
+}
+.rsFacts {
+  padding-block-start: 12px;
+  border-block-start: 1px solid var(--border);
+}
+.rsFacts .odLine:last-child {
+  margin-block-end: 0;
+}
+.rsRefresh.ant-btn {
+  justify-self: start;
+  color: var(--text-secondary);
+}
+.rsPhotos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 140px), 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.rsPhotos li {
+  display: grid;
+  gap: 6px;
+  animation: rwIn 380ms var(--ease-soft) backwards;
+}
+.rsPhotos li > span {
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+}
+.rsShipment + .rsShipment {
+  margin-block-start: 12px;
+  padding-block-start: 12px;
+  border-block-start: 1px solid var(--border);
+}
+.rsEvents {
+  display: grid;
+  gap: 10px;
+  margin: 10px 0 0;
+  padding: 0;
+  padding-inline-start: 14px;
+  border-inline-start: 2px solid var(--border);
+  list-style: none;
+}
+.rsEvents li {
+  display: grid;
+  gap: 2px;
+  font-size: var(--fs-sm);
+}
+.rsEvents li:first-child {
+  font-weight: 600;
+}
+.rsEvents time {
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+  font-weight: 400;
+}
+
+/* ── Urdu ─────────────────────────────────────────────────────────────────────────────────── */
+[dir='rtl'] .rwStepTitle {
+  font-family: var(--font-urdu);
+  line-height: 1.9;
+  letter-spacing: normal;
+}
+[dir='rtl'] .rwStepLabel,
+[dir='rtl'] .rwStepHelp,
+[dir='rtl'] .rwReasonHint,
+[dir='rtl'] .rwItemNote,
+[dir='rtl'] .rwMeterText,
+[dir='rtl'] .rwSummary dt,
+[dir='rtl'] .rwAfter,
+[dir='rtl'] .rwSlotHead,
+[dir='rtl'] .rsLive,
+[dir='rtl'] .rsHint,
+[dir='rtl'] .rsNote {
+  font-family: var(--font-urdu-ui);
+}
+
+/* ── Phones ───────────────────────────────────────────────────────────────────────────────── */
+@media (max-width: 767px) {
+  .rwSteps {
+    gap: 6px;
+  }
+  /* Only the current step keeps its label; the rest show their number. */
+  .rwStep:not([data-state='current']) .rwStepLabel {
+    display: none;
+  }
+  .rwReasons {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .rwSummary > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+  .rwBar {
+    inset-block-end: 10px;
+  }
+  .rwBar .ant-btn,
+  .rwPhotoActions,
+  .rwPhotoActions .ant-btn {
+    flex: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rwCard,
+  .rwSlotMine,
+  .rwStep[data-state='done'] .rwStepDot,
+  [aria-checked='true'] > .rwCheck,
+  .rsPhotos li,
+  .rsLiveDot,
+  .rwSpin {
+    animation: none;
+  }
+  .rwSlotEmpty[data-next]:hover:not(:disabled) {
+    transform: none;
+  }
+}
+
+/* Touch screens: every control reaches 44px. */
+@media (pointer: coarse) {
+  .rwSlotRemove {
+    width: 44px;
+    height: 44px;
+  }
+  .rsRefresh.ant-btn {
+    min-height: 44px;
+  }
+}

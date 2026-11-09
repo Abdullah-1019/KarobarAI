@@ -1,16 +1,19 @@
 import { useState } from 'react';
-import { Alert, Card, Typography } from 'antd';
+import { Alert, Button } from 'antd';
 import { useQuery } from '@tanstack/react-query';
-import { Scale, ShieldAlert, Truck, Wallet, type LucideIcon } from 'lucide-react';
+import { ArrowUpRight, CheckCircle2, Scale, ShieldAlert, TrendingDown, TrendingUp, Truck, Wallet,
+  type LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
 import type { AdminAlertFeedDTO } from '@karobarai/shared';
-import { MetricCard, PageHeader, SkeletonLoader } from '../../components';
 import { DateRangeFilter } from '../analytics/DateRangeFilter';
+import { Shimmer } from '../analytics/AnalyticsCardState';
 import { toRangeParams, type RangePreset } from '../analytics/rangePresets';
+import { useCountUp } from '../analytics/useCountUp';
 import { adminAlertsQueryKey, adminKpisQueryKey, getAdminAlerts, getAdminKpis } from './adminApi';
 import { formatAdminError } from './adminErrors';
+import '../analytics/analytics.css';
 
 const CONTEXT_LABEL_KEY: Record<RangePreset, string> = {
   '7d': 'dashboard.vsPrevious7d',
@@ -20,22 +23,29 @@ const CONTEXT_LABEL_KEY: Record<RangePreset, string> = {
 };
 
 const ALERT_ITEMS: { key: keyof AdminAlertFeedDTO; icon: LucideIcon; labelKey: string; to?: string }[] = [
-  { key: 'manualLogisticsOrders', icon: Truck, labelKey: 'dashboard.manualLogisticsOrders' },
-  { key: 'stuckPayments', icon: Wallet, labelKey: 'dashboard.stuckPayments' },
   { key: 'openDisputes', icon: Scale, labelKey: 'dashboard.openDisputes', to: '/admin/returns' },
   { key: 'fraudFlaggedSellers', icon: ShieldAlert, labelKey: 'dashboard.fraudFlaggedSellers', to: '/admin/reports' },
+  { key: 'manualLogisticsOrders', icon: Truck, labelKey: 'dashboard.manualLogisticsOrders' },
+  { key: 'stuckPayments', icon: Wallet, labelKey: 'dashboard.stuckPayments' },
 ];
 
+function formatRs(value: number) {
+  return `Rs ${Math.round(value).toLocaleString()}`;
+}
+
+function CountNum({ value, format }: { value: number; format: (n: number) => string }) {
+  const shown = useCountUp(value);
+  return <>{format(shown)}</>;
+}
+
 // SCR-AD01 — "what needs my attention?" (distinct from /admin/reports' "how is the platform
-// performing?", per the brief's explicit Dashboard-vs-Analytics split). KPI tiles answer the
-// former with the one real period-over-period figure the backend actually computes (GMV); the
-// alert row is the operational half — each tile links to a real screen where a real screen exists
-// (Disputes -> the returns queue, Fraud-flagged sellers -> the seller-performance report) and
-// stays a plain, non-interactive count where none does yet (Manual logistics, Stuck payments —
-// there is no admin order or payment-management screen in this codebase to link to; inventing a
-// destination would be worse than an honest dead-end-free tile).
+// performing?"). A cool header band holds the range filter and the three real KPIs the backend
+// computes (settled GMV with its period-over-period change, buyers/sellers who logged in, and a
+// database+cache reachability snapshot — not a rolling uptime, so it's labelled as "right now").
+// Below, the alert queues: each tile links to a real screen where one exists and says so plainly
+// where none does yet (manual logistics, stuck payments — no admin order/payment screen exists).
 export function AdminDashboardPage() {
-  const { t } = useTranslation(['admin']);
+  const { t } = useTranslation(['admin', 'common']);
   const [preset, setPreset] = useState<RangePreset>('7d');
   const [customRange, setCustomRange] = useState<[string, string] | null>(null);
   const rangeParams = toRangeParams(preset, customRange);
@@ -43,102 +53,100 @@ export function AdminDashboardPage() {
   const kpis = useQuery({ queryKey: adminKpisQueryKey(rangeParams), queryFn: () => getAdminKpis(rangeParams) });
   const alerts = useQuery({ queryKey: adminAlertsQueryKey, queryFn: () => getAdminAlerts() });
 
+  const pct = kpis.data?.pctChangeVsPrevious ?? null;
+  const allClear = alerts.isSuccess && ALERT_ITEMS.every(({ key }) => alerts.data[key] === 0);
+
   return (
-    <div>
-      <PageHeader title={t('dashboard.title')} />
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-6)' }}>
-        <DateRangeFilter preset={preset} customRange={customRange} onPresetChange={setPreset} onCustomRangeChange={setCustomRange} />
-
-        <div>
-          <Typography.Text
-            strong
-            style={{ display: 'block', fontSize: 'var(--fs-sm)', color: 'var(--text-secondary)', marginBottom: 'var(--sp-2)' }}
-          >
-            {t('dashboard.kpisTitle')}
-          </Typography.Text>
-          {kpis.isPending && <SkeletonLoader rows={2} />}
-          {kpis.isError && <Alert type="error" showIcon message={formatAdminError(t, kpis.error)} />}
-          {kpis.isSuccess && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 'var(--sp-4)' }}>
-              <MetricCard
-                label={t('dashboard.gmv')}
-                value={`Rs. ${Number(kpis.data.gmv).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-                trend={
-                  kpis.data.pctChangeVsPrevious !== null
-                    ? { value: kpis.data.pctChangeVsPrevious, contextLabel: t(CONTEXT_LABEL_KEY[preset]) }
-                    : null
-                }
-              />
-              <MetricCard label={t('dashboard.activeUsers')} value={kpis.data.activeUsers.toLocaleString()} />
-              <MetricCard label={t('dashboard.adapterUptime')} value={`${kpis.data.adapterUptime}%`} />
-            </div>
-          )}
+    <div className="adPage">
+      <section className="adHero" aria-labelledby="ad-title">
+        <div className="adHeroHead">
+          <div>
+            <p className="adEyebrow">{t('dashboard.eyebrow')}</p>
+            <h1 className="adTitle" id="ad-title">{t('dashboard.title')}</h1>
+          </div>
+          <DateRangeFilter preset={preset} customRange={customRange} onPresetChange={setPreset} onCustomRangeChange={setCustomRange} />
         </div>
 
-        <div>
-          <Typography.Text
-            strong
-            style={{ display: 'block', fontSize: 'var(--fs-sm)', color: 'var(--text-secondary)', marginBottom: 'var(--sp-2)' }}
-          >
-            {t('dashboard.alertsTitle')}
-          </Typography.Text>
-          {alerts.isPending && <SkeletonLoader rows={2} />}
-          {alerts.isError && <Alert type="error" showIcon message={formatAdminError(t, alerts.error)} />}
-          {alerts.isSuccess && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--sp-4)' }}>
-              {ALERT_ITEMS.map(({ key, icon: Icon, labelKey, to }) => {
-                const count = alerts.data[key];
-                const needsAttention = count > 0;
-                const content = (
-                  <Card size="small" hoverable={!!to} style={{ height: '100%' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)' }}>
-                      <span
-                        aria-hidden="true"
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          width: 36,
-                          height: 36,
-                          borderRadius: '50%',
-                          background: needsAttention ? 'var(--warning-soft)' : 'var(--bg-sunken)',
-                          color: needsAttention ? 'var(--warning)' : 'var(--text-secondary)',
-                          flexShrink: 0,
-                        }}
-                      >
-                        <Icon size={18} />
-                      </span>
-                      <div>
-                        <div
-                          style={{
-                            fontSize: 'var(--fs-xl)',
-                            fontWeight: 600,
-                            fontVariantNumeric: 'tabular-nums',
-                            color: needsAttention ? 'var(--warning)' : 'var(--text-primary)',
-                          }}
-                        >
-                          {count}
-                        </div>
-                        <Typography.Text style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-secondary)' }}>
-                          {t(labelKey)}
-                        </Typography.Text>
-                      </div>
-                    </div>
-                  </Card>
-                );
-                return to ? (
-                  <Link key={key} to={to} style={{ color: 'inherit', textDecoration: 'none' }}>
-                    {content}
-                  </Link>
-                ) : (
-                  <div key={key}>{content}</div>
-                );
-              })}
+        {kpis.isError ? (
+          <Alert type="error" showIcon message={formatAdminError(t, kpis.error)}
+            action={<Button size="small" shape="round" onClick={() => void kpis.refetch()}>{t('common:actions.retry')}</Button>} />
+        ) : (
+          <div className="adKpis" aria-busy={kpis.isPending}>
+            <div className="adKpi">
+              <p className="adKpiLabel">{t('dashboard.gmv')}</p>
+              {kpis.isSuccess ? (
+                <p className="adKpiNum"><CountNum value={Number(kpis.data.gmv)} format={formatRs} /></p>
+              ) : <Shimmer height={40} width="70%" />}
+              {pct !== null && (
+                <span className="adTrend" data-down={pct < 0 || undefined}>
+                  {pct < 0 ? <TrendingDown size={14} aria-hidden="true" /> : <TrendingUp size={14} aria-hidden="true" />}
+                  <span dir="ltr">{pct > 0 ? '+' : ''}{pct.toFixed(1)}%</span>
+                  <span className="adTrendCtx">{t(CONTEXT_LABEL_KEY[preset])}</span>
+                </span>
+              )}
+              <p className="adKpiHint">{t('dashboard.gmvHint')}</p>
             </div>
-          )}
-        </div>
-      </div>
+            <div className="adKpi">
+              <p className="adKpiLabel">{t('dashboard.activeUsers')}</p>
+              {kpis.isSuccess ? (
+                <p className="adKpiNum"><CountNum value={kpis.data.activeUsers} format={(n) => Math.round(n).toLocaleString()} /></p>
+              ) : <Shimmer height={40} width="50%" />}
+              <p className="adKpiHint">{t('dashboard.usersHint')}</p>
+            </div>
+            <div className="adKpi">
+              <p className="adKpiLabel">{t('dashboard.adapterUptime')}</p>
+              {kpis.isSuccess ? (
+                <>
+                  <p className="adKpiNum">{kpis.data.adapterUptime}%</p>
+                  <span className="adMeter" data-level={kpis.data.adapterUptime >= 100 ? 'ok' : kpis.data.adapterUptime > 0 ? 'warn' : 'down'}>
+                    <span style={{ inlineSize: `${kpis.data.adapterUptime}%` }} />
+                  </span>
+                </>
+              ) : <Shimmer height={40} width="40%" />}
+              <p className="adKpiHint">{t('dashboard.uptimeHint')}</p>
+            </div>
+          </div>
+        )}
+      </section>
+
+      <section className="adSection" aria-labelledby="ad-attention">
+        <header className="adSectionHead">
+          <h2 className="adSectionTitle" id="ad-attention">{t('dashboard.attentionTitle')}</h2>
+          <p className="adSectionSub">{t('dashboard.attentionSub')}</p>
+        </header>
+
+        {alerts.isPending && (
+          <div className="adAlerts">
+            {ALERT_ITEMS.map(({ key }) => <div key={key} className="adAlert"><Shimmer height={64} /></div>)}
+          </div>
+        )}
+        {alerts.isError && (
+          <Alert type="error" showIcon message={formatAdminError(t, alerts.error)}
+            action={<Button size="small" shape="round" onClick={() => void alerts.refetch()}>{t('common:actions.retry')}</Button>} />
+        )}
+        {allClear && (
+          <p className="adClear"><CheckCircle2 size={18} aria-hidden="true" /> {t('dashboard.allClear')}</p>
+        )}
+        {alerts.isSuccess && (
+          <div className="adAlerts">
+            {ALERT_ITEMS.map(({ key, icon: Icon, labelKey, to }, index) => {
+              const count = alerts.data[key];
+              const body = (
+                <>
+                  <span className="adAlertIcon" aria-hidden="true"><Icon size={18} /></span>
+                  <span className="adAlertNum">{count.toLocaleString()}</span>
+                  <span className="adAlertLabel">{t(labelKey)}</span>
+                  <span className="adAlertFoot">
+                    {to ? <>{t('dashboard.open')} <ArrowUpRight size={14} aria-hidden="true" /></> : t('dashboard.noScreenYet')}
+                  </span>
+                </>
+              );
+              const props = { className: 'adAlert', 'data-hot': count > 0 || undefined, style: { animationDelay: `${index * 60}ms` } };
+              return to ? <Link key={key} to={to} {...props}>{body}</Link> : <div key={key} {...props}>{body}</div>;
+            })}
+          </div>
+        )}
+      </section>
     </div>
   );
 }

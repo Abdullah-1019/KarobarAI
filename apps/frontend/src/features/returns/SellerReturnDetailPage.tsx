@@ -131,7 +131,7 @@ export function SellerReturnDetailPage() {
     : t('next.waiting');
   const finished = !hasAction && (['REFUND_ISSUED', 'CLOSED'].includes(ret.status) || fulfillment?.status === 'EXCHANGE_COMPLETED');
 
-  const title = ret.orderNumber ? `#${ret.orderNumber}` : t('sellerDetail.title', { id: ret.orderId });
+  const title = ret.orderNumber ? `#${ret.orderNumber}` : t('sellerList.title');
 
   let nextActions: ReactNode = null;
   if (hasAction) {

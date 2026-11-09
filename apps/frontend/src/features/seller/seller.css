@@ -328,16 +328,16 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  width: min(calc(100% - 2 * clamp(16px, 3vw, 32px)), 960px);
-  height: 60px;
+  width: min(calc(100% - 2 * clamp(16px, 3vw, 32px)), 1120px);
+  height: 56px;
   margin: var(--side-gap) auto 0;
   padding-inline: 20px 8px;
-  border: 1px solid var(--glass-edge);
+  border: 1px solid var(--nav-border);
   border-radius: var(--radius-pill);
-  background: var(--glass-bg);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  box-shadow: var(--shadow-md);
+  background: var(--nav-glass-bg-scrolled);
+  backdrop-filter: var(--nav-glass-blur);
+  -webkit-backdrop-filter: var(--nav-glass-blur);
+  box-shadow: var(--nav-sheen);
 }
 .slTopBrand {
   display: none;

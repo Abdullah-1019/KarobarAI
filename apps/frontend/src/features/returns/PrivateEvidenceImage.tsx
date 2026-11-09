@@ -6,7 +6,7 @@ import { apiClient } from '../../api';
 import { ProductThumbnail } from '../../components';
 
 /** Fetch protected return evidence with the existing Bearer-token interceptor. */
-export function PrivateEvidenceImage({ url, size = 120 }: { url: string; size?: number }) {
+export function PrivateEvidenceImage({ url, size = 120, fill = false }: { url: string; size?: number; fill?: boolean }) {
   const { t } = useTranslation('returns');
   const [objectUrl, setObjectUrl] = useState<string>();
   const [error, setError] = useState(false);
@@ -24,7 +24,7 @@ export function PrivateEvidenceImage({ url, size = 120 }: { url: string; size?: 
       .catch(() => { if (current) setError(true); });
     return () => { current = false; if (created) URL.revokeObjectURL(created); };
   }, [url]);
-  if (!url.startsWith('/api/v1/')) return <ProductThumbnail src={url} size={size} />;
+  if (!url.startsWith('/api/v1/')) return <ProductThumbnail src={url} size={size} fill={fill} radius="md" />;
   if (error) return <Alert type="warning" message={t('sellerDetail.evidenceUnavailable')} />;
-  return objectUrl ? <ProductThumbnail src={objectUrl} size={size} /> : <Spin />;
+  return objectUrl ? <ProductThumbnail src={objectUrl} size={size} fill={fill} radius="md" /> : <Spin />;
 }

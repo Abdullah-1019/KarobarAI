@@ -1,0 +1,352 @@
+/* ── Home hero, the night stage (hero--night) ─────────────────────────────────────────────
+   Dark in both themes: bright washes over product photos go muddy, a dark veil does not. The stage
+   sits in .st-hero-track (homeStory.css), which pins it and pulls it up under the glass navbar,
+   whose light-on-dark tokens are in global.css (.storefront-header[data-over-hero]). Inside it the
+   text roles are light. */
+.hero.hero--night {
+  --night: 10 10 14;
+  --dim: 0.34; /* the photos at the sides; the middle is always deep */
+  --tile-h: calc(var(--hero-h) / 2.72);
+  --tile-w: calc(var(--tile-h) * 0.8);
+  --tile-gap: 12px;
+  --text-primary: #fff;
+  --text-secondary: rgb(255 255 255 / 0.84);
+  position: sticky;
+  top: 0;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: clip;
+  /* the brand circles are fixed to the screen: this keeps the hero's own pair inside it */
+  clip-path: inset(0);
+  width: 100%;
+  height: var(--hero-h);
+  margin: 0;
+  padding: calc(var(--nav-gap-top) + var(--nav-row-h)) 16px 0;
+  background: #0e0e11;
+  color: #fff;
+  cursor: grab;
+  user-select: none;
+  touch-action: pan-y; /* a vertical swipe still scrolls the page on phones */
+}
+[data-theme='dark'] .hero.hero--night {
+  --dim: 0.46;
+}
+.hero--night[data-dragging] {
+  cursor: grabbing;
+}
+
+/* The wall */
+.nw-wall {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--tile-gap);
+  animation: nwIn 900ms var(--ease-soft) both;
+}
+@keyframes nwIn {
+  from {
+    opacity: 0;
+  }
+}
+.nw-row {
+  display: flex;
+  flex: none;
+  gap: var(--tile-gap);
+  width: max-content;
+  height: var(--tile-h);
+  will-change: transform;
+}
+.nw-tile {
+  display: block;
+  flex: none;
+  width: var(--tile-w);
+  height: var(--tile-h);
+  overflow: hidden;
+  border-radius: 16px;
+  background: #1b1b1f;
+}
+.nw-tile img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 500ms var(--ease-soft);
+}
+.nw-tile img[data-loaded] {
+  opacity: 1;
+}
+.nw-tile img[data-trim] {
+  scale: 1.16;
+  transform-origin: 50% 12%;
+}
+
+/* The veil: deep behind the copy, opening up so the products keep their colour at the sides */
+.hero-veil {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    radial-gradient(
+      ellipse min(640px, 56vw) 68% at 50% 54%,
+      rgb(var(--night) / 0.92) 0%,
+      rgb(var(--night) / 0.88) 44%,
+      rgb(var(--night) / 0.5) 74%,
+      rgb(var(--night) / 0) 100%
+    ),
+    linear-gradient(180deg, rgb(var(--night) / 0.6) 0, rgb(var(--night) / 0) 118px),
+    rgb(var(--night) / var(--dim));
+  pointer-events: none;
+}
+
+/* The brand circles, here over the veil, where they read as clean colour in the dark middle.
+   useHomeStory moves them with the same state as the page's and the cards'. */
+.hero--night .hero__blob {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 2;
+  width: var(--gw);
+  height: var(--gw);
+  margin: calc(var(--gw) / -2) 0 0 calc(var(--gw) / -2);
+  inset-inline: auto;
+  mix-blend-mode: screen;
+  animation: none;
+  will-change: transform;
+}
+.hero--night .hero__blob--peach {
+  left: 0;
+  background: radial-gradient(circle, rgb(240 128 78 / 0.46) 0%, rgb(240 128 78 / 0.16) 42%, transparent 68%);
+}
+.hero--night .hero__blob--lilac {
+  left: 0;
+  background: radial-gradient(circle, rgb(124 122 255 / 0.5) 0%, rgb(124 122 255 / 0.18) 42%, transparent 68%);
+}
+
+/* The scroll scene: the wall darkens and the found product is named under the photo */
+.hero-dim {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: rgb(8 8 12 / 0.74);
+  opacity: 0;
+  pointer-events: none;
+}
+.hero-found {
+  --text-primary: rgb(255 255 255 / 0.84);
+  position: absolute;
+  inset-inline: 16px;
+  bottom: 74px;
+  z-index: 3;
+  margin: 0;
+  color: rgb(255 255 255 / 0.84);
+  font-size: 15px;
+  opacity: 0;
+  text-align: center;
+  pointer-events: none;
+}
+.hero-found b {
+  display: block;
+  color: #fff;
+  font-family: var(--font-heading);
+  font-size: clamp(32px, 3.6vw, 52px);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+}
+html[lang='ur'] .hero-found b {
+  font-family: var(--font-urdu);
+  letter-spacing: 0;
+  line-height: 1.7;
+}
+.hero-found > span {
+  display: block;
+  margin-block-start: 4px;
+}
+
+/* The copy, in three groups: the claim, the promise, the actions. The stage is the drag handle, so
+   only the links take the pointer. */
+.hero--night .hero__inner {
+  position: relative;
+  z-index: 3;
+  gap: 0;
+  width: 100%;
+  pointer-events: none;
+}
+.hero__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 clamp(12px, 2.4svh, 22px);
+  padding: 4px 14px 4px 4px;
+  border: 1px solid rgb(255 255 255 / 0.16);
+  border-radius: var(--radius-pill);
+  background: rgb(255 255 255 / 0.07);
+  color: rgb(255 255 255 / 0.92);
+  font-size: 13px;
+  font-weight: 500;
+}
+[dir='rtl'] .hero__badge {
+  padding: 4px 4px 4px 14px;
+  font-family: var(--font-urdu-ui);
+}
+.hero__badge-mark {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 0.12);
+}
+.hero--night .hero__title {
+  font-size: min(var(--fs-display), 11svh);
+}
+html[lang='ur'] .hero--night .hero__title {
+  font-size: min(clamp(38px, 5vw, 66px), 8svh);
+  line-height: 1.6;
+}
+.hero--night .hero__twin {
+  margin: clamp(2px, 0.8svh, 8px) 0 0;
+  color: rgb(255 255 255 / 0.8);
+  font-size: min(24px, 3.4svh);
+}
+.hero--night .hero__twin:lang(ur) {
+  line-height: 1.9;
+}
+.hero--night .hero__sub {
+  margin: clamp(4px, 1svh, 10px) 0 0;
+  color: rgb(255 255 255 / 0.84);
+  font-size: max(15px, min(var(--fs-lg), 2.7svh));
+}
+.hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin-block-start: clamp(14px, 3svh, 28px);
+  pointer-events: auto;
+}
+
+/* entrance: badge, headline wiping up from its baseline, twin, promise, actions */
+.hero--night .hero__badge {
+  animation: hero-in 600ms var(--ease-soft) 80ms both;
+}
+.hero--night .hero__title {
+  animation: hero-wipe 900ms var(--ease-soft) 160ms both;
+}
+.hero--night .hero__twin {
+  animation: hero-in 600ms var(--ease-soft) 380ms both;
+}
+.hero--night .hero__sub {
+  animation: hero-in 620ms var(--ease-soft) 460ms both;
+}
+.hero--night .hero__actions {
+  animation: hero-in 620ms var(--ease-soft) 540ms both;
+}
+@keyframes hero-in {
+  from {
+    opacity: 0;
+    translate: 0 12px;
+  }
+}
+@keyframes hero-wipe {
+  from {
+    opacity: 0;
+    translate: 0 16px;
+    clip-path: inset(100% 0 -30% 0);
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+    clip-path: inset(-30% 0 -30% 0);
+  }
+}
+
+/* Pause / play: in the corner, where the arch has not lifted the edge yet */
+.nw-toggle {
+  position: absolute;
+  inset-inline-end: 16px;
+  bottom: 58px;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid rgb(255 255 255 / 0.2);
+  border-radius: 50%;
+  background: rgb(var(--night) / 0.6);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  color: #fff;
+  cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease);
+}
+.nw-toggle:active {
+  transform: scale(0.94);
+}
+.nw-toggle:focus-visible {
+  outline: 3px solid var(--brand-ring);
+  outline-offset: 2px;
+}
+/* 36px drawn, 44px to the finger */
+.nw-toggle::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+}
+
+/* ── Phones: five shorter rows, and the stage stops above the bottom tab bar ─────────────────── */
+@media (max-width: 767px) {
+  .hero.hero--night {
+    position: relative;
+    top: auto;
+    --tile-h: calc(var(--hero-h) / 4.7);
+    --tile-gap: 8px;
+  }
+  .nw-tile {
+    border-radius: 12px;
+  }
+  .hero__badge {
+    font-size: 11.5px;
+  }
+  .hero--night .hero__title {
+    font-size: var(--fs-display);
+  }
+  .hero-veil {
+    background:
+      radial-gradient(
+        ellipse 96vw 44% at 50% 52%,
+        rgb(var(--night) / 0.94) 0%,
+        rgb(var(--night) / 0.9) 60%,
+        rgb(var(--night) / 0) 100%
+      ),
+      linear-gradient(180deg, rgb(var(--night) / 0.6) 0, rgb(var(--night) / 0) 110px),
+      rgb(var(--night) / var(--dim));
+  }
+  .nw-toggle {
+    inset-inline-end: 10px;
+    bottom: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero--night .hero__badge,
+  .hero--night .hero__twin,
+  .hero--night .hero__title,
+  .hero--night .hero__sub,
+  .hero--night .hero__actions,
+  .nw-wall {
+    animation: none;
+  }
+  .nw-tile img {
+    transition: none;
+  }
+}

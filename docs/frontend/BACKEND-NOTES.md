@@ -168,6 +168,11 @@ The UI does **not** fake any of these. Each one is left out until the field exis
 - **Home feed mix:** the script staggers `createdAt` round-robin across the 5 stores, because the feed (`getHomeFeed`) is just the 12 newest LIVE products, and Featured and New arrivals are the same query. A real fix on the API side would help: cap products per store in the feed, and make Featured differ from New arrivals.
 - **Pending:** product embeddings were not generated (they need Ollama). Run `scripts/backfill-product-embeddings.ts` in the api container so AI search and the store chatbot include these products.
 
+## Ask: public tracking link for the buyer (2026-11-05, Day 4)
+
+- **Problem:** the logged-in tracking page (`/orders/:id/track`) has a "Copy tracking link" button, but no DTO gives the frontend the order's public token, so it copies the login-only URL. Someone the buyer shares it with lands on the login page.
+- **Ask:** add `publicTrackingUrl` (or `publicToken`) to `TrackingDTO` for the authenticated read, or to `OrderDetailDTO` for the buyer. The button will then copy `/t/:publicToken`, which is the page that needs no login.
+
 ## 4. Open questions
 
 - **Home feed "featured":** how is it chosen? The redesign shows it as its own rail and de-duplicates New arrivals against it.

@@ -166,7 +166,7 @@ export function OrderDetailPage({ scope }: OrderDetailPageProps) {
       <header className="odHead">
         <div>
           <div className="odTitleRow">
-            <h1 className="odTitle">{order.orderNumber ? `#${order.orderNumber}` : t('detail.title', { id: order.id })}</h1>
+            <h1 className="odTitle">{`#${order.orderNumber ?? '…'}`}</h1>
             <OrderStatusTag status={order.status} />
           </div>
           <p className="odSub">

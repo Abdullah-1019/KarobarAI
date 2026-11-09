@@ -5,7 +5,7 @@ import { Bell, Check, Lock, Mail, MessageCircle, Smartphone, type LucideIcon } f
 import { useTranslation } from 'react-i18next';
 
 import { CRITICAL_NOTIFICATION_CHANNELS, type AccountSettingsDTO, type Language } from '@karobarai/shared';
-import { SkeletonLoader } from '../../components';
+import { BackLink, SkeletonLoader } from '../../components';
 import { useLanguageStore } from '../../lib/languageStore';
 import { PROFILE_QUERY_KEY, getProfile, getSettings, updateSettings } from './profileApi';
 import { formatProfileError } from './profileErrors';
@@ -169,6 +169,7 @@ export function SettingsPage() {
 
   return (
     <div className="pfPage stPage">
+      {profile.role === 'BUYER' && <div><BackLink to="/buyer/profile" label={t('profile:changePasswordUi.backToProfile')} /></div>}
       <header className="stHead">
         <h1 className="stTitle">{t('profile:settings.title')}</h1>
         <p className="stSub">{t(profile.role === 'SELLER' ? 'profile:settingsPage.subtitleSeller' : 'profile:settingsPage.subtitleBuyer')}</p>

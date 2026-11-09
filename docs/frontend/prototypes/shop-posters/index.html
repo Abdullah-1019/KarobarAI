@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<title>Shop Posters Sample</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400..700&family=Outfit:wght@400..800&family=Noto+Nastaliq+Urdu:wght@400..700&display=swap" rel="stylesheet">
+<style>
+/* KarobarAI · Studio Light tokens (copied from apps/frontend/src/app/global.css) */
+:root{
+  --canvas:#faf9f7; --surface:#fff; --sunken:#f2f1ee; --hair:#eceae6; --hair-strong:#dcdad5;
+  --ink:#17171a; --graphite:#5a5a60; --slate:#636368;
+  --persimmon:#bf4a1f; --persimmon-deep:#a63e17; --persimmon-soft:#fbe9de;
+  --peach-blob:#f7d9c6; --lilac-blob:#e1e5f6; --ai:#f2a27e;
+  --green:#3f6a2c; --green-soft:#e6eedb; --amber-ink:#8a5a12; --amber-soft:#f6e7c4;
+  --indigo:#3a4d7a; --lilac:#e3e6f5; --rose:#f8e9ec; --red:#b3261e;
+  --tint-peach:#fbede4; --tint-sand:#f6f0e6; --tint-stone:#f3f1ea; --tint-rose:#f8e9ec; --tint-sky:#e9f0f7;
+  --shadow-lg:0 18px 40px -12px rgb(23 23 26 / .22), 0 4px 10px -4px rgb(23 23 26 / .10);
+  --heading:'Outfit',system-ui,sans-serif; --body:'Inter',system-ui,sans-serif; --urdu:'Noto Nastaliq Urdu',serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{background:var(--canvas)}
+body{font-family:var(--body);color:var(--ink);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+
+/* Sample banner */
+.note{position:sticky;top:0;z-index:50;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px 14px;
+  padding:9px 16px;background:var(--ink);color:#fff;font-size:13px;text-align:center}
+.note b{color:var(--ai)}
+.note button{height:30px;padding:0 14px;border:1px solid rgb(255 255 255 / .3);border-radius:999px;background:transparent;
+  color:#fff;font:inherit;font-weight:600;cursor:pointer}
+.note button:focus-visible{outline:3px solid var(--ai);outline-offset:2px}
+
+/* Hero (same composition as the live Home hero) */
+.hero{position:relative;isolation:isolate;padding:clamp(40px,6vw,72px) 16px 0;text-align:center;overflow:hidden}
+.blob{position:absolute;z-index:-1;border-radius:50%;pointer-events:none}
+.blob--peach{width:620px;height:620px;right:-140px;top:-200px;background:radial-gradient(circle,var(--peach-blob) 0%,transparent 68%)}
+.blob--lilac{width:560px;height:560px;left:-180px;top:140px;background:radial-gradient(circle,var(--lilac-blob) 0%,transparent 68%)}
+.hero h1{max-width:13ch;margin:0 auto;font-family:var(--heading);font-size:clamp(40px,6vw,72px);font-weight:600;line-height:1.02;letter-spacing:-.025em;text-wrap:balance}
+.twin{margin-top:6px;font-family:var(--urdu);font-size:24px;line-height:2;color:var(--graphite)}
+.sub{max-width:52ch;margin:10px auto 0;color:var(--graphite);font-size:17px;line-height:1.55}
+.search{display:flex;align-items:center;gap:8px;max-width:640px;margin:26px auto 0;padding:8px;border-radius:28px;background:var(--surface);box-shadow:var(--shadow-lg)}
+.search span{flex:1;padding-inline:14px;color:#9a9aa0;text-align:start;font-size:16px}
+.search b{height:44px;display:grid;place-items:center;padding:0 22px;border-radius:999px;background:var(--persimmon);color:#fff;font-weight:600}
+
+/* ── The 3D ring of shop posters ─────────────────────────────────────────────
+   Cards sit on a cylinder whose camera is at its centre (perspective == radius), so each card is
+   tangent to the ring and faces the viewer; the slanted top edges are perspective, not rotation. */
+.stage{--R:1100px;--cardW:184px;--cardH:336px;position:relative;height:470px;margin-top:8px;overflow:hidden;
+  -webkit-mask-image:linear-gradient(to right,transparent,#000 9%,#000 91%,transparent);
+          mask-image:linear-gradient(to right,transparent,#000 9%,#000 91%,transparent)}
+.ring{position:absolute;inset:0;perspective:var(--R);perspective-origin:50% 640px;transform-style:preserve-3d}
+.tags{position:absolute;left:50%;top:22px;z-index:200;display:flex;gap:10px;transform:translateX(-50%);pointer-events:none}
+.tag{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:999px;font-size:12.5px;font-weight:600;white-space:nowrap}
+.tag--ai{background:var(--ink);color:#fff;box-shadow:0 12px 24px rgb(23 23 26 / .25);transform:rotate(-3deg)}
+.tag--ai i{color:var(--ai);font-style:normal}
+.tag--cod{border:1px solid var(--hair);background:var(--surface);box-shadow:0 2px 6px rgb(23 23 26 / .08);transform:rotate(2deg)}
+
+.poster{position:absolute;left:50%;top:80px;width:var(--cardW);height:var(--cardH);margin-left:calc(var(--cardW) / -2);
+  border-radius:22px;overflow:hidden;background:var(--surface);color:var(--ink);
+  box-shadow:0 22px 40px -14px rgb(23 23 26 / .35),0 3px 8px rgb(23 23 26 / .10);
+  backface-visibility:hidden;will-change:transform,opacity;transition:box-shadow .25s}
+.poster:hover{box-shadow:0 28px 50px -14px rgb(23 23 26 / .45),0 0 0 3px rgb(191 74 31 / .35)}
+.poster:focus-visible{outline:none;box-shadow:0 0 0 3px #fff,0 0 0 6px var(--persimmon)}
+.poster img{position:absolute;width:100%;height:100%;object-fit:cover;user-select:none}
+.poster .edge{position:absolute;inset:0;border-radius:inherit;box-shadow:inset 0 0 0 1px rgb(23 23 26 / .06);pointer-events:none}
+
+/* store chip: monogram + name, top of every poster */
+.chip{position:absolute;left:10px;top:10px;z-index:3;display:inline-flex;align-items:center;gap:6px;max-width:calc(100% - 20px);
+  padding:4px 10px 4px 4px;border-radius:999px;background:rgb(255 255 255 / .92);backdrop-filter:blur(6px);
+  font-size:10.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
+.chip i{display:grid;place-items:center;flex-shrink:0;width:20px;height:20px;border-radius:50%;font-style:normal;font-family:var(--heading);font-size:11px;font-weight:700;color:#fff}
+
+/* V1 · full photo */
+.v-full img{inset:0}
+.v-full .scrim{position:absolute;inset:0;background:linear-gradient(180deg,rgb(23 23 26 / 0) 42%,rgb(23 23 26 / .55) 62%,rgb(23 23 26 / .9) 86%)}
+.v-full .foot{position:absolute;left:14px;right:14px;bottom:16px;color:#fff}
+.v-full .name{font-family:var(--heading);font-size:22px;font-weight:600;line-height:1.05;letter-spacing:-.01em}
+.v-full .meta{margin-top:6px;font-size:11px;opacity:.85}
+.go{display:inline-flex;align-items:center;gap:4px;margin-top:10px;font-size:11px;font-weight:700;letter-spacing:.02em}
+
+/* V2 · colour band + big name */
+.v-band .band{position:absolute;left:0;right:0;top:0;height:47%;padding:52px 14px 0}
+.v-band .big{font-family:var(--heading);font-size:25px;font-weight:800;line-height:.92;letter-spacing:-.02em;text-transform:uppercase}
+.v-band .city{margin-top:8px;font-size:11px;font-weight:600;opacity:.8}
+.v-band .photo{position:absolute;left:0;right:0;bottom:0;height:53%}
+.v-band .photo img{inset:0}
+.v-band .photo::before{content:"";position:absolute;inset:0;z-index:1;background:linear-gradient(180deg,var(--band) 0%,transparent 26%)}
+
+/* V3 · product spotlight */
+.v-spot .photo{position:absolute;left:0;right:0;top:0;height:60%}
+.v-spot .photo img{inset:0}
+.v-spot .body{position:absolute;left:0;right:0;bottom:0;height:40%;padding:12px 14px 0}
+.v-spot .pname{display:-webkit-box;overflow:hidden;font-size:13px;font-weight:600;line-height:1.3;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.v-spot .price{margin-top:6px;font-family:var(--heading);font-size:20px;font-weight:700;letter-spacing:-.01em}
+.v-spot .price small{font-size:12px;font-weight:600;margin-inline-end:2px}
+.v-spot .pill{position:absolute;left:14px;bottom:14px;display:inline-flex;align-items:center;gap:4px;padding:6px 12px;border-radius:999px;background:var(--ink);color:#fff;font-size:10.5px;font-weight:600}
+
+/* V4 · platform fact */
+.v-fact{background:var(--ink);color:#fff}
+.v-fact img{inset:0;opacity:.26;filter:grayscale(.2)}
+.v-fact .scrim{position:absolute;inset:0;background:radial-gradient(90% 60% at 50% 40%,rgb(23 23 26 / .1),rgb(23 23 26 / .85))}
+.v-fact .copy{position:absolute;left:14px;right:14px;top:96px}
+.v-fact .kick{font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--ai)}
+.v-fact .huge{margin-top:8px;font-family:var(--heading);font-size:34px;font-weight:800;line-height:.95;letter-spacing:-.02em}
+.v-fact .small{margin-top:12px;font-size:11.5px;line-height:1.45;opacity:.8}
+.v-fact .foot{position:absolute;left:14px;right:14px;bottom:16px;font-size:11px;font-weight:600;opacity:.85}
+
+/* Explanation under the sample */
+.legend{max-width:960px;margin:8px auto 64px;padding:0 16px}
+.legend h2{font-family:var(--heading);font-size:22px;font-weight:600}
+.legend p{margin-top:6px;color:var(--graphite);line-height:1.6}
+.legend ul{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:16px;list-style:none}
+.legend li{padding:14px;border:1px solid var(--hair);border-radius:18px;background:var(--surface);font-size:13.5px;line-height:1.5}
+.legend li b{display:block;margin-bottom:4px;font-family:var(--heading);font-size:15px}
+
+@media (max-width:767px){
+  .stage{--R:760px;--cardW:150px;--cardH:280px;height:400px;
+    -webkit-mask-image:linear-gradient(to right,transparent,#000 4%,#000 96%,transparent);
+            mask-image:linear-gradient(to right,transparent,#000 4%,#000 96%,transparent)}
+  .ring{perspective-origin:50% 560px}
+  .poster{top:84px}
+  .v-band .big{font-size:20px}
+  .v-full .name{font-size:18px}
+  .v-fact .huge{font-size:28px}
+  .v-fact .copy{top:80px}
+  .tag{padding:6px 10px;font-size:11.5px}
+  .legend ul{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .sub{font-size:15.5px}
+}
+@media (max-width:420px){.legend ul{grid-template-columns:minmax(0,1fr)}}
+</style>
+</head>
+<body>
+<div class="note">
+  <span><b>Sample only</b> · not the live app. Real demo stores, real photos and real demo prices from the catalogue.</span>
+  <button type="button" id="toggle" aria-pressed="false">Pause</button>
+</div>
+
+<section class="hero" aria-labelledby="t">
+  <span class="blob blob--peach" aria-hidden="true"></span>
+  <span class="blob blob--lilac" aria-hidden="true"></span>
+  <h1 id="t">The bazaar, at your doorstep.</h1>
+  <p class="twin" lang="ur" dir="rtl">بازار، آپ کی دہلیز پر۔</p>
+  <p class="sub">Search products from sellers across Pakistan. Pay in cash when it arrives, and follow your order all the way to your door.</p>
+  <div class="search" aria-hidden="true"><span>Search lawn suits, tea sets, cricket bats…</span><b>Search</b></div>
+
+  <div class="stage" id="stage" role="group" aria-label="Stores on KarobarAI">
+    <div class="tags" aria-hidden="true">
+      <span class="tag tag--cod">Pay on delivery</span>
+      <span class="tag tag--ai"><i>✦</i> Listed by AI in Urdu &amp; English</span>
+    </div>
+    <div class="ring" id="ring"></div>
+  </div>
+</section>
+
+<section class="legend">
+  <h2>Four poster types, one family</h2>
+  <p>Every card is a store's poster built from that store's own product photo. A click opens the store. Five stores give fourteen different posters, so the ring does not repeat the same card side by side.</p>
+  <ul>
+    <li><b>1 · Full photo</b>The product fills the card; the store name sits on a soft dark fade.</li>
+    <li><b>2 · Colour band</b>The category colour carries the store name in big bold type; the photo sits below.</li>
+    <li><b>3 · Spotlight</b>One product with its real price, and a "Visit store" pill.</li>
+    <li><b>4 · Platform fact</b>A true KarobarAI promise (cash on delivery, photo-backed returns, AI listings) over the store's photo.</li>
+  </ul>
+</section>
+
+<script>
+(function(){
+  'use strict';
+  /* demo catalogue: apps/backend/prisma/store-catalog-data.ts + photos in apps/stores/ */
+  var ROOT = '../../../../apps/stores/';
+  var STORES = {
+    zainab:{name:'Zainab Fashion House',city:'Faisalabad',cat:'Fashion',count:23,folder:'Zainab Fashion House',band:'#fbe9de',ink:'#a63e17',mono:'#bf4a1f',tint:'#fbede4'},
+    kitchen:{name:'Lahore Kitchen Mart',city:'Lahore',cat:'Home & kitchen',count:25,folder:'Lahore Kitchen Mart',band:'#f6e7c4',ink:'#8a5a12',mono:'#8a5a12',tint:'#f6f0e6'},
+    tech:{name:'TechZone Karachi',city:'Karachi',cat:'Electronics',count:21,folder:'TechZone Karach/TechZone Karach',band:'#e3e6f5',ink:'#3a4d7a',mono:'#3a4d7a',tint:'#f3f1ea'},
+    glow:{name:'Glow Beauty by Hira',city:'Islamabad',cat:'Beauty',count:23,folder:'Glow Beauty by Hira/Glow Beauty by Hira',band:'#f8e9ec',ink:'#9b2f45',mono:'#9b2f45',tint:'#f8e9ec'},
+    sports:{name:'Sialkot Sports Hub',city:'Sialkot',cat:'Sports',count:19,folder:'Sialkot Sports Hub/Sialkot Sports Hub',band:'#e6eedb',ink:'#3f6a2c',mono:'#3f6a2c',tint:'#e6eedb'}
+  };
+  /* order alternates stores and poster types so neighbours never match */
+  var POSTERS = [
+    {s:'zainab', v:'full',  file:'Bridal Embroidered Lehenga.jpg'},
+    {s:'tech',   v:'band',  file:'Gaming Headphones.jpeg'},
+    {s:'kitchen',v:'spot',  file:'Floral Bone China Tea Set (15 Pieces).jpg', p:'Floral Bone China Tea Set (15 Pieces)', price:5900},
+    {s:'glow',   v:'full',  file:'Eyeshadow Palette  Shades.jfif'},
+    {s:'sports', v:'fact',  file:'Boxing Gloves.jfif', kick:'Every order', huge:'Photo-<br>backed<br>returns', small:'Send three photos and the AI compares them with the listing.'},
+    {s:'zainab', v:'band',  file:'Chikankari Kurti.jpg'},
+    {s:'tech',   v:'spot',  file:'Mechanical Keyboard.jpeg', p:'Mechanical Keyboard with RGB', price:7500},
+    {s:'kitchen',v:'full',  file:'luxuary gold Serving Tray.jpg'},
+    {s:'glow',   v:'band',  file:'Perfume for Women.webp'},
+    {s:'tech',   v:'fact',  file:'CCTV Camera.jpeg', kick:'Across Pakistan', huge:'Cash on<br>delivery', small:'Pay in cash when the parcel reaches your door.'},
+    {s:'sports', v:'full',  file:'English Willow Cricket Bat.jfif'},
+    {s:'zainab', v:'spot',  file:'Abaya with Stone Work.jpg', p:'Abaya with Stone Work', price:5200},
+    {s:'glow',   v:'spot',  file:'Argan.jpg', p:'Argan Hair Oil', price:1450},
+    {s:'kitchen',v:'fact',  file:'gold Serving Tray.jpg', kick:'Every listing', huge:'Urdu &amp;<br>English', small:'Sellers snap a photo; AI writes the listing in both languages.'}
+  ];
+
+  function src(st, file){ return encodeURI(ROOT + st.folder + '/' + file).replace(/#/g, '%23'); }
+  function rs(n){ return n.toLocaleString('en-PK'); }
+  function chip(st){
+    return '<span class="chip"><i style="background:' + st.mono + '">' + st.name.charAt(0) + '</i>' + st.name + '</span>';
+  }
+  function poster(d){
+    var st = STORES[d.s], img = '<img alt="" draggable="false" src="' + src(st, d.file) + '">';
+    var label = st.name + ', ' + st.city + '. Visit store';
+    var inner;
+    if (d.v === 'full'){
+      inner = img + '<div class="scrim"></div>' + chip(st) +
+        '<div class="foot"><div class="name">' + st.name + '</div>' +
+        '<div class="meta">' + st.city + ' · ' + st.cat + ' · ' + st.count + ' products</div>' +
+        '<div class="go">Visit store →</div></div>';
+    } else if (d.v === 'band'){
+      inner = '<div class="band" style="background:' + st.band + ';color:' + st.ink + '">' +
+          '<div class="big">' + st.name + '</div><div class="city">' + st.city + ' · ' + st.count + ' products</div></div>' +
+        '<div class="photo" style="--band:' + st.band + ';background:' + st.tint + '">' + img + '</div>' + chip(st);
+    } else if (d.v === 'spot'){
+      label = d.p + ' from ' + st.name + '. Visit store';
+      inner = '<div class="photo" style="background:' + st.tint + '">' + img + '</div>' + chip(st) +
+        '<div class="body"><div class="pname">' + d.p + '</div>' +
+        '<div class="price"><small>Rs</small>' + rs(d.price) + '</div></div>' +
+        '<span class="pill">Visit store →</span>';
+    } else {
+      label = st.name + '. ' + d.huge.replace(/<br>/g, ' ').replace('&amp;', 'and');
+      inner = img + '<div class="scrim"></div>' + chip(st) +
+        '<div class="copy"><div class="kick">' + d.kick + '</div><div class="huge">' + d.huge + '</div>' +
+        '<div class="small">' + d.small + '</div></div>' +
+        '<div class="foot">' + st.city + ' · Visit store →</div>';
+    }
+    return {html: inner + '<span class="edge"></span>', label: label};
+  }
+
+  var ring = document.getElementById('ring');
+  var stage = document.getElementById('stage');
+  var N = 32, STEP = 360 / N, CULL = 40, SPEED = 3.2; /* deg per second */
+  var cards = [];
+  for (var i = 0; i < N; i++){
+    var d = POSTERS[i % POSTERS.length], built = poster(d);
+    var a = document.createElement('a');
+    a.href = '#';
+    a.className = 'poster v-' + d.v;
+    a.innerHTML = built.html;
+    a.setAttribute('aria-label', built.label);
+    /* the ring repeats posters to fill the circle: only the first lap is reachable by keyboard */
+    if (i >= POSTERS.length){ a.tabIndex = -1; a.setAttribute('aria-hidden', 'true'); }
+    a.addEventListener('click', function(e){ e.preventDefault(); });
+    a.querySelectorAll('img').forEach(function(img){
+      img.addEventListener('error', function(){ img.style.display = 'none'; });
+    });
+    ring.appendChild(a);
+    cards.push(a);
+  }
+
+  var phase = 0, paused = false, hovering = false, visible = true;
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
+  function radius(){ return parseFloat(getComputedStyle(stage).getPropertyValue('--R')) || 1100; }
+  var dir = document.documentElement.dir === 'rtl' ? -1 : 1;
+
+  function place(){
+    var R = radius();
+    for (var i = 0; i < N; i++){
+      var el = cards[i];
+      /* signed angle in -180..180 (JS % keeps the sign, so fold it back into range) */
+      var ang = ((i * STEP - phase * dir) % 360 + 540) % 360 - 180;
+      if (Math.abs(ang) > CULL){ el.style.visibility = 'hidden'; continue; }
+      el.style.visibility = 'visible';
+      var r = ang * Math.PI / 180, c = Math.cos(r);
+      /* camera at the ring centre: x = R·sin a, depth toward the eye = R·(1 − cos a); rotateY(−a) faces it */
+      el.style.transform = 'translate3d(' + (R * Math.sin(r)).toFixed(1) + 'px,0,' + (R * (1 - c)).toFixed(1) + 'px) rotateY(' + (-ang).toFixed(2) + 'deg)';
+      /* light theme: the front card is the clearest; cards fade a little toward the edges */
+      var t = Math.abs(ang) / CULL;
+      el.style.opacity = (1 - t * t * 0.55).toFixed(3);
+      el.style.zIndex = String(100 - Math.round(Math.abs(ang)));
+    }
+  }
+
+  var last = null;
+  function tick(now){
+    if (last === null) last = now;
+    var dt = Math.min((now - last) / 1000, 0.1);
+    last = now;
+    if (!paused && !hovering && visible && !reduce.matches) phase += SPEED * dt;
+    place();
+    requestAnimationFrame(tick);
+  }
+  stage.addEventListener('pointerenter', function(){ hovering = true; });
+  stage.addEventListener('pointerleave', function(){ hovering = false; });
+  stage.addEventListener('focusin', function(){ hovering = true; });
+  stage.addEventListener('focusout', function(){ hovering = false; });
+  document.addEventListener('visibilitychange', function(){ last = null; });
+  if ('IntersectionObserver' in window){
+    new IntersectionObserver(function(entries){ visible = entries[0].isIntersecting; }).observe(stage);
+  }
+  var toggle = document.getElementById('toggle');
+  toggle.addEventListener('click', function(){
+    paused = !paused;
+    toggle.textContent = paused ? 'Play' : 'Pause';
+    toggle.setAttribute('aria-pressed', String(paused));
+  });
+  window.addEventListener('resize', place);
+  place();
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
